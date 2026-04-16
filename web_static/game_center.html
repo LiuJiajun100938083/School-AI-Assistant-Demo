@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲中心 - 校園AI助手</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/game_center.css">
-    <link rel="stylesheet" href="/static/css/spinner.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <title>遊戲中心 - AI學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/game_center.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/spinner.css?v=20260414">
+    <script src="/static/vendor/gsap/gsap.min.js"></script>
 </head>
 <body>
     <!-- 启动画面 -->
@@ -75,9 +74,11 @@
         </section>
 
         <!-- 科目 Pill Chips -->
-        <nav class="gc-pills" id="subjectPills">
-            <!-- JS 動態生成 -->
-        </nav>
+        <div class="gc-pills-wrapper">
+            <nav class="gc-pills" id="subjectPills">
+                <!-- JS 動態生成 -->
+            </nav>
+        </div>
 
         <!-- 游戏内容区 -->
         <main class="gc-main">
@@ -133,14 +134,14 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="/static/js/shared/utils.js"></script>
-    <script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/game_center.js"></script>
-    <script src="/static/js/shared/auth.js"></script>
-    <script src="/static/js/shared/ui.js"></script>
-    <script src="/static/js/shared/api.js"></script>
-    <script src="/static/js/game_center.js"></script>
+    <script src="/static/vendor/qrcode/qrcode.min.js"></script>
+    <script src="/static/js/shared/utils.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/game_center.js?v=20260414"></script>
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/js/shared/ui.js?v=20260414"></script>
+    <script src="/static/js/shared/api.js?v=20260414"></script>
+    <script src="/static/js/game_center.js?v=20260414"></script>
 </body>
 </html>

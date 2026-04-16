@@ -453,7 +453,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  z-index: 10;
+  z-index: 1600; /* 高於 AI 浮窗 (z-index: 1500)，確保總是可點擊 */
 }
 
 .alc-control-btn {

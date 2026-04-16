@@ -25,7 +25,7 @@
 
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from app.config.settings import Settings, get_settings
 from app.core.security import JWTManager
@@ -39,6 +39,8 @@ from app.domains.classroom.repository import (
     PPTPageRepository,
 )
 from app.domains.analytics.repository import AnalyticsRepository
+from app.domains.analytics.risk_cache_repository import RiskCacheRepository
+from app.domains.analytics.risk_cache_service import RiskCacheService
 from app.domains.attendance.repository import (
     ActivityGroupRepository,
     ActivitySessionRepository,
@@ -97,6 +99,16 @@ from app.domains.resource_library.repository import (
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
+from app.domains.game_score.repository import GameScoreRepository
+from app.domains.pet.repository import (
+    PetRepository,
+    CoinTransactionRepository,
+    ShopItemRepository,
+    StreakRepository,
+    AchievementRepository,
+    LikeRepository,
+)
+from app.domains.llm_usage.repository import LlmUsageRepository
 from app.domains.chem2048.repository import Chem2048Repository
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
@@ -140,14 +152,35 @@ from app.domains.school_learning_center.service import SchoolLearningCenterServi
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
 from app.domains.farm_game.service import FarmGameService
+from app.domains.game_score.service import GameScoreService
+from app.domains.pet.service import PetService
+from app.domains.llm_usage.service import LlmUsageService
 from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
+from app.domains.dictation.repository import (
+    DictationRepository,
+    DictationSubmissionFileRepository,
+    DictationSubmissionRepository,
+)
+from app.domains.dictation.grader import DictationGrader
+from app.domains.dictation.service import DictationService
+from app.domains.handwriting_ocr.base import HandwritingOCREngine
+from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
+from app.domains.handwriting_ocr.vision_llm_engine import VisionLLMEngine
+# TrocrLineEngine 是重量級依賴 (transformers + doctr),只在需要時 import
+# 在 handwriting_ocr_registry 屬性內延遲 import,避免單元測試啟動時拖累
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
 from app.domains.exam_creator.repository import ExamGenerationSessionRepository
 from app.domains.exam_creator.service import ExamCreatorService
+from app.domains.collab_board.repository import CollabBoardRepository
+from app.domains.collab_board.service import CollabBoardService
+from app.domains.collab_board.broadcaster import BoardBroadcaster
+from app.domains.collab_board.link_meta import HttpLinkMetaProvider
+from app.domains.collab_board.uploader import BoardFileUploader
+from app.domains.collab_board.constants import DEFAULT_UPLOAD_DIR as COLLAB_BOARD_UPLOAD_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +230,9 @@ class ServiceContainer:
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
         self._farm_game: Optional[FarmGameService] = None
+        self._game_score: Optional[GameScoreService] = None
+        self._pet: Optional[PetService] = None
+        self._llm_usage: Optional[LlmUsageService] = None
         self._chem2048: Optional[Chem2048Service] = None
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
@@ -205,6 +241,15 @@ class ServiceContainer:
         self._lesson: Optional[LessonService] = None
         self._resource_library: Optional[ResourceLibraryService] = None
         self._exam_creator: Optional[ExamCreatorService] = None
+        self._risk_cache: Optional[RiskCacheService] = None
+        self._dictation: Optional[DictationService] = None
+        self._handwriting_ocr_registry: Optional[HandwritingOCRRegistry] = None
+        self._dictation_grader: Optional[DictationGrader] = None
+        self._ask_ai_func: Optional[Any] = None
+        self._collab_board: Optional[CollabBoardService] = None
+        self._exam_grader: Optional["ExamGraderService"] = None
+        self._my_exams: Optional[Any] = None
+        self._collab_board_broadcaster: Optional[BoardBroadcaster] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -316,6 +361,25 @@ class ServiceContainer:
         return self._analytics
 
     @property
+    def risk_cache(self) -> RiskCacheService:
+        """学生风险快取服务（每日 03:00 自动刷新）"""
+        if self._risk_cache is None:
+            risk_repo = self._get_repo(RiskCacheRepository)
+            # 啟動時確保表存在
+            try:
+                risk_repo.init_table()
+            except Exception as e:
+                logger.warning("student_risk_cache 表初始化失敗: %s", e)
+            self._risk_cache = RiskCacheService(
+                repository=risk_repo,
+                user_service=self.user,
+                analytics_service=self.analytics,
+                conv_repo=self._get_repo(ConversationRepository),
+                msg_repo=self._get_repo(MessageRepository),
+            )
+        return self._risk_cache
+
+    @property
     def subject(self) -> SubjectService:
         """学科管理服务"""
         if self._subject is None:
@@ -403,6 +467,61 @@ class ServiceContainer:
         return self._school_learning_center
 
     @property
+    def collab_board_broadcaster(self) -> BoardBroadcaster:
+        """協作佈告板 WebSocket 廣播器（單例）"""
+        if self._collab_board_broadcaster is None:
+            max_conn = getattr(self._settings, "websocket_max_connections", 100) or 100
+            self._collab_board_broadcaster = BoardBroadcaster(max_connections=max_conn)
+        return self._collab_board_broadcaster
+
+    @property
+    def collab_board(self) -> CollabBoardService:
+        """協作佈告板服務"""
+        if self._collab_board is None:
+            self._collab_board = CollabBoardService(
+                repo=self._get_repo(CollabBoardRepository),
+                broadcaster=self.collab_board_broadcaster,
+                link_meta=HttpLinkMetaProvider(timeout=5),
+                uploader=BoardFileUploader(upload_dir=COLLAB_BOARD_UPLOAD_DIR),
+            )
+        return self._collab_board
+
+    @property
+    def exam_grader(self):
+        """试卷批阅服务"""
+        if self._exam_grader is None:
+            from app.domains.exam_grader.repository import (
+                ExamPaperRepository,
+                ExamQuestionRepository,
+                ExamStudentAnswerRepository,
+                ExamStudentPaperRepository,
+            )
+            from app.domains.exam_grader.service import ExamGraderService
+            from app.domains.user.repository import UserRepository
+
+            self._exam_grader = ExamGraderService(
+                paper_repo=self._get_repo(ExamPaperRepository),
+                question_repo=self._get_repo(ExamQuestionRepository),
+                student_paper_repo=self._get_repo(ExamStudentPaperRepository),
+                student_answer_repo=self._get_repo(ExamStudentAnswerRepository),
+                vision_service=self.vision,
+                user_repo=self._get_repo(UserRepository),
+                settings=self._settings,
+            )
+        return self._exam_grader
+
+    @property
+    def my_exams(self):
+        """學生考試成績服務"""
+        if self._my_exams is None:
+            from app.domains.my_exams.repository import MyExamsRepository
+            from app.domains.my_exams.service import MyExamsService
+            self._my_exams = MyExamsService(
+                repo=self._get_repo(MyExamsRepository),
+            )
+        return self._my_exams
+
+    @property
     def game_upload(self) -> GameUploadService:
         """游戏上传服务"""
         if self._game_upload is None:
@@ -428,6 +547,39 @@ class ServiceContainer:
                 score_repo=self._get_repo(FarmGameRepository),
             )
         return self._farm_game
+
+    @property
+    def game_score(self) -> GameScoreService:
+        """自定義遊戲計分服務"""
+        if self._game_score is None:
+            self._game_score = GameScoreService(
+                score_repo=self._get_repo(GameScoreRepository),
+                game_repo=self._get_repo(GameUploadRepository),
+            )
+        return self._game_score
+
+    @property
+    def pet(self) -> PetService:
+        """虚拟宠物服务"""
+        if self._pet is None:
+            self._pet = PetService(
+                pet_repo=self._get_repo(PetRepository),
+                coin_repo=self._get_repo(CoinTransactionRepository),
+                shop_repo=self._get_repo(ShopItemRepository),
+                streak_repo=self._get_repo(StreakRepository),
+                achievement_repo=self._get_repo(AchievementRepository),
+                like_repo=self._get_repo(LikeRepository),
+            )
+        return self._pet
+
+    @property
+    def llm_usage(self) -> LlmUsageService:
+        """LLM API 使用量追蹤服務"""
+        if self._llm_usage is None:
+            self._llm_usage = LlmUsageService(
+                repo=self._get_repo(LlmUsageRepository),
+            )
+        return self._llm_usage
 
     @property
     def chem2048(self) -> Chem2048Service:
@@ -510,6 +662,97 @@ class ServiceContainer:
             self._vision = VisionService()
         return self._vision
 
+    @property
+    def handwriting_ocr_registry(self) -> HandwritingOCRRegistry:
+        """OCR provider registry — language → engine + fallback chain.
+
+        構造規則:
+          - 永遠註冊 vision_llm (雙語通用) 作為最終 fallback
+          - settings.ocr_provider_* 指向其他名稱時在此額外註冊
+            (e.g. trocr_local 在 phase 3 加)
+        """
+        if self._handwriting_ocr_registry is None:
+            engines: dict[str, HandwritingOCREngine] = {
+                "vision_llm": VisionLLMEngine(self.vision),
+            }
+            llm_settings = self._settings  # Settings class flat-inherits LLMSettings fields
+
+            requested = {llm_settings.ocr_provider_en, llm_settings.ocr_provider_zh}
+            if "trocr_local" in requested:
+                try:
+                    from app.domains.handwriting_ocr.trocr_line_engine import (
+                        TrocrLineEngine,
+                    )
+                    engines["trocr_local"] = TrocrLineEngine(
+                        model_name=llm_settings.trocr_model,
+                        device=llm_settings.trocr_device,
+                        max_lines=llm_settings.trocr_max_lines,
+                    )
+                    logger.info(
+                        "TrocrLineEngine 已註冊 (model=%s, device=%s)",
+                        llm_settings.trocr_model, llm_settings.trocr_device,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "TrocrLineEngine 註冊失敗,將 fallback 到 vision_llm: %s", e,
+                    )
+
+            primary = {
+                "en": llm_settings.ocr_provider_en or "vision_llm",
+                "zh": llm_settings.ocr_provider_zh or "vision_llm",
+            }
+            # 若 primary 名稱沒成功註冊,退回 vision_llm
+            for lang in ("en", "zh"):
+                if primary[lang] not in engines:
+                    logger.warning(
+                        "OCR provider '%s' (lang=%s) 未註冊,退回 vision_llm",
+                        primary[lang], lang,
+                    )
+                    primary[lang] = "vision_llm"
+
+            self._handwriting_ocr_registry = HandwritingOCRRegistry(
+                engines=engines,
+                primary_by_language=primary,
+            )
+        return self._handwriting_ocr_registry
+
+    @property
+    def dictation_grader(self) -> Optional[DictationGrader]:
+        """LLM 判分層 — 透過 inject_ai_functions(ask_ai=...) 啟用。
+
+        若 settings.dictation_grader_enabled=False 或 ask_ai 尚未注入,
+        回 None,DictationService 會降級為純 difflib 機械分數。
+        """
+        llm_settings = self._settings  # Settings class flat-inherits LLMSettings fields
+        if not llm_settings.dictation_grader_enabled:
+            return None
+        if self._dictation_grader is not None:
+            return self._dictation_grader
+        if self._ask_ai_func is None:
+            return None
+        self._dictation_grader = DictationGrader(
+            ask_ai=self._ask_ai_func,
+            timeout_sec=llm_settings.dictation_grader_timeout_sec,
+        )
+        return self._dictation_grader
+
+    @property
+    def dictation(self) -> DictationService:
+        """默書服務"""
+        if self._dictation is None:
+            self._dictation = DictationService(
+                dictation_repo=self._get_repo(DictationRepository),
+                submission_repo=self._get_repo(DictationSubmissionRepository),
+                file_repo=self._get_repo(DictationSubmissionFileRepository),
+                handwriting_ocr_registry=self.handwriting_ocr_registry,
+                vision_service=self.vision,
+                user_repo=self._get_repo(UserRepository),
+                grader_provider=lambda: self.dictation_grader,
+                usage_recorder_provider=lambda: self.llm_usage,
+                settings=self._settings,
+            )
+        return self._dictation
+
     # ================================================================== #
     #  外部依赖注入                                                        #
     # ================================================================== #
@@ -536,6 +779,10 @@ class ServiceContainer:
                 ...
             )
         """
+        # 保存 ask_ai callable,供 dictation_grader 等延遲構造的服務使用
+        if ask_ai is not None:
+            self._ask_ai_func = ask_ai
+
         # ChatService
         if ask_ai or ask_ai_stream or vector_search:
             self.chat.set_ai_functions(
@@ -581,6 +828,10 @@ class ServiceContainer:
         # PlagiarismService
         if ask_ai:
             self.plagiarism.set_ai_function(ask_ai)
+
+        # ExamGraderService
+        if ask_ai:
+            self.exam_grader.set_ai_function(ask_ai)
 
         logger.info("外部依赖注入完成")
 

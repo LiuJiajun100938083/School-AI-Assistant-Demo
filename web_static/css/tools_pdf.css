@@ -1,0 +1,395 @@
+/**
+ * PDF 多功能工具 — 專屬樣式
+ * 沿用 tools.css 的 design token (--tools-brand / --tools-card / ...)
+ */
+
+:root {
+    --pdft-brand: var(--tools-brand, #006633);
+    --pdft-brand-hover: var(--tools-brand-hover, #007A3D);
+    --pdft-brand-light: var(--tools-brand-light, #E8F5EC);
+    --pdft-border: var(--tools-border, #E5E7EB);
+    --pdft-border-strong: #D1D5DB;
+    --pdft-text: var(--tools-text, #1D1D1F);
+    --pdft-text-2: var(--tools-text-2, #6E6E73);
+    --pdft-text-3: var(--tools-text-3, #A1A1A6);
+    --pdft-card: var(--tools-card, #FFFFFF);
+    --pdft-bg: var(--tools-bg, #F5F5F7);
+    --pdft-radius: 14px;
+    --pdft-shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.pdft-page {
+    max-width: 1200px;
+    padding: 32px 24px 64px;
+}
+
+/* ── Tab bar ── */
+.pdft-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    background: var(--pdft-card);
+    border: 1px solid var(--pdft-border);
+    border-radius: var(--pdft-radius);
+    box-shadow: var(--pdft-shadow-sm);
+    margin-bottom: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.pdft-tabs::-webkit-scrollbar { display: none; }
+.pdft-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--pdft-text-2);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.pdft-tab:hover:not(.active) {
+    color: var(--pdft-text);
+    background: var(--pdft-bg);
+}
+.pdft-tab.active {
+    background: var(--pdft-brand-light);
+    color: var(--pdft-brand);
+}
+.pdft-tab:focus-visible {
+    outline: 2px solid var(--pdft-brand);
+    outline-offset: 2px;
+}
+.pdft-tab svg { flex-shrink: 0; }
+
+/* ── Pane ── */
+.pdft-pane {
+    display: block;
+}
+.pdft-pane[hidden] {
+    display: none !important;
+}
+
+/* Override the tools-drop single-file tighter height */
+.pdft-drop--single {
+    min-height: 140px;
+}
+
+.pdft-drop-icon {
+    color: var(--pdft-brand);
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.pdft-status {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--pdft-text-2);
+    min-height: 20px;
+}
+
+/* ── Thumbnails grid (Mode 1 images → PDF) ── */
+.pdft-thumb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+.pdft-thumb {
+    position: relative;
+    background: var(--pdft-bg);
+    border: 1px solid var(--pdft-border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: grab;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.pdft-thumb:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+.pdft-thumb.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+.pdft-thumb.drag-over {
+    border-color: var(--pdft-brand);
+    box-shadow: 0 0 0 3px var(--pdft-brand-light);
+}
+.pdft-thumb__idx {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: var(--pdft-brand);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 2;
+}
+.pdft-thumb__del {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.pdft-thumb__del:hover {
+    background: #B91C1C;
+}
+.pdft-thumb img {
+    display: block;
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+}
+.pdft-thumb__name {
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--pdft-text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── File list (Mode 2 merge PDFs) ── */
+.pdft-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pdft-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--pdft-bg);
+    border: 1px solid var(--pdft-border);
+    border-radius: 10px;
+    font-size: 13px;
+    transition: border-color 0.15s, background 0.15s;
+}
+.pdft-file-item:hover {
+    border-color: var(--pdft-brand);
+    background: var(--pdft-brand-light);
+}
+.pdft-file-idx {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: var(--pdft-brand);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.pdft-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--pdft-text);
+    font-weight: 500;
+}
+.pdft-file-size {
+    color: var(--pdft-text-3);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+.pdft-file-del {
+    background: transparent;
+    border: none;
+    color: var(--pdft-text-3);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.pdft-file-del:hover {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+/* ── Form fields ── */
+.pdft-field {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pdft-field__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pdft-text);
+}
+.pdft-field__hint {
+    font-size: 12px;
+    color: var(--pdft-text-2);
+    line-height: 1.5;
+}
+.pdft-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 18px;
+}
+@media (max-width: 720px) {
+    .pdft-field-row { grid-template-columns: 1fr; }
+}
+
+.pdft-input {
+    padding: 11px 14px;
+    border: 1.5px solid var(--pdft-border-strong);
+    border-radius: 10px;
+    font-size: 15px;
+    color: var(--pdft-text);
+    background: var(--pdft-card);
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pdft-input:focus {
+    outline: none;
+    border-color: var(--pdft-brand);
+    box-shadow: 0 0 0 4px var(--pdft-brand-light);
+}
+
+.pdft-range {
+    width: 100%;
+    accent-color: var(--pdft-brand);
+}
+
+/* Segmented control (compress level / watermark angle) */
+.pdft-segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 6px;
+    background: var(--pdft-bg);
+    border-radius: 12px;
+}
+.pdft-segmented--compact {
+    grid-template-columns: repeat(4, 1fr);
+}
+.pdft-segmented button {
+    padding: 12px 10px;
+    background: transparent;
+    border: 1.5px solid transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    text-align: center;
+    font-family: inherit;
+    color: var(--pdft-text-2);
+}
+.pdft-segmented button strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pdft-text);
+}
+.pdft-segmented button small {
+    font-size: 11px;
+    color: var(--pdft-text-3);
+}
+.pdft-segmented button:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.03);
+}
+.pdft-segmented button.active {
+    background: var(--pdft-card);
+    border-color: var(--pdft-brand);
+    box-shadow: var(--pdft-shadow-sm);
+}
+.pdft-segmented button.active strong {
+    color: var(--pdft-brand);
+}
+.pdft-segmented--compact button {
+    padding: 10px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pdft-text);
+}
+.pdft-segmented button:focus-visible {
+    outline: 2px solid var(--pdft-brand);
+    outline-offset: 2px;
+}
+
+/* Actions row */
+.pdft-actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.pdft-error {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+    color: #991B1B;
+    font-size: 13px;
+    display: none;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+.pdft-error--show { display: block; }
+
+/* spinner reuse (from index.css or inline) */
+.loading-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: pdft-spin 0.7s linear infinite;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+@keyframes pdft-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 760px) {
+    .pdft-page { padding: 24px 16px 48px; }
+    .pdft-tab { padding: 10px 14px; font-size: 13px; }
+    .pdft-tab span { display: none; }
+    .pdft-thumb img { height: 90px; }
+    .pdft-actions { flex-direction: column-reverse; }
+    .pdft-actions .tools-btn { width: 100%; }
+}

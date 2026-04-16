@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Virtual environment
+.venv
+venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python cache
+__pycache__
+*.py[cod]
+
+# Data directories (mounted as volumes, not baked into image)
+vector_db/
+uploads/
+user_data/
+user_backups/
+security_backups/
+logs/
+Knowledge_base/
+
+# Security / secrets (NEVER bake into image)
+private_key.pem
+jwt_secret.key
+.encryption_key
+.env
+.env.*
+security_config.json
+
+# Large / unnecessary files
+*.sql
+*.pptx
+*.docx
+*.xlsx
+nul
+DATABASE_SCHEMA.sql
+PKMS_Speaker_Notes.docx
+
+# Skip for now
+china_economy_game/
+
+# Dev tools / scripts
+database_migration/
+scripts/
+tests/
+test_*.py
+
+# Docker files (no need to copy themselves)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Claude / plans
+.claude/

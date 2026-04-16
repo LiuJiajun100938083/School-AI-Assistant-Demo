@@ -1044,11 +1044,50 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Tab pane fade-in ── */
+/* Tab pane: directional slide-in + fade — feels like a "navigation forward" */
+@keyframes tabSlideFadeIn {
+    0%   { opacity: 0; transform: translate3d(14px, 0, 0); }
+    60%  { opacity: 1; }
+    100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Children of newly-active tab-pane stagger in for hierarchy motion */
+@keyframes tabChildRise {
+    from { opacity: 0; transform: translate3d(0, 8px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Sidebar item active indicator: vertical accent bar grows from center */
+@keyframes sidebarAccentGrow {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+}
+
+/* Sidebar item press ripple (scale flash) */
+@keyframes sidebarPressFlash {
+    0%   { background-color: var(--brand-light); }
+    100% { background-color: transparent; }
+}
+
+/* ── Tab pane: directional slide + fade ──
+   NOTE: do NOT use persistent will-change here — it promotes text to a GPU
+   layer permanently which removes sub-pixel font antialiasing and makes
+   text look blurry on non-Retina displays. The animation itself is enough
+   to trigger temporary GPU layering. */
 .tab-pane.active {
     display: block;
-    animation: fadeIn 0.25s ease-out;
+    animation: tabSlideFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+/* Stagger top-level children of newly-active tab-pane (30-50ms each) */
+.tab-pane.active > * {
+    animation: tabChildRise 0.32s ease-out both;
+}
+.tab-pane.active > *:nth-child(1) { animation-delay: 0.04s; }
+.tab-pane.active > *:nth-child(2) { animation-delay: 0.08s; }
+.tab-pane.active > *:nth-child(3) { animation-delay: 0.12s; }
+.tab-pane.active > *:nth-child(4) { animation-delay: 0.16s; }
+.tab-pane.active > *:nth-child(5) { animation-delay: 0.20s; }
+.tab-pane.active > *:nth-child(n+6) { animation-delay: 0.22s; }
 
 /* ── Stat card entrance + hover ── */
 .stat-card {
@@ -1061,21 +1100,81 @@ body {
 .stat-card:nth-child(3) { animation-delay: 0.1s; }
 .stat-card:nth-child(4) { animation-delay: 0.15s; }
 
-/* ── Sidebar item smooth transition ── */
+/* ── Sidebar item: smooth state transition + press feedback + accent bar ──
+   NOTE: avoid persistent will-change on text-bearing elements — it forces
+   GPU layer and breaks sub-pixel font antialiasing. */
 .admin-sidebar__item {
-    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    position: relative;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+
+/* The vertical accent bar (left edge) — animates in for active state */
+.admin-sidebar__item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--brand);
+    transform-origin: center;
+    transform: scaleY(0);
+    opacity: 0;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.22s ease-out;
+    pointer-events: none;
 }
 
 .admin-sidebar__item:hover {
-    transform: translateX(2px);
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-primary);
+    transform: translateX(3px);
+}
+
+/* Press feedback: subtle scale-down (interrupted by class change on click) */
+.admin-sidebar__item:active {
+    transform: translateX(3px) scale(0.98);
+    transition-duration: 0.08s;
 }
 
 .admin-sidebar__item--active {
-    transform: none;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-weight: 600;
+    transform: none;  /* not translateX(0) — that still creates a layer */
+    animation: sidebarPressFlash 0.4s ease-out;
+}
+
+.admin-sidebar__item--active::before {
+    transform: scaleY(1);
+    opacity: 1;
 }
 
 .admin-sidebar__item--active:hover {
     transform: none;
+    background: var(--brand-light);
+}
+
+.admin-sidebar__item--active:active {
+    transform: scale(0.98);
+}
+
+/* ── Reduced motion: respect user preference (CRITICAL accessibility) ── */
+@media (prefers-reduced-motion: reduce) {
+    .tab-pane.active,
+    .tab-pane.active > *,
+    .stat-card,
+    .admin-sidebar__item,
+    .admin-sidebar__item::before,
+    .admin-sidebar__item--active {
+        animation: none !important;
+        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+        transform: none !important;
+    }
+    .tab-pane.active {
+        animation: fadeIn 0.15s ease-out !important;
+    }
 }
 
 /* ── Sidebar icon container ── */

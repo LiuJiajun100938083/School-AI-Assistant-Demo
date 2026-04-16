@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="ct.pageTitle">教學控制台</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/classroom_teacher.css">
-    <link rel="stylesheet" href="/static/css/lesson_runtime.css">
+    <script src="/static/vendor/fabric/fabric.min.js"></script>
+    <script src="/static/vendor/gsap/gsap.min.js"></script>
+    <link rel="stylesheet" href="/static/css/classroom_teacher.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/lesson_runtime.css?v=20260414">
 </head>
 <body>
 
@@ -301,7 +300,10 @@
 
             <!-- D. Online Students -->
             <div class="panel-section panel-students">
-                <div class="panel-section-title" data-i18n="ct.students">學生</div>
+                <div class="panel-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span data-i18n="ct.students">學生</span>
+                    <button class="coin-award-toggle" id="coinAwardToggle" onclick="toggleAwardMode()">🪙 加分</button>
+                </div>
                 <div class="students-container" id="studentsList">
                     <div class="empty-state" data-i18n="ct.noStudents">尚無學生連線</div>
                 </div>
@@ -323,17 +325,17 @@
     </div>
 </div>
 
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/classroom.js"></script>
-<script src="/static/js/shared/annotation_utils.js"></script>
-<script src="/static/js/shared/lesson_slide_renderers.js"></script>
-<script src="/static/js/shared/interactive_renderers.js"></script>
-<link rel="stylesheet" href="/static/css/interactive_activity.css">
-<script src="/static/js/classroom_teacher.js"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/classroom.js?v=20260414"></script>
+<script src="/static/js/shared/annotation_utils.js?v=20260414"></script>
+<script src="/static/js/shared/lesson_slide_renderers.js?v=20260414"></script>
+<script src="/static/js/shared/interactive_renderers.js?v=20260414"></script>
+<link rel="stylesheet" href="/static/css/interactive_activity.css?v=20260414">
+<script src="/static/js/classroom_teacher.js?v=20260414"></script>
 </body>
 </html>

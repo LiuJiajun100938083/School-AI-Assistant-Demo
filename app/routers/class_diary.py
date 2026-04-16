@@ -1434,6 +1434,14 @@ async def admin_generate_report(request: Request):
         )
 
         _audit.log("GENERATE_REPORT", "daily_report", admin_user, target_id=report_date)
+
+        # 宠物金币：生成学生报告 +8
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            try_award_coins_by_username(admin_user, "generate_report", f"report_{report_date}", "teacher")
+        except Exception:
+            pass
+
         return success_response(
             {"report_date": report_date, "status": "generating", "task_id": task_id},
             "報告生成已啟動",

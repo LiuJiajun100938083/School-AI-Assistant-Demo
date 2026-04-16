@@ -177,6 +177,51 @@ class LLMSettings(BaseSettings):
         default=2, description="AI 話題審核最大並發數"
     )
 
+    # === Dictation OCR / Grader ===
+    # Forensic OCR provider per language. Names must match keys registered in
+    # `services.container.ServiceContainer.handwriting_ocr_registry`.
+    ocr_provider_en: str = Field(
+        default="vision_llm",
+        description="英文默書 OCR provider: 'trocr_local' | 'vision_llm'",
+    )
+    ocr_provider_zh: str = Field(
+        default="vision_llm",
+        description="中文默書 OCR provider: 'vision_llm' (paddle 待加)",
+    )
+    trocr_model: str = Field(
+        default="microsoft/trocr-large-handwritten",
+        description="HuggingFace TrOCR model id",
+    )
+    trocr_device: str = Field(
+        default="auto",
+        description="auto | cpu | cuda",
+    )
+    trocr_max_lines: int = Field(
+        default=64, description="單張圖最多辨識的行數",
+    )
+    trocr_warmup_on_start: bool = Field(
+        default=False, description="容器啟動時預載 TrOCR 模型",
+    )
+    doctr_detection_arch: str = Field(
+        default="db_resnet50", description="doctr 行偵測模型架構",
+    )
+
+    # LLM grading layer (post-OCR judgement)
+    dictation_grader_enabled: bool = Field(
+        default=True, description="啟用 LLM 判分層",
+    )
+    dictation_grader_timeout_sec: int = Field(
+        default=30, description="LLM 判分逾時 (秒)",
+    )
+    dictation_grader_min_confidence: float = Field(
+        default=0.6,
+        description="LLM 判分信心 < 此值 → submission needs_review",
+    )
+    dictation_ocr_min_confidence: float = Field(
+        default=0.5,
+        description="OCR 整體信心 < 此值 → submission needs_review",
+    )
+
 
 class ServerSettings(BaseSettings):
     """服务器配置"""
@@ -202,6 +247,23 @@ class ServerSettings(BaseSettings):
     cors_allow_credentials: bool = Field(default=True)
     cors_allow_methods: List[str] = Field(default=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     cors_allow_headers: List[str] = Field(default=["*"])
+
+    # 全局 API 限流（Phase 1：單進程內存版，workers=1 有效）
+    # 規則按順序匹配，命中第一條即停止。pattern 為正則表達式。
+    rate_limit_enabled: bool = Field(default=True, description="是否啟用全局 API 限流")
+    # 限流規則（先具體後通用，命中即停）
+    # 注意：已登入用戶按 username 獨立計數，下面的上限是「每人」的；
+    #       未登入請求（login/register）才按 IP 計數，學校 NAT 共享 IP 需留足額度。
+    rate_limit_rules: list = Field(default=[
+        {"pattern": "^/api/(login|register|secure-login)", "max_requests": 30, "window": 60},
+        {"pattern": "^/api/games/ai/", "max_requests": 5, "window": 60},
+        {"pattern": "^/api/games/upload", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/mistakes/practice/[^/]+/status", "max_requests": 30, "window": 60},
+        {"pattern": "^/api/mistakes/practice/start", "max_requests": 5, "window": 60},
+        {"pattern": "^/api/mistakes/practice", "max_requests": 30, "window": 60},
+        {"pattern": "^/api/admin/", "max_requests": 120, "window": 60},
+        {"pattern": "^/api/", "max_requests": 120, "window": 60},
+    ], description="限流規則列表（先具體後通用，命中即停）")
 
     # Ngrok (可选)
     ngrok_domain: Optional[str] = Field(default=None)

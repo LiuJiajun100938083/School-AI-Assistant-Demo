@@ -58,7 +58,8 @@ const TasksAPI = {
                 }
             });
             if (resp.status === 401) {
-                window.location.href = '/';
+                const returnTo = window.location.pathname + window.location.search + window.location.hash;
+                window.location.href = '/login?redirect=' + encodeURIComponent(returnTo);
                 return null;
             }
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -81,6 +82,55 @@ const TasksUI = {
             video: i18n.t('lt.tagVideo'), doc: i18n.t('lt.tagDoc'), cert: i18n.t('lt.tagCert'),
             practice: i18n.t('lt.tagPractice'), website: i18n.t('lt.tagWebsite')
         };
+    },
+
+    /**
+     * 補齊缺失的 URL 協議。
+     * 對舊資料（如 "www.ulearning.asia"）防守性處理，避免被當作相對路徑。
+     */
+    _normalizeUrl(raw) {
+        if (!raw) return raw;
+        const s = String(raw).trim();
+        if (!s) return s;
+        const low = s.toLowerCase();
+        if (low.startsWith('http://') || low.startsWith('https://') ||
+            low.startsWith('mailto:') || low.startsWith('tel:') || low.startsWith('ftp://')) {
+            return s;
+        }
+        if (s.startsWith('//')) return 'https:' + s;
+        if (s.startsWith('/')) return s;  // 站內路徑（例如 /uploads/...）
+        return 'https://' + s;
+    },
+
+    /** 依 tag 回傳對應的 SVG 圖示路徑（feather-icons 風格） */
+    _tagIconPath(tag) {
+        const paths = {
+            // 影片 — play 圖示
+            video: '<polygon points="5 3 19 12 5 21 5 3"></polygon>',
+            // 文檔 — file-text
+            doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+            // 認證 — award
+            cert: '<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>',
+            // 練習 — edit
+            practice: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+            // 網站 — globe
+            website: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+        };
+        // 預設：external-link
+        return paths[tag] || '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>';
+    },
+
+    /** 依 tag 回傳動詞按鈕文字（不含 link_url 時不顯示按鈕） */
+    _actionLabel(tag, customLabel) {
+        if (customLabel) return customLabel;
+        const map = {
+            video: i18n.t('lt.actionVideo'),
+            doc: i18n.t('lt.actionDoc'),
+            cert: i18n.t('lt.actionCert'),
+            practice: i18n.t('lt.actionPractice'),
+            website: i18n.t('lt.actionWebsite'),
+        };
+        return map[tag] || i18n.t('lt.actionDefault');
     },
 
     renderTasks(tasks, currentStatus) {
@@ -140,7 +190,11 @@ const TasksUI = {
         const container = document.getElementById(`items-${taskId}`);
         if (!container) return;
 
-        container.innerHTML = detail.items.map(item => `
+        container.innerHTML = detail.items.map(item => {
+            const actionText = this._actionLabel(item.tag, item.link_label);
+            const tagClass = item.tag || 'default';
+            const safeUrl = this._normalizeUrl(item.link_url);
+            return `
             <div class="task-item ${item.is_completed ? 'completed' : ''}" data-item-id="${item.id}">
                 <div class="task-item-checkbox" data-task-id="${taskId}" data-item-id="${item.id}">
                     <input type="checkbox" class="checkbox-input" ${item.is_completed ? 'checked' : ''} />
@@ -151,15 +205,20 @@ const TasksUI = {
                 <div class="task-item-content">
                     <div class="task-item-title">${Utils.escapeHtml(item.title)}</div>
                     ${item.description ? `<div class="task-item-description">${Utils.escapeHtml(item.description)}</div>` : ''}
-                </div>
-                <div class="task-item-actions">
-                    ${item.tag ? `<span class="task-item-tag ${item.tag}">${this.TAG_LABELS[item.tag] || item.tag}</span>` : ''}
-                    ${item.link_url ? `
-                        <a href="${Utils.escapeHtml(item.link_url)}" target="_blank" rel="noopener noreferrer"
-                           class="task-item-link" title="${Utils.escapeHtml(item.link_label || i18n.t('lt.openLink'))}">↗</a>` : ''}
+                    ${safeUrl ? `
+                        <a href="${Utils.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
+                           class="task-item-action ${tagClass}">
+                            <svg class="task-item-action__icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                ${this._tagIconPath(item.tag)}
+                            </svg>
+                            <span class="task-item-action__text">${Utils.escapeHtml(actionText)}</span>
+                            <svg class="task-item-action__arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M7 17L17 7M17 7H8M17 7V16"/>
+                            </svg>
+                        </a>` : (item.tag ? `<span class="task-item-tag ${item.tag}">${this.TAG_LABELS[item.tag] || item.tag}</span>` : '')}
                 </div>
             </div>
-        `).join('');
+        `;}).join('');
 
         this.updateCompletionBadge(taskId, detail);
     },
@@ -267,6 +326,46 @@ const TasksApp = {
         this._bindEvents();
         await this._loadTasks();
         await this._loadProgress();
+
+        // 深連結：/learning-tasks/{id} 或 ?task_id={id} → 自動展開
+        const deepLinkId = this._readDeepLinkTaskId();
+        if (deepLinkId) {
+            await this._expandTaskById(deepLinkId);
+        }
+    },
+
+    _readDeepLinkTaskId() {
+        // 從 URL 路徑讀：/learning-tasks/123
+        const m = window.location.pathname.match(/\/learning-tasks\/(\d+)/);
+        if (m) return parseInt(m[1], 10);
+        // 退路：?task_id=123
+        const q = new URLSearchParams(window.location.search).get('task_id');
+        return q ? parseInt(q, 10) : null;
+    },
+
+    async _expandTaskById(taskId) {
+        const card = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+        if (card) {
+            this._handleTaskCardClick(card);
+            // 滾動到可視區
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+            return;
+        }
+        // 不在當前過濾結果裡 → 切到「全部」再試一次
+        if (this.state.currentStatus !== '') {
+            const allTab = document.querySelector('.tab[data-status=""]');
+            if (allTab) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                allTab.classList.add('active');
+                this.state.currentStatus = '';
+                await this._loadTasks('');
+                const retry = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+                if (retry) {
+                    this._handleTaskCardClick(retry);
+                    setTimeout(() => retry.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                }
+            }
+        }
     },
 
     _bindEvents() {

@@ -67,6 +67,9 @@ class JWTManager:
         self._cache: Set[str] = set()
         self._cache_lock = threading.Lock()
 
+        # 用户级 token 撤销缓存: username -> revoked_at (UTC datetime)
+        self._user_revoked_at: Dict[str, datetime] = {}
+
         # 确保数据库表存在 (只执行一次)
         self._ensure_table()
 
@@ -84,7 +87,7 @@ class JWTManager:
             pool.execute_write("""
                 CREATE TABLE IF NOT EXISTS token_blacklist (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    jti VARCHAR(36) NOT NULL UNIQUE,
+                    jti VARCHAR(200) NOT NULL UNIQUE,
                     username VARCHAR(100) DEFAULT '',
                     revoked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     expires_at DATETIME NOT NULL,
@@ -92,6 +95,13 @@ class JWTManager:
                     INDEX idx_expires (expires_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
+            # 兼容升级: 旧表 jti 为 VARCHAR(36), 扩展以支持 user_revoke/family 前缀
+            try:
+                pool.execute_write(
+                    "ALTER TABLE token_blacklist MODIFY COLUMN jti VARCHAR(200) NOT NULL"
+                )
+            except Exception:
+                pass  # 已经是正确类型则忽略
             JWTManager._table_ensured = True
             logger.info("token_blacklist 表已就绪")
         except Exception as e:
@@ -180,9 +190,14 @@ class JWTManager:
             logger.warning(f"Token 验证失败: {e}")
             raise AuthenticationError("无效的登录凭证")
 
-        # 检查黑名单
+        # 检查单 token 黑名单
         jti = payload.get("jti")
         if jti and self.is_revoked(jti):
+            raise TokenRevokedError()
+
+        # 检查用户级撤销 (密码修改后所有旧 token 失效)
+        username = payload.get("username")
+        if username and self._is_user_tokens_revoked(username, payload.get("iat")):
             raise TokenRevokedError()
 
         return payload
@@ -239,14 +254,70 @@ class JWTManager:
 
         return False
 
+    def _is_user_tokens_revoked(self, username: str, token_iat: Optional[float]) -> bool:
+        """检查 token 是否因用户级撤销（如密码修改）而失效"""
+        if token_iat is None:
+            return False
+
+        # 快速路径: 内存缓存
+        with self._cache_lock:
+            revoked_at = self._user_revoked_at.get(username)
+
+        # 慢路径: 查数据库并回填缓存
+        if revoked_at is None:
+            user_jti = f"user_revoke:{username}"
+            try:
+                pool = self._get_pool()
+                row = pool.execute_one(
+                    "SELECT revoked_at FROM token_blacklist WHERE jti = %s",
+                    (user_jti,),
+                )
+                if row and row.get("revoked_at"):
+                    revoked_at = row["revoked_at"]
+                    if revoked_at.tzinfo is None:
+                        revoked_at = revoked_at.replace(tzinfo=timezone.utc)
+                    with self._cache_lock:
+                        self._user_revoked_at[username] = revoked_at
+                else:
+                    return False
+            except Exception as e:
+                logger.warning(f"查询用户级 token 撤销失败: {e}")
+                return False
+
+        token_issued = datetime.fromtimestamp(token_iat, tz=timezone.utc)
+        return token_issued < revoked_at
+
     def revoke_all_user_tokens(self, username: str) -> None:
         """
         撤销用户所有 Token
 
-        通过向黑名单中插入一条特殊的 username 记录,
-        并在 decode_token 验证时检查用户级别的撤销。
+        向黑名单中插入一条用户级撤销记录 (jti = "user_revoke:{username}"),
+        decode_token 验证时会比较 token 的 iat 与撤销时间,
+        拒绝所有在撤销时间之前签发的 token。
         """
-        logger.info(f"已标记用户 {username} 的所有 Token 需要重新验证")
+        now = datetime.now(timezone.utc)
+        user_jti = f"user_revoke:{username}"
+        expires_at = now + timedelta(days=max(self._refresh_expire_days, 7))
+
+        # 更新内存缓存
+        with self._cache_lock:
+            self._user_revoked_at[username] = now
+
+        # 持久化到数据库
+        try:
+            pool = self._get_pool()
+            pool.execute_write(
+                "DELETE FROM token_blacklist WHERE jti = %s", (user_jti,),
+            )
+            pool.execute_write(
+                "INSERT INTO token_blacklist (jti, username, revoked_at, expires_at) "
+                "VALUES (%s, %s, %s, %s)",
+                (user_jti, username, now, expires_at),
+            )
+        except Exception as e:
+            logger.warning(f"持久化用户级 token 撤销失败: {e}")
+
+        logger.info(f"已撤销用户 {username} 在 {now} 之前签发的所有 Token")
 
     # ---- Refresh Token Rotation: 家族级撤销 ----
 

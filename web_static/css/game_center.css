@@ -498,20 +498,19 @@ body {
    Pill Chips 科目切換
    ========================================================================== */
 
-.gc-pills {
-    padding: var(--space-4) var(--space-8);
-    display: flex;
-    gap: var(--space-2);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+.gc-pills-wrapper {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
 }
 
-.gc-pills::-webkit-scrollbar {
-    display: none;
+.gc-pills {
+    padding: var(--space-4) var(--space-8);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+    width: 100%;
 }
 
 .gc-pill {

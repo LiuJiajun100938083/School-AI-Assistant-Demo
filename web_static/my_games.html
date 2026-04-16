@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的遊戲 - 校園AI助手</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/index.css">
+    <title>我的遊戲 - AI學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
     <style>
         /* 页面容器 */
         .my-games-page {
@@ -172,7 +171,8 @@
         }
 
         .game-icon {
-            font-size: 36px;
+            font-size: 28px;
+            line-height: 1;
             width: 56px;
             height: 56px;
             display: flex;
@@ -181,6 +181,11 @@
             background: var(--bg-page);
             border-radius: var(--radius-md);
             flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+        .game-icon svg {
+            width: 28px;
+            height: 28px;
         }
 
         .game-info {
@@ -291,9 +296,9 @@
         }
 
         .empty-icon {
-            font-size: 64px;
             margin-bottom: var(--space-4);
-            opacity: 0.4;
+            opacity: 0.3;
+            color: var(--text-secondary);
         }
 
         .empty-title {
@@ -549,7 +554,7 @@
                     <span>←</span>
                     <span>返回</span>
                 </a>
-                <span class="page-title">📦 我的遊戲</span>
+                <span class="page-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> 我的遊戲</span>
             </div>
             <div class="header-actions">
                 <a href="/game_upload" class="btn btn-primary">
@@ -581,15 +586,7 @@
             <div class="filter-bar">
                 <select class="filter-select" id="subjectFilter">
                     <option value="all">全部學科</option>
-                    <option value="chinese">📖 中文</option>
-                    <option value="math">📐 數學</option>
-                    <option value="english">🔤 英文</option>
-                    <option value="history">📜 歷史</option>
-                    <option value="ict">💻 ICT</option>
-                    <option value="physics">⚡ 物理</option>
-                    <option value="chemistry">🧪 化學</option>
-                    <option value="biology">🧬 生物</option>
-                    <option value="ces">🏛️ 公民</option>
+                    <!-- 由 JS 動態載入 -->
                 </select>
                 <select class="filter-select" id="visibilityFilter">
                     <option value="all">全部狀態</option>
@@ -653,7 +650,7 @@
     </div>
 
     <!-- QR Code 库 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="/static/vendor/qrcode/qrcode.min.js"></script>
 
 <script>
 /**
@@ -678,10 +675,58 @@ const MyGamesPage = {
         ces: '公民'
     },
 
+    // icon 標識符 → SVG（與上傳頁的圖標選擇器一致）
+    iconSVGs: {
+        gamepad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg>',
+        target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        puzzle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg>',
+        dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/><circle cx="12" cy="12" r="1"/></svg>',
+        trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+        star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+        rocket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+        lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+    },
+
+    getIconHTML(icon) {
+        // 如果是已知標識符 → 返回 SVG
+        if (this.iconSVGs[icon]) return this.iconSVGs[icon];
+        // 如果是 emoji（單字符或短字串）→ 直接返回
+        if (icon && icon.length <= 4) return icon;
+        // 降級：默認 gamepad
+        return this.iconSVGs['gamepad'];
+    },
+
     async init() {
         await this.checkAuth();
+        await this.loadSubjects();
         await this.loadGames();
         this.bindEvents();
+    },
+
+    async loadSubjects() {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch('/api/subjects', {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
+            const data = await resp.json();
+            if (data.subjects) {
+                const select = document.getElementById('subjectFilter');
+                const subjects = Object.values(data.subjects);
+                subjects.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+                for (const s of subjects) {
+                    // 更新 subjectNames 映射
+                    this.subjectNames[s.code] = s.name;
+                    // 添加篩選選項
+                    const opt = document.createElement('option');
+                    opt.value = s.code;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                }
+            }
+        } catch (err) {
+            console.warn('載入學科列表失敗:', err);
+        }
     },
 
     async checkAuth() {
@@ -772,7 +817,7 @@ const MyGamesPage = {
         if (this.filteredGames.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">📦</div>
+                    <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></svg></div>
                     <div class="empty-title">還沒有遊戲</div>
                     <div class="empty-desc">點擊上方「上傳新遊戲」按鈕開始創建</div>
                     <a href="/game_upload" class="btn btn-primary">+ 上傳新遊戲</a>
@@ -792,7 +837,7 @@ const MyGamesPage = {
         return `
             <div class="game-item" data-uuid="${game.uuid}">
                 <div class="game-content">
-                    <div class="game-icon">${game.icon}</div>
+                    <div class="game-icon">${this.getIconHTML(game.icon)}</div>
                     <div class="game-info">
                         <div class="game-header">
                             <span class="game-name">${game.name}</span>
@@ -804,27 +849,29 @@ const MyGamesPage = {
                         </div>
                         <div class="game-desc">${game.description}</div>
                         <div class="game-meta">
-                            <span>📅 ${createdDate}</span>
-                            <span>📄 ${fileSize}</span>
-                            ${game.difficulty ? `<span>🎯 ${game.difficulty.join(', ')}</span>` : ''}
+                            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${createdDate}</span>
+                            <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${fileSize}</span>
+                            ${game.difficulty ? `<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${game.difficulty.join(', ')}</span>` : ''}
                         </div>
                     </div>
                 </div>
                 <div class="game-actions">
                     <button class="action-btn" onclick="MyGamesPage.previewGame('${game.uuid}')">
-                        👁️ 預覽
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 預覽
                     </button>
                     <button class="action-btn" onclick="MyGamesPage.editGame('${game.uuid}')">
-                        ✏️ 編輯
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 編輯
                     </button>
                     <button class="action-btn" onclick="MyGamesPage.showShareModal('${game.uuid}', '${game.name.replace(/'/g, "\\'")}')">
-                        📤 分享
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> 分享
                     </button>
                     <button class="action-btn" onclick="MyGamesPage.toggleVisibility('${game.uuid}')">
-                        ${game.is_public ? '🔒 設為私有' : '🌐 設為公開'}
+                        ${game.is_public
+                            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 設為私有'
+                            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> 設為公開'}
                     </button>
                     <button class="action-btn danger" onclick="MyGamesPage.showDeleteModal('${game.uuid}')">
-                        🗑️ 刪除
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 刪除
                     </button>
                 </div>
             </div>
@@ -919,7 +966,7 @@ const MyGamesPage = {
     renderError() {
         document.getElementById('gamesList').innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">❌</div>
+                <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <div class="empty-title">載入失敗</div>
                 <div class="empty-desc">請檢查網絡連接後重試</div>
                 <button class="btn btn-primary" onclick="location.reload()">重新載入</button>

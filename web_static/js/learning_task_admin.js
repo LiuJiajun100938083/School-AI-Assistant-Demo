@@ -65,6 +65,19 @@ const TaskAdminAPI = {
 
     async getTargets() {
         return this._call(`${this.BASE}/targets`);
+    },
+
+    async uploadFile(file) {
+        // 注意：multipart/form-data 不能設 Content-Type，讓瀏覽器自動加 boundary
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch(`${this.BASE}/upload`, {
+            method: 'POST',
+            headers: { ...AuthModule.getAuthHeaders() },
+            body: formData
+        });
+        if (response.status === 401) { window.location.href = '/'; return null; }
+        return response;
     }
 };
 
@@ -139,7 +152,12 @@ const TaskAdminUI = {
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subLinkUrl')}</label>
-                        <input type="text" placeholder="https://..." value="${Utils.escapeHtml(item.link_url)}" data-sub-id="${item.id}" data-field="link_url">
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="text" placeholder="https://..." value="${Utils.escapeHtml(item.link_url)}" data-sub-id="${item.id}" data-field="link_url" style="flex:1;">
+                            <button type="button" class="btn-secondary btn-small" data-action="upload" data-sub-id="${item.id}" style="white-space:nowrap;">${i18n.t('lta.subUploadBtn')}</button>
+                            <input type="file" data-upload-for="${item.id}" style="display:none;">
+                        </div>
+                        <div class="upload-status" data-upload-status="${item.id}" style="font-size:12px;color:#666;margin-top:4px;"></div>
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subLinkLabel')}</label>
@@ -184,6 +202,7 @@ const TaskAdminUI = {
                         ${task.status === 'draft' ? `<button class="btn-secondary btn-small" data-action="edit" data-task-id="${task.id}">${i18n.t('lta.btnEdit')}</button>` : ''}
                         <button class="btn-secondary btn-small" data-action="publish" data-task-id="${task.id}">${i18n.t('lta.btnPublish')}</button>
                         <button class="btn-secondary btn-small" data-action="stats" data-task-id="${task.id}">${i18n.t('lta.btnStats')}</button>
+                        ${task.status === 'published' ? `<button class="btn-secondary btn-small" data-action="copy-link" data-task-id="${task.id}">${i18n.t('lta.btnCopyLink')}</button>` : ''}
                         <button class="btn-danger btn-small" data-action="archive" data-task-id="${task.id}">${i18n.t('lta.btnArchive')}</button>
                     </div>
                 </div>
@@ -309,13 +328,38 @@ const TaskAdminApp = {
                 case 'move-up': this._moveSubItem(id, 'up'); break;
                 case 'move-down': this._moveSubItem(id, 'down'); break;
                 case 'remove': this._removeSubItem(id); break;
+                case 'upload': {
+                    // 觸發對應的隱藏 file input
+                    const fileInput = el.subItemsContainer.querySelector(`input[type="file"][data-upload-for="${id}"]`);
+                    if (fileInput) fileInput.click();
+                    break;
+                }
             }
         });
         el.subItemsContainer.addEventListener('change', (e) => {
+            // 檔案選擇 → 上傳
+            if (e.target.type === 'file' && e.target.dataset.uploadFor) {
+                const id = parseInt(e.target.dataset.uploadFor);
+                const file = e.target.files[0];
+                if (file) this._handleFileUpload(id, file);
+                e.target.value = '';  // 重設以便同檔名再選
+                return;
+            }
             if (e.target.dataset.subId && e.target.dataset.field) {
                 this._updateSubItem(parseInt(e.target.dataset.subId), e.target.dataset.field, e.target.value);
             }
         });
+
+        // URL 輸入框離開焦點時自動補 https:// — 避免存成相對路徑
+        el.subItemsContainer.addEventListener('blur', (e) => {
+            if (e.target.dataset.field === 'link_url' && e.target.dataset.subId) {
+                const normalized = this._normalizeUrl(e.target.value);
+                if (normalized !== e.target.value) {
+                    e.target.value = normalized;
+                    this._updateSubItem(parseInt(e.target.dataset.subId), 'link_url', normalized);
+                }
+            }
+        }, true);  // capture：blur 不 bubble
 
         // List tab
         el.statusFilter.addEventListener('change', () => this._loadTaskList());
@@ -330,6 +374,7 @@ const TaskAdminApp = {
                 case 'publish': this._switchToPublish(taskId); break;
                 case 'stats': this._switchToStats(taskId); break;
                 case 'archive': this._archiveTask(taskId); break;
+                case 'copy-link': this._copyShareLink(taskId); break;
             }
         });
 
@@ -372,6 +417,10 @@ const TaskAdminApp = {
         document.querySelector(`.tab-button[data-tab="${tabName}"]`)?.classList.add('active');
         this.state.currentTab = tabName;
 
+        // Sticky action footer：僅「創建任務」顯示
+        const footer = document.getElementById('actionFooter');
+        if (footer) footer.classList.toggle('hidden', tabName !== 'create');
+
         if (tabName === 'list') this._loadTaskList();
         else if (tabName === 'publish') { this._loadPublishTasks(); this._loadTargets(); }
         else if (tabName === 'stats') this._loadStatsTasks();
@@ -402,6 +451,69 @@ const TaskAdminApp = {
     _updateSubItem(id, field, value) {
         const item = this.state.subItems.find(i => i.id === id);
         if (item) item[field] = value;
+    },
+
+    /** 補齊 URL 協議：'www.xx.com' → 'https://www.xx.com'；站內路徑與 mailto 等不動 */
+    _normalizeUrl(raw) {
+        if (!raw) return raw;
+        const s = String(raw).trim();
+        if (!s) return s;
+        const low = s.toLowerCase();
+        if (low.startsWith('http://') || low.startsWith('https://') ||
+            low.startsWith('mailto:') || low.startsWith('tel:') || low.startsWith('ftp://')) {
+            return s;
+        }
+        if (s.startsWith('//')) return 'https:' + s;
+        if (s.startsWith('/')) return s;
+        return 'https://' + s;
+    },
+
+    async _handleFileUpload(id, file) {
+        const statusEl = document.querySelector(`[data-upload-status="${id}"]`);
+        const urlInput = document.querySelector(`input[data-sub-id="${id}"][data-field="link_url"]`);
+        const labelInput = document.querySelector(`input[data-sub-id="${id}"][data-field="link_label"]`);
+
+        if (statusEl) {
+            statusEl.style.color = '#666';
+            statusEl.textContent = i18n.t('lta.subUploading');
+        }
+
+        try {
+            const resp = await TaskAdminAPI.uploadFile(file);
+            if (!resp || !resp.ok) {
+                const errData = resp ? await resp.json().catch(() => ({})) : {};
+                const msg = errData?.error?.message || errData?.detail || i18n.t('lta.subUploadFailed');
+                throw new Error(msg);
+            }
+            const result = await resp.json();
+            const data = result.data || {};
+            const url = data.url;
+            if (!url) throw new Error(i18n.t('lta.subUploadFailed'));
+
+            // 自動填入 link_url，同步狀態
+            if (urlInput) {
+                urlInput.value = url;
+                this._updateSubItem(id, 'link_url', url);
+            }
+            // 如果 link_label 還沒填，預設成原始檔名
+            const item = this.state.subItems.find(i => i.id === id);
+            if (labelInput && item && !item.link_label) {
+                labelInput.value = data.original_name || '';
+                this._updateSubItem(id, 'link_label', data.original_name || '');
+            }
+
+            if (statusEl) {
+                statusEl.style.color = '#006633';
+                statusEl.textContent = i18n.t('lta.subUploadSuccess') + (data.original_name || '');
+            }
+        } catch (err) {
+            console.error('[learning_task_admin] upload failed:', err);
+            if (statusEl) {
+                statusEl.style.color = '#c53030';
+                statusEl.textContent = err.message || i18n.t('lta.subUploadFailed');
+            }
+            UIModule?.toast?.(err.message || i18n.t('lta.subUploadFailed'), 'error');
+        }
     },
 
     /* ---------- Task Form ---------- */
@@ -524,6 +636,30 @@ const TaskAdminApp = {
             }
         };
         this._openConfirmModal(i18n.t('lta.toastArchiveConfirm'));
+    },
+
+    async _copyShareLink(taskId) {
+        const url = `${window.location.origin}/learning-tasks/${taskId}`;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                // 退路：不支援 Clipboard API 時用臨時 textarea
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            UIModule.toast(i18n.t('lta.toastLinkCopied') + ' ' + url, 'success');
+        } catch (err) {
+            console.error('[copy link]', err);
+            // 最終退路：prompt 讓用戶手動複製
+            window.prompt(i18n.t('lta.toastLinkFallback'), url);
+        }
     },
 
     /* ---------- Publish Tab ---------- */

@@ -986,7 +986,9 @@ async def end_activity_session(session_id: int, user_info=Depends(verify_admin_o
 #                               端点：Excel 导出
 # ==================================================================================
 
-EXPORTS_DIR = "attendance_exports"
+from app.config.settings import BASE_DIR
+
+EXPORTS_DIR = str(BASE_DIR / "attendance_exports")
 try:
     if not os.path.exists(EXPORTS_DIR):
         os.makedirs(EXPORTS_DIR)
@@ -1117,12 +1119,16 @@ async def list_attendance_exports(
     result = _get_service().list_exports(username, session_type, page, page_size)
     # paginate() 返回 {items, total, page, page_size}
     # 前端期望 {records, total, page, total_pages}
+    records = result.get("items", [])
+    for rec in records:
+        fp = rec.pop("file_path", None)
+        rec["file_available"] = bool(fp and os.path.exists(fp))
     total = result.get("total", 0)
     ps = result.get("page_size", page_size)
     total_pages = (total + ps - 1) // ps if ps > 0 else 0
     return {
         "success": True,
-        "records": result.get("items", []),
+        "records": records,
         "total": total,
         "page": result.get("page", page),
         "total_pages": total_pages,
@@ -1134,20 +1140,63 @@ async def download_attendance_export(
     export_id: int,
     user_info=Depends(verify_admin_or_teacher),
 ):
-    """下载导出文件"""
+    """下载导出文件（文件丢失时自动从数据库重新生成）"""
     username, _ = _extract_username(user_info)
-    export_info = _get_service().get_export_file(export_id, username)
+    try:
+        export_info = _get_service().get_export_file(export_id, username)
+    except Exception:
+        logger.warning("Export %s: DB record not found for user=%s", export_id, username)
+        raise HTTPException(status_code=404, detail="导出记录不存在或无权访问")
+
     file_path = export_info.get("file_path")
     file_name = export_info.get("file_name") or "attendance_export.xlsx"
 
-    if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
+    # 文件存在 → 直接返回
+    if file_path and os.path.exists(file_path):
+        return FileResponse(
+            path=file_path,
+            filename=file_name,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
-    return FileResponse(
-        path=file_path,
-        filename=file_name,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    # 文件丢失 → 从数据库重新生成
+    logger.info("Export %s: file missing, regenerating from DB (session=%s, type=%s)",
+                export_id, export_info.get("session_id"), export_info.get("session_type"))
+    svc = _get_service()
+    session_id = export_info.get("session_id")
+    session_type = export_info.get("session_type", "morning")
+
+    if not session_id:
+        raise HTTPException(status_code=404, detail="导出记录缺少 session_id，无法重新生成")
+
+    try:
+        if session_type == SessionType.DETENTION:
+            detail = svc.get_detention_session_detail(session_id)
+            wb, _ = _build_detention_export_excel(detail.get("session", {}), detail.get("students", []))
+        else:
+            session_detail = svc.get_session_detail(session_id)
+            wb, _ = _build_morning_export_excel(
+                session_detail.get("session", session_detail),
+                session_detail.get("records", []),
+            )
+
+        # 重新保存文件到磁盘
+        os.makedirs(EXPORTS_DIR, exist_ok=True)
+        if file_path:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        else:
+            file_path = os.path.join(EXPORTS_DIR, f"{uuid.uuid4()}.xlsx")
+        wb.save(file_path)
+        logger.info("Export %s: regenerated at %s", export_id, file_path)
+
+        return FileResponse(
+            path=file_path,
+            filename=file_name,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        logger.error("Export %s: regeneration failed: %s", export_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"重新生成失败: {str(e)[:200]}")
 
 
 @router.delete("/exports/{export_id}")

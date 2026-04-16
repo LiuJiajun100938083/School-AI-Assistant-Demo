@@ -90,7 +90,46 @@ const GameConfig = {
             }
         ],
         biology: [],
-        ces: []
+        ces: [
+            {
+                id: 'dwq_tycoon',
+                name: '大灣區大亨 (多人在線)',
+                nameEn: 'Greater Bay Area Tycoon (Multiplayer)',
+                icon: 'scale',
+                description: '3-6 人即時對戰，重溫 1977-2025 大灣區經濟騰飛',
+                url: '/dwq_tycoon',
+                difficulty: ['中一', '中二', '中三'],
+                tags: ['經濟', '多人對戰', '大灣區', '公民', '策略'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin']
+            },
+            {
+                id: 'trade_game',
+                name: '中三 — 全球貿易大亨',
+                nameEn: 'Global Trade Tycoon',
+                icon: 'globe',
+                description: '模擬國際貿易：比較優勢、供需法則與經濟安全',
+                url: '/trade-game',
+                difficulty: ['中三'],
+                tags: ['貿易', '經濟', '國際', '策略', '公民'],
+                badge: null,
+                roles: ['student', 'teacher', 'admin'],
+                allowedClasses: ['3A', '3B', '3C', '3D', '3S']
+            },
+            {
+                id: 'farm_game',
+                name: '中二 — 神州菜園經營家',
+                nameEn: 'Farm Security Tycoon',
+                icon: 'leaf',
+                description: '經營菜園守護糧食安全：戰爭貿易戰、種子主權與耕地紅線',
+                url: '/farm-game',
+                difficulty: ['中二'],
+                tags: ['糧食安全', '農業', '國安', '策略', '公民'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin'],
+                allowedClasses: ['2A', '2B', '2C', '2D', '2S']
+            }
+        ]
     }
 };
 
@@ -284,8 +323,10 @@ const GameCenterUI = {
             : '';
 
         const isTeacherOrAdmin = ['teacher', 'admin'].includes(GameCenterApp.state.userRole);
+        const isOwner = game.uploaderId && game.uploaderId === GameCenterApp.state.userInfo?.id;
+        const canManage = isAdmin || (isTeacherOrAdmin && isOwner);
         const safeGameName = Utils.escapeHtml(game.name).replace(/"/g, '&quot;');
-        const adminActionsHTML = isAdmin && game.isFromDatabase
+        const adminActionsHTML = canManage && game.isFromDatabase
             ? `<div class="game-admin-actions">
                 <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">${GCIcons.edit}</button>
                 <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">${GCIcons.share}</button>
@@ -436,6 +477,7 @@ const GameCenterApp = {
                 badge: null,
                 roles: ['student', 'teacher', 'admin'],
                 isFromDatabase: true,
+                uploaderId: game.uploader_id || null,
                 uploaderName: game.uploader_name || null,
                 isPublic: game.is_public,
                 teacherOnly: game.teacher_only || false,
@@ -640,6 +682,7 @@ const GameCenterApp = {
             if (!pill) return;
             this._handleSubjectChange(pill);
         });
+
 
         // 搜索
         if (this.elements.searchInput) {

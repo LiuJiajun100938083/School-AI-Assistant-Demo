@@ -14,12 +14,14 @@
 
 import asyncio
 import logging
+import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from pydantic import BaseModel, Field, field_validator
 
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, require_teacher_or_admin
 from app.core.responses import error_response, paginated_response, success_response
 from app.services.container import get_services
 
@@ -28,8 +30,60 @@ router = APIRouter()
 
 
 # ================================================================
+# 檔案上傳設定
+# ================================================================
+
+_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "learning_tasks"
+_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+# 允許的檔案類型：文檔、影片、圖片、PDF 等
+_ALLOWED_MIME_PREFIXES = ("image/", "video/", "audio/")
+_ALLOWED_MIMES = frozenset({
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/zip",
+    "application/x-zip-compressed",
+})
+
+
+# ================================================================
 # 請求模型
 # ================================================================
+
+def _normalize_url(raw: Optional[str]) -> Optional[str]:
+    """
+    自動補齊缺失的協議前綴。
+
+    規則：
+      - 空/None → 原樣返回
+      - 已有 http://、https://、mailto:、tel: → 原樣
+      - 以 // 開頭（協議相對）→ 補 https:
+      - 以 / 開頭（站內路徑，例如 /uploads/...）→ 原樣
+      - 其他（www.xxx.com / xxx.com）→ 補 https://
+    """
+    if not raw:
+        return raw
+    s = raw.strip()
+    if not s:
+        return s
+    low = s.lower()
+    if low.startswith(("http://", "https://", "mailto:", "tel:", "ftp://")):
+        return s
+    if s.startswith("//"):
+        return "https:" + s
+    if s.startswith("/"):
+        return s
+    return "https://" + s
+
 
 class TaskItemInput(BaseModel):
     """任務子項輸入"""
@@ -38,6 +92,11 @@ class TaskItemInput(BaseModel):
     link_url: Optional[str] = None
     link_label: Optional[str] = None
     tag: Optional[str] = None  # video, doc, cert, practice, website
+
+    @field_validator("link_url", mode="before")
+    @classmethod
+    def _fix_link_url(cls, v):
+        return _normalize_url(v) if isinstance(v, str) else v
 
 
 class CreateTaskRequest(BaseModel):
@@ -78,7 +137,7 @@ class PublishTaskRequest(BaseModel):
 @router.post("/api/admin/learning-tasks")
 async def create_task(
     request: CreateTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """創建學習任務 (草稿)"""
     admin_username, _ = admin_info
@@ -105,7 +164,7 @@ async def create_task(
 async def update_task(
     task_id: int,
     request: UpdateTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """更新草稿任務"""
     admin_username, _ = admin_info
@@ -126,7 +185,7 @@ async def update_task(
 @router.delete("/api/admin/learning-tasks/{task_id}")
 async def archive_task(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """歸檔任務 (軟刪除)"""
     admin_username, _ = admin_info
@@ -143,7 +202,7 @@ async def archive_task(
 async def publish_task(
     task_id: int,
     request: PublishTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """發布任務到目標受眾"""
     admin_username, _ = admin_info
@@ -170,7 +229,7 @@ async def list_admin_tasks(
     status: str = Query("", description="按狀態過濾: draft, published, archived"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """列出管理員的任務"""
     service = get_services().learning_task
@@ -187,9 +246,65 @@ async def list_admin_tasks(
     )
 
 
+@router.post("/api/admin/learning-tasks/upload")
+async def upload_task_file(
+    file: UploadFile = File(...),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """上傳學習任務附件（文檔/影片/圖片等），返回可直接填入 link_url 的 URL"""
+    mime = file.content_type or ""
+
+    # 校驗類型
+    mime_allowed = mime in _ALLOWED_MIMES or any(
+        mime.startswith(prefix) for prefix in _ALLOWED_MIME_PREFIXES
+    )
+    if not mime_allowed:
+        return error_response(
+            "INVALID_FILE_TYPE",
+            f"不支援的檔案類型：{mime or '未知'}",
+            status_code=400,
+        )
+
+    # 讀取並校驗大小
+    content = await file.read()
+    size = len(content)
+    if size > _MAX_FILE_SIZE:
+        return error_response(
+            "FILE_TOO_LARGE",
+            f"檔案大小超過限制（{_MAX_FILE_SIZE // (1024*1024)} MB）",
+            status_code=400,
+        )
+    if size == 0:
+        return error_response("EMPTY_FILE", "檔案為空", status_code=400)
+
+    # 儲存
+    ext = Path(file.filename or "").suffix.lower()
+    if len(ext) > 10:  # 防超長副檔名
+        ext = ""
+    filename = f"{uuid.uuid4().hex}{ext}"
+    file_path = _UPLOAD_DIR / filename
+
+    try:
+        file_path.write_bytes(content)
+    except OSError as e:
+        logger.error("學習任務檔案寫入失敗: %s", e)
+        return error_response("UPLOAD_FAILED", "檔案寫入失敗", status_code=500)
+
+    return success_response(
+        data={
+            "url": f"/uploads/learning_tasks/{filename}",
+            "filename": filename,
+            "original_name": file.filename or filename,
+            "size": size,
+            "mime": mime,
+        },
+        message="上傳成功",
+    )
+
+
 @router.get("/api/admin/learning-tasks/targets")
 async def get_targets(
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取可選的發布目標 (班級、教師、學生列表)"""
     service = get_services().learning_task
@@ -201,7 +316,7 @@ async def get_targets(
 @router.get("/api/admin/learning-tasks/{task_id}")
 async def get_admin_task_detail(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取任務詳情 (管理員視角)"""
     service = get_services().learning_task
@@ -215,7 +330,7 @@ async def get_admin_task_detail(
 @router.get("/api/admin/learning-tasks/{task_id}/stats")
 async def get_task_stats(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取任務完成統計"""
     service = get_services().learning_task

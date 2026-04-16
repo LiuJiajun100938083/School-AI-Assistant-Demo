@@ -136,6 +136,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        language: str = "zh",
         provider: str = "local",
     ) -> Dict:
         """
@@ -143,18 +144,42 @@ class ExamCreatorService:
 
         去重保護：同一教師不重複建 generating session。
         """
-        # 去重檢查
+        # 去重檢查（帶超時保護：超過 10 分鐘的 generating session 視為已失敗）
         existing = self._sessions.find_generating_by_teacher(teacher_username)
         if existing:
-            logger.info(
-                "複用已有 generating session %s for teacher %s",
-                existing["session_id"], teacher_username,
-            )
-            return {
-                "session_id": existing["session_id"],
-                "status": "generating",
-                "reused": True,
-            }
+            from datetime import datetime, timedelta
+            created_at = existing.get("created_at")
+            stale = False
+            if created_at:
+                if isinstance(created_at, str):
+                    try:
+                        created_at = datetime.fromisoformat(created_at)
+                    except (ValueError, TypeError):
+                        stale = True
+                if isinstance(created_at, datetime) and datetime.now() - created_at > timedelta(minutes=10):
+                    stale = True
+
+            if stale:
+                # 超時 session → 標記為失敗，允許重新生成
+                logger.warning(
+                    "Generating session %s 已超時（>10min），標記為失敗",
+                    existing["session_id"],
+                )
+                self._sessions.update(
+                    {"status": "generation_failed", "error_code": "TIMEOUT", "error_message": "生成超時（超過10分鐘）"},
+                    "session_id = %s AND status = 'generating'",
+                    (existing["session_id"],),
+                )
+            else:
+                logger.info(
+                    "複用已有 generating session %s for teacher %s",
+                    existing["session_id"], teacher_username,
+                )
+                return {
+                    "session_id": existing["session_id"],
+                    "status": "generating",
+                    "reused": True,
+                }
 
         # 解析知識點
         points_data = self._resolve_knowledge_points(subject, target_points)
@@ -198,6 +223,7 @@ class ExamCreatorService:
                 "question_types": question_types,
                 "exam_context": exam_context,
                 "total_marks": total_marks,
+                "language": language,
                 "provider": provider,
             },
         }
@@ -220,6 +246,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        language: str = "zh",
         provider: str = "local",
     ) -> None:
         """
@@ -281,6 +308,7 @@ class ExamCreatorService:
                             marks=q_marks,
                             previous_questions=generated_questions,  # 快照：前幾批的結果
                             subject=subject,
+                            language=language,
                             provider=provider,
                         )
                     )
@@ -344,6 +372,15 @@ class ExamCreatorService:
                 session_id, len(generated_questions), failed_count,
             )
 
+            # ── 宠物金币：教师生成考卷 +10 ──
+            try:
+                from app.domains.pet.hooks import try_award_coins_by_username
+                sess = self._sessions.find_by_session_id(session_id)
+                if sess and sess.get("teacher_username"):
+                    try_award_coins_by_username(sess["teacher_username"], "generate_exam", f"exam_{session_id}", "teacher")
+            except Exception:
+                pass
+
         except Exception as e:
             error_code = "UNKNOWN_ERROR"
             error_message = str(e)[:500]
@@ -382,6 +419,7 @@ class ExamCreatorService:
         marks: Optional[int],
         previous_questions: List[Dict],
         subject: str,
+        language: str = "zh",
         provider: str = "local",
     ) -> Optional[Dict]:
         """
@@ -419,6 +457,14 @@ class ExamCreatorService:
             total_marks=None,  # 單題不用總分
         )
 
+        # 語言要求
+        if language == "en":
+            prompt += (
+                "\n\n## Language Requirement\n"
+                "ALL question text, options, correct_answer, and marking_scheme "
+                "MUST be written in English. Do NOT use Chinese in any JSON field value."
+            )
+
         # 附加配分要求
         if marks:
             prompt += f"\n\n此題配分：{marks} 分，請確保 points 字段為 {marks}。"
@@ -446,7 +492,7 @@ class ExamCreatorService:
         questions = None
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            raw = await call_llm_json(
+            raw, usage = await call_llm_json(
                 prompt,
                 provider=provider,
                 temperature=0.7 + (attempt - 1) * 0.1,  # 重試時稍高溫度
@@ -455,6 +501,17 @@ class ExamCreatorService:
                 gate_weight=Weight.ANALYSIS,
                 num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
             )
+
+            # 非阻塞記錄 API 調用（無論是否有 token 數據都記錄）
+            import asyncio
+            from app.services.container import get_services
+            from llm.config import get_llm_config as _get_llm_cfg
+            _cfg = _get_llm_cfg()
+            _model = _cfg.api_model if provider == "deepseek" else _cfg.local_model
+            asyncio.create_task(get_services().llm_usage.record_async(
+                user_id=None, provider=provider, model=_model,
+                purpose="exam_gen", usage_dict=usage or {},
+            ))
 
             if not raw or not raw.strip():
                 logger.warning(
@@ -809,7 +866,11 @@ class ExamCreatorService:
     # ================================================================
 
     def get_knowledge_points(self, subject: str) -> List[Dict]:
-        """返回指定科目的知識點列表。"""
+        """返回指定科目的知識點列表。
+
+        包含 description (含 [compulsory:core] 等 tag) 供前端解析 badge,
+        以及 parent_code 供未來樹狀渲染使用。
+        """
         rows = self._knowledge.find_all(
             where="subject = %s AND is_active = 1",
             params=(subject,),
@@ -820,6 +881,9 @@ class ExamCreatorService:
                 "point_code": r["point_code"],
                 "point_name": r["point_name"],
                 "category": r.get("category", ""),
+                "description": r.get("description", "") or "",
+                "parent_code": r.get("parent_code"),
+                "difficulty_level": r.get("difficulty_level", 0),
             }
             for r in rows
         ]

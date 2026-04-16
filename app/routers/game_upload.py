@@ -58,8 +58,6 @@ async def stream_generate_game(
     """
     AI 生成遊戲代碼（SSE 流式返回）
 
-    只做請求接收和響應返回，業務邏輯委託 Service。
-
     Body:
         prompt: str — 用戶描述
         history: list — 對話歷史 [{"role": "user/assistant", "content": "..."}]

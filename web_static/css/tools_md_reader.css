@@ -1,0 +1,177 @@
+/* tools_md_reader.css — Markdown 閱讀器 prose 排版 */
+
+/* ── 輸入區 ──────────────────────────────────────── */
+
+.md-input-wrap { position: relative; }
+.md-input-wrap[data-mode="upload"] .md-paste-area { display: none; }
+.md-input-wrap[data-mode="paste"]  .md-upload-area { display: none; }
+
+.md-paste-area {
+    width: 100%;
+    min-height: 240px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+/* ── 閱讀區 (prose 排版) ─────────────────────────── */
+
+.md-reader-output {
+    min-height: 200px;
+    padding: 4px 0;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--tools-text, #1d1d1f);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* 標題 */
+.md-reader-output h1 { font-size: 1.6em; margin: 1.2em 0 0.6em; font-weight: 700; border-bottom: 1px solid var(--tools-border, #e5e7eb); padding-bottom: 0.3em; }
+.md-reader-output h2 { font-size: 1.35em; margin: 1.1em 0 0.5em; font-weight: 700; }
+.md-reader-output h3 { font-size: 1.15em; margin: 1em 0 0.4em; font-weight: 600; }
+.md-reader-output h4,
+.md-reader-output h5,
+.md-reader-output h6 { font-size: 1em; margin: 0.9em 0 0.3em; font-weight: 600; }
+
+/* 段落 & 列表 */
+.md-reader-output p { margin: 0.6em 0; }
+.md-reader-output ul,
+.md-reader-output ol { margin: 0.6em 0; padding-left: 1.8em; }
+.md-reader-output li { margin: 0.25em 0; }
+.md-reader-output li > ul,
+.md-reader-output li > ol { margin: 0.15em 0; }
+
+/* 引用 */
+.md-reader-output blockquote {
+    margin: 0.8em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid var(--tools-brand, #006633);
+    background: var(--tools-brand-light, #E8F5EC);
+    border-radius: 0 8px 8px 0;
+    color: var(--tools-text, #1d1d1f);
+}
+.md-reader-output blockquote p { margin: 0.3em 0; }
+
+/* 行內代碼 */
+.md-reader-output code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: #c7254e;
+}
+
+/* 代碼塊 */
+.md-reader-output pre {
+    margin: 0.8em 0;
+    padding: 14px 16px;
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+}
+.md-reader-output pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* 表格 */
+.md-reader-output table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    font-size: 14px;
+}
+.md-reader-output th,
+.md-reader-output td {
+    padding: 8px 12px;
+    border: 1px solid var(--tools-border, #e5e7eb);
+    text-align: left;
+}
+.md-reader-output th {
+    background: var(--tools-brand-light, #E8F5EC);
+    font-weight: 600;
+}
+.md-reader-output tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* 分隔線 */
+.md-reader-output hr {
+    margin: 1.5em 0;
+    border: none;
+    border-top: 1px solid var(--tools-border, #e5e7eb);
+}
+
+/* 圖片 */
+.md-reader-output img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 0.6em 0;
+}
+
+/* 連結 */
+.md-reader-output a {
+    color: var(--tools-brand, #006633);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.md-reader-output a:hover {
+    color: var(--tools-brand-hover, #007A3D);
+}
+
+/* KaTeX 行間公式居中 */
+.md-reader-output .katex-display {
+    margin: 0.8em 0;
+    text-align: center;
+}
+
+/* 空狀態 */
+.md-reader-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--tools-text-3, #9ca3af);
+    font-size: 14px;
+    text-align: center;
+}
+
+/* ── 操作列 ─────────────────────────────────────── */
+
+.md-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--tools-border, #e5e7eb);
+}
+
+/* ── 列印樣式 ───────────────────────────────────── */
+
+@media print {
+    .tools-header,
+    .tools-page__title,
+    .tools-page__subtitle,
+    .tools-card:first-child,
+    .md-actions { display: none !important; }
+
+    .tools-grid { display: block !important; }
+
+    .tools-card {
+        box-shadow: none !important;
+        border: none !important;
+        background: #fff !important;
+        padding: 0 !important;
+    }
+}

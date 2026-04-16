@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW" style="color-scheme: light only;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="eg.page.title">考試批改</title>
+    <link rel="stylesheet" href="/static/css/exam_grader.css?v=20260414e">
+    <script src="/static/js/shared/i18n.js?v=20260414e"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414e"></script>
+    <script src="/static/js/shared/i18n/exam_grader.js?v=20260414e"></script>
+</head>
+<body>
+    <!-- App Shell -->
+    <div class="app-shell">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="ExamGraderApp.toggleSidebar()" aria-label="Toggle Sidebar" data-i18n-aria-label="eg.page.toggleSidebar">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <a href="/" class="topbar-back" title="Back" data-i18n-title="eg.page.backHome" onclick="event.preventDefault(); history.length > 1 ? history.back() : location.href='/';">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </a>
+                <div class="topbar-divider"></div>
+                <h1 class="topbar-title" data-i18n="eg.page.title">考試批改</h1>
+            </div>
+            <div class="topbar-actions">
+                <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
+            </div>
+        </header>
+
+        <!-- Body: Sidebar + Workspace -->
+        <div class="app-body">
+
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-inner" id="sidebarInner">
+                    <!-- Populated by JS -->
+                </div>
+            </aside>
+
+            <!-- Sidebar overlay for mobile -->
+            <div class="sidebar-overlay" id="sidebarOverlay" onclick="ExamGraderApp.toggleSidebar()"></div>
+
+            <!-- Main Workspace -->
+            <main class="workspace" id="mainContent" aria-live="polite">
+                <div class="workspace-loading">
+                    <div class="loading-spinner"></div>
+                    <p data-i18n="eg.page.loading">載入中...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/shared/utils.js?v=20260414e"></script>
+    <script src="/static/js/shared/auth.js?v=20260414e"></script>
+    <script src="/static/js/shared/ui.js?v=20260414e"></script>
+    <script src="/static/js/shared/api.js?v=20260414e"></script>
+    <script src="/static/js/exam_grader.js?v=20260414e"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+            i18n.applyDOM();
+            document.title = i18n.t('eg.page.title');
+        }
+    });
+    </script>
+</body>
+</html>

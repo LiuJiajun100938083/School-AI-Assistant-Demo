@@ -83,21 +83,64 @@
         function renderPairRows() {
             const rowsEl = container.querySelector('#dmPairRows');
             if (!rowsEl) return;
-            rowsEl.innerHTML = pairs.map((p, i) => `
-                <div class="dm-pair-row" data-idx="${i}">
+            rowsEl.innerHTML = pairs.map((p, i) => {
+                const lIsImg = p.leftType === 'image' && p.leftContent;
+                const rIsImg = p.rightType === 'image' && p.rightContent;
+                return `<div class="dm-pair-row" data-idx="${i}">
                     <span class="dm-pair-num">${i + 1}</span>
-                    <input type="text" class="config-input dm-pair-left" data-idx="${i}"
-                           placeholder="左項..." value="${escapeHtml(p.leftContent)}">
-                    <span class="dm-pair-arrow">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>
-                        </svg>
-                    </span>
-                    <input type="text" class="config-input dm-pair-right" data-idx="${i}"
-                           placeholder="右項..." value="${escapeHtml(p.rightContent)}">
+                    ${lIsImg
+                        ? `<img src="${escapeHtml(p.leftContent)}" class="dm-pair-img"><button class="dm-img-remove" data-idx="${i}" data-side="left" title="移除">&times;</button>`
+                        : `<input type="text" class="config-input dm-pair-left" data-idx="${i}" placeholder="左項..." value="${escapeHtml(p.leftContent)}">
+                           <label class="dm-img-upload" title="上傳圖片"><input type="file" accept="image/*" class="dm-img-input" data-idx="${i}" data-side="left" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                    }
+                    <span class="dm-pair-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>
+                    ${rIsImg
+                        ? `<img src="${escapeHtml(p.rightContent)}" class="dm-pair-img"><button class="dm-img-remove" data-idx="${i}" data-side="right" title="移除">&times;</button>`
+                        : `<input type="text" class="config-input dm-pair-right" data-idx="${i}" placeholder="右項..." value="${escapeHtml(p.rightContent)}">
+                           <label class="dm-img-upload" title="上傳圖片"><input type="file" accept="image/*" class="dm-img-input" data-idx="${i}" data-side="right" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                    }
                     <button class="dm-pair-remove" data-idx="${i}" ${pairs.length <= 2 ? 'disabled' : ''}>&times;</button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
+
+            // 圖片上傳
+            rowsEl.querySelectorAll('.dm-img-input').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const idx = parseInt(input.dataset.idx);
+                    const side = input.dataset.side;
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        syncFromDOM();
+                        const token = (typeof AuthModule !== 'undefined') ? AuthModule.getToken() : localStorage.getItem('auth_token');
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const res = await fetch('/api/classroom/quiz-images', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: fd,
+                        });
+                        const json = await res.json();
+                        if (json.success && json.data?.url) {
+                            if (side === 'left') { pairs[idx].leftContent = json.data.url; pairs[idx].leftType = 'image'; }
+                            else { pairs[idx].rightContent = json.data.url; pairs[idx].rightType = 'image'; }
+                            renderPairRows();
+                        }
+                    } catch (e) { console.error('圖片上傳失敗', e); }
+                });
+            });
+
+            // 移除圖片
+            rowsEl.querySelectorAll('.dm-img-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    syncFromDOM();
+                    const idx = parseInt(btn.dataset.idx);
+                    const side = btn.dataset.side;
+                    if (side === 'left') { pairs[idx].leftContent = ''; pairs[idx].leftType = 'text'; }
+                    else { pairs[idx].rightContent = ''; pairs[idx].rightType = 'text'; }
+                    renderPairRows();
+                });
+            });
         }
         renderPairRows();
 
@@ -174,21 +217,31 @@
             </div>
             <div class="config-section">
                 <label class="config-label">左側項目</label>
-                ${leftItems.map((item, i) => `
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                ${leftItems.map((item, i) => {
+                    const isImg = item.content_type === 'image' && item.content;
+                    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                         <span style="color:var(--text-tertiary);font-size:12px;min-width:20px;">${i + 1}</span>
-                        <input type="text" class="config-input cfg-dm-left" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.content)}" style="flex:1;margin:0;">
-                    </div>
-                `).join('')}
+                        ${isImg
+                            ? `<img src="${escapeHtml(item.content)}" style="height:36px;border-radius:4px;object-fit:cover;"><button class="cfg-dm-img-remove" data-id="${escapeHtml(item.id)}" data-side="left" style="background:none;border:none;color:#FF3B30;cursor:pointer;">&times;</button>`
+                            : `<input type="text" class="config-input cfg-dm-left" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.content)}" style="flex:1;margin:0;">
+                               <label style="cursor:pointer;flex-shrink:0;color:var(--text-tertiary);" title="上傳圖片"><input type="file" accept="image/*" class="cfg-dm-img-input" data-id="${escapeHtml(item.id)}" data-side="left" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                        }
+                    </div>`;
+                }).join('')}
             </div>
             <div class="config-section">
                 <label class="config-label">右側項目</label>
-                ${rightItems.map((item, i) => `
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                ${rightItems.map((item, i) => {
+                    const isImg = item.content_type === 'image' && item.content;
+                    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                         <span style="color:var(--text-tertiary);font-size:12px;min-width:20px;">${i + 1}</span>
-                        <input type="text" class="config-input cfg-dm-right" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.content)}" style="flex:1;margin:0;">
-                    </div>
-                `).join('')}
+                        ${isImg
+                            ? `<img src="${escapeHtml(item.content)}" style="height:36px;border-radius:4px;object-fit:cover;"><button class="cfg-dm-img-remove" data-id="${escapeHtml(item.id)}" data-side="right" style="background:none;border:none;color:#FF3B30;cursor:pointer;">&times;</button>`
+                            : `<input type="text" class="config-input cfg-dm-right" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.content)}" style="flex:1;margin:0;">
+                               <label style="cursor:pointer;flex-shrink:0;color:var(--text-tertiary);" title="上傳圖片"><input type="file" accept="image/*" class="cfg-dm-img-input" data-id="${escapeHtml(item.id)}" data-side="right" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                        }
+                    </div>`;
+                }).join('')}
             </div>
             <div class="config-section">
                 <label class="config-label">配對</label>
@@ -217,18 +270,63 @@
                 </div>
             </div>
         `;
+
+        // Config mode: image upload for left/right items
+        $el.querySelectorAll('.cfg-dm-img-input').forEach(input => {
+            input.addEventListener('change', async () => {
+                const id = input.dataset.id;
+                const side = input.dataset.side;
+                const file = input.files[0];
+                if (!file) return;
+                try {
+                    const token = (typeof AuthModule !== 'undefined') ? AuthModule.getToken() : localStorage.getItem('auth_token');
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await fetch('/api/classroom/quiz-images', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: fd,
+                    });
+                    const json = await res.json();
+                    if (json.success && json.data?.url) {
+                        const items = side === 'left' ? leftItems : rightItems;
+                        const item = items.find(it => it.id === id);
+                        if (item) { item.content = json.data.url; item.content_type = 'image'; }
+                        renderConfig(slide, $el);
+                    }
+                } catch (e) { console.error('圖片上傳失敗', e); }
+            });
+        });
+        $el.querySelectorAll('.cfg-dm-img-remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const side = btn.dataset.side;
+                const items = side === 'left' ? leftItems : rightItems;
+                const item = items.find(it => it.id === id);
+                if (item) { item.content = ''; item.content_type = 'text'; }
+                renderConfig(slide, $el);
+            });
+        });
     }
 
     function collectConfig(slide) {
         const instruction = document.getElementById('cfgDmInstruction')?.value?.trim();
-        const leftEls = document.querySelectorAll('.cfg-dm-left');
-        const rightEls = document.querySelectorAll('.cfg-dm-right');
-        if (!leftEls.length) return null;
+        const dm = (slide.config || {}).drag_match || {};
+        const origLeft = dm.left_items || [];
+        const origRight = dm.right_items || [];
 
-        const leftItems = [];
-        leftEls.forEach(inp => leftItems.push({ id: inp.dataset.id, content: inp.value.trim() }));
-        const rightItems = [];
-        rightEls.forEach(inp => rightItems.push({ id: inp.dataset.id, content: inp.value.trim() }));
+        // Merge: text inputs for text items, keep existing data for image items
+        const leftItems = origLeft.map(orig => {
+            if (orig.content_type === 'image') return { ...orig };
+            const inp = document.querySelector(`.cfg-dm-left[data-id="${orig.id}"]`);
+            return { id: orig.id, content: inp ? inp.value.trim() : orig.content, content_type: 'text' };
+        });
+        const rightItems = origRight.map(orig => {
+            if (orig.content_type === 'image') return { ...orig };
+            const inp = document.querySelector(`.cfg-dm-right[data-id="${orig.id}"]`);
+            return { id: orig.id, content: inp ? inp.value.trim() : orig.content, content_type: 'text' };
+        });
+        if (!leftItems.length) return null;
 
         const pairs = {};
         document.querySelectorAll('.cfg-dm-pair').forEach(sel => {

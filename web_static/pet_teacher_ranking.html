@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>教師寵物排行榜</title>
+    <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
+    <style>
+        .pet-header__action {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: transform 0.15s;
+        }
+        .pet-header__action:active { transform: scale(0.94); }
+
+        .ptr-hero {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 22px; padding: 32px 28px; color: white;
+            margin-bottom: 24px; position: relative; overflow: hidden;
+        }
+        .ptr-hero::before {
+            content: ''; position: absolute; top: -50px; right: -50px;
+            width: 180px; height: 180px; background: rgba(255,255,255,0.08); border-radius: 50%;
+        }
+        .ptr-hero::after {
+            content: ''; position: absolute; bottom: -40px; left: -40px;
+            width: 140px; height: 140px; background: rgba(255,255,255,0.05); border-radius: 50%;
+        }
+        .ptr-hero__title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; position: relative; z-index: 1; }
+        .ptr-hero__sub { font-size: 14px; opacity: 0.8; margin-top: 4px; position: relative; z-index: 1; }
+
+        /* Podium: Top 3 */
+        .ptr-podium {
+            display: flex; justify-content: center; align-items: flex-end;
+            gap: 12px; margin-bottom: 28px; padding: 0 20px;
+        }
+        .ptr-podium__item {
+            display: flex; flex-direction: column; align-items: center;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 20px; padding: 20px 16px;
+            width: 200px; text-align: center;
+            opacity: 0; transform: scale(0.8) translateY(20px);
+            animation: ptrPodiumIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        .ptr-podium__item--1st {
+            order: 2; padding-bottom: 28px;
+            background: linear-gradient(145deg, rgba(255,215,0,0.15), rgba(255,255,255,0.6));
+            border-color: rgba(255,215,0,0.3);
+        }
+        .ptr-podium__item--2nd { order: 1; }
+        .ptr-podium__item--3rd { order: 3; }
+
+        @keyframes ptrPodiumIn {
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .ptr-podium__medal { font-size: 32px; margin-bottom: 6px; }
+        .ptr-podium__canvas {
+            width: 120px; height: 120px; image-rendering: pixelated;
+            border-radius: 24px; margin-bottom: 10px;
+            background: linear-gradient(145deg, #FFF0E5, #F0E6FF);
+        }
+        .ptr-podium__name { font-size: 17px; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
+        .ptr-podium__pet { font-size: 13px; color: #667eea; font-weight: 600; margin-bottom: 8px; }
+        .ptr-podium__growth {
+            font-size: 26px; font-weight: 800;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .ptr-podium__growth-label { font-size: 11px; color: #8E8E93; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .ptr-podium__stats { display: flex; gap: 8px; font-size: 12px; color: #64748B; flex-wrap: wrap; justify-content: center; }
+
+        /* Rest list */
+        .ptr-list { margin-top: 8px; }
+        .ptr-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 16px; margin-bottom: 8px;
+            opacity: 0; transform: translateX(-20px);
+            animation: ptrListIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ptr-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.06); }
+
+        @keyframes ptrListIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .ptr-card__rank { font-size: 16px; font-weight: 700; color: #8E8E93; min-width: 36px; text-align: center; flex-shrink: 0; }
+        .ptr-card__canvas {
+            width: 48px; height: 48px; image-rendering: pixelated; flex-shrink: 0;
+            border-radius: 14px; background: linear-gradient(145deg, #EEF2FF, #F0E6FF);
+        }
+        .ptr-card__info { flex: 1; min-width: 0; }
+        .ptr-card__name { font-size: 15px; font-weight: 700; }
+        .ptr-card__pet { font-size: 12px; color: #667eea; font-weight: 600; margin-left: 8px; }
+        .ptr-card__stats { display: flex; gap: 10px; font-size: 12px; color: #64748B; margin-top: 4px; }
+
+        .ptr-empty { text-align: center; padding: 60px 20px; color: #8E8E93; }
+        .ptr-empty__icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+        @media (max-width: 500px) {
+            .ptr-podium__item { width: 140px; padding: 14px 10px; }
+            .ptr-podium__canvas { width: 80px; height: 80px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ptr-podium__item, .ptr-card { animation: none; opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
+    }
+</script>
+
+<div class="pet-page" id="ptrApp">
+    <header class="pet-header">
+        <button class="pet-header__back" onclick="window.location='/pet/teacher'">&#x276E; 返回管理</button>
+        <span class="pet-header__title">教師排行榜</span>
+        <div></div>
+    </header>
+
+    <div class="pet-content">
+        <div id="ptrLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">載入中...</div>
+
+        <div id="ptrMain" style="display:none;">
+            <div class="ptr-hero">
+                <div class="ptr-hero__title">🏅 教師寵物排行榜</div>
+                <div class="ptr-hero__sub" id="ptrHeroSub">看看誰的寵物養得最好</div>
+            </div>
+
+            <!-- Top 3 Podium -->
+            <div class="ptr-podium" id="ptrPodium"></div>
+
+            <!-- Rest of ranking -->
+            <div class="ptr-list" id="ptrList"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
+<script>i18n.applyDOM();</script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/pet_renderer.js?v=20260414"></script>
+<script>
+(function () {
+    'use strict';
+
+    var renderers = [];
+    var $ = function (s) { return document.querySelector(s); };
+
+    async function init() {
+        var token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        var res = await fetch('/api/pet/teacher/ranking?limit=50', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) { $('#ptrLoading').textContent = '無法載入'; return; }
+        var data = await res.json();
+        var list = data.leaderboard || [];
+
+        if (!list.length) {
+            $('#ptrLoading').innerHTML = '<div class="ptr-empty"><div class="ptr-empty__icon">🏅</div><div>暫無教師寵物數據</div></div>';
+            return;
+        }
+
+        $('#ptrLoading').style.display = 'none';
+        $('#ptrMain').style.display = '';
+        $('#ptrHeroSub').textContent = list.length + ' 位教師參與排行';
+
+        // Top 3 Podium
+        var podium = $('#ptrPodium');
+        var medals = ['🥇', '🥈', '🥉'];
+        var podiumOrder = ['--2nd', '--1st', '--3rd'];
+
+        for (var i = 0; i < Math.min(3, list.length); i++) {
+            var t = list[i];
+            var pos = i === 0 ? '--1st' : i === 1 ? '--2nd' : '--3rd';
+            var item = document.createElement('div');
+            item.className = 'ptr-podium__item ptr-podium__item' + pos;
+            item.style.animationDelay = (i === 0 ? '0.2s' : i === 1 ? '0.1s' : '0.3s');
+
+            item.innerHTML =
+                '<div class="ptr-podium__medal">' + medals[i] + '</div>' +
+                '<canvas id="ptrPod' + i + '" width="256" height="256" class="ptr-podium__canvas"></canvas>' +
+                '<div class="ptr-podium__name">' + (t.display_name || t.pet_name || '--') + '</div>' +
+                '<div class="ptr-podium__pet">' + (t.pet_name || '') + '</div>' +
+                '<div class="ptr-podium__growth">' + (t.growth || 0) + '</div>' +
+                '<div class="ptr-podium__growth-label">成長值</div>' +
+                '<div class="ptr-podium__stats">' +
+                    '<span>💰' + (t.coins || 0) + '</span>' +
+                    '<span>🍖' + (t.hunger || 0) + '</span>' +
+                    '<span>🧼' + (t.hygiene || 0) + '</span>' +
+                    '<span>😊' + (t.mood || 0) + '</span>' +
+                '</div>';
+
+            podium.appendChild(item);
+
+            var c = document.getElementById('ptrPod' + i);
+            if (c && window.PetRenderer) {
+                try { renderers.push(PetRenderer.create(c, t, { mini: true })); } catch (e) {}
+            }
+        }
+
+        // Rest of list (4th onwards)
+        var listEl = $('#ptrList');
+        for (var j = 3; j < list.length; j++) {
+            var s = list[j];
+            var card = document.createElement('div');
+            card.className = 'ptr-card';
+            card.style.animationDelay = ((j - 3) * 40 + 400) + 'ms';
+
+            card.innerHTML =
+                '<div class="ptr-card__rank">' + (j + 1) + '</div>' +
+                '<canvas id="ptrR' + j + '" width="256" height="256" class="ptr-card__canvas"></canvas>' +
+                '<div class="ptr-card__info">' +
+                    '<div><span class="ptr-card__name">' + (s.display_name || '--') + '</span><span class="ptr-card__pet">' + (s.pet_name || '') + '</span></div>' +
+                    '<div class="ptr-card__stats">' +
+                        '<span>📈 ' + (s.growth || 0) + '</span>' +
+                        '<span>💰 ' + (s.coins || 0) + '</span>' +
+                        '<span>🍖 ' + (s.hunger || 0) + '</span>' +
+                        '<span>🧼 ' + (s.hygiene || 0) + '</span>' +
+                        '<span>😊 ' + (s.mood || 0) + '</span>' +
+                    '</div>' +
+                '</div>';
+
+            listEl.appendChild(card);
+
+            var rc = document.getElementById('ptrR' + j);
+            if (rc && window.PetRenderer) {
+                try { renderers.push(PetRenderer.create(rc, s, { mini: true })); } catch (e) {}
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+</script>
+</body>
+</html>

@@ -86,7 +86,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "name": "學習任務",
         "icon": "✅",
         "description": "查看及完成學習任務",
-        "url": "/static/learning_tasks.html",
+        "url": "/learning-tasks",
         "roles": ["student", "teacher", "admin"],
         "enabled": True,
         "order": 5,
@@ -152,8 +152,8 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "name": "任務管理",
         "icon": "📋",
         "description": "創建和管理學習任務",
-        "url": "/static/learning_task_admin.html",
-        "roles": ["admin"],
+        "url": "/learning-task-admin",
+        "roles": ["teacher", "admin"],
         "enabled": True,
         "order": 11,
         "category": "admin",
@@ -192,6 +192,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "dictation",
+        "name": "默書",
+        "icon": "",
+        "description": "中英雙語默書:老師上傳原文,學生拍照上交,AI 自動比對批改",
+        "url": "/dictation",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 14,
+        "category": "teaching",
+    },
+    {
         "id": "exam_creator",
         "name": "AI 出題輔助器",
         "icon": "",
@@ -203,6 +214,28 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "exam_grader",
+        "name": "試卷批閱",
+        "icon": "",
+        "description": "掃描全班試卷、AI 自動批改、教師審閱調分",
+        "url": "/exam-grader",
+        "roles": ["teacher", "admin"],
+        "enabled": True,
+        "order": 16,
+        "category": "teaching",
+    },
+    {
+        "id": "collab_board",
+        "name": "協作佈告板",
+        "icon": "",
+        "description": "班級互動牆 / 分組作業協作板",
+        "url": "/boards",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 4,
+        "category": "community",
+    },
+    {
         "id": "admin_dashboard",
         "name": "管理後台",
         "icon": "⚙️",
@@ -210,10 +243,26 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/admin",
         "roles": ["admin"],
         "enabled": True,
-        "order": 16,
+        "order": 30,
         "category": "admin",
     },
 ]
+
+
+# ------------------------------------------------------------
+# 動態追加: 實用工具分類 (tools registry)
+# ------------------------------------------------------------
+# 每個工具的元資料集中在 app.domains.tools.registry.TOOLS。
+# 加新工具只需在 registry 加一個 ToolSpec,不需要改這個檔案。
+try:
+    from app.domains.tools.registry import TOOLS as _TOOLS_REGISTRY
+    _TOOL_ORDER_START = 16  # 插在 admin_dashboard (order 30) 之前
+    DEFAULT_APP_MODULES.extend(
+        t.to_module_entry(order=_TOOL_ORDER_START + i)
+        for i, t in enumerate(_TOOLS_REGISTRY)
+    )
+except Exception as _e:  # noqa: BLE001
+    logger.warning("tools registry 載入失敗,首頁不顯示實用工具: %s", _e)
 
 
 class AppModulesService:
@@ -227,12 +276,48 @@ class AppModulesService:
         self._load()
 
     def _load(self) -> None:
-        """从文件加载配置，如不存在则使用默认配置"""
+        """从文件加载配置，如不存在则使用默认配置。
+
+        载入后会与 DEFAULT_APP_MODULES 合并：
+          - 若 JSON 缺少某个默认模块 id，自动追加
+          - 既有用户自订配置 (enabled/order/roles 等) 不会被覆写
+        这样新增模组(如 dictation)推送代码后，重启即可自动出现在首页。
+        """
         try:
             if os.path.exists(self._config_path):
                 with open(self._config_path, "r", encoding="utf-8") as f:
                     self._modules = json.load(f)
                 logger.info("应用模块配置已加载: %s", self._config_path)
+                # 合并新增的默认模块
+                existing_ids = {m.get("id") for m in self._modules}
+                new_mods = [
+                    deepcopy(m) for m in DEFAULT_APP_MODULES
+                    if m.get("id") not in existing_ids
+                ]
+                if new_mods:
+                    self._modules.extend(new_mods)
+                    logger.info(
+                        "已合并 %d 个新增默认模块: %s",
+                        len(new_mods), [m["id"] for m in new_mods],
+                    )
+
+                # 同步代码驱动的展示字段 (icon/name/description/url/category)
+                # 使用者自訂的 enabled/order/roles 保留
+                SYNC_FIELDS = ("icon", "name", "description", "url", "category")
+                default_map = {m["id"]: m for m in DEFAULT_APP_MODULES}
+                changed = 0
+                for m in self._modules:
+                    d = default_map.get(m.get("id"))
+                    if not d:
+                        continue
+                    for k in SYNC_FIELDS:
+                        if k in d and m.get(k) != d[k]:
+                            m[k] = d[k]
+                            changed += 1
+                if new_mods or changed:
+                    self._save()
+                    if changed:
+                        logger.info("已同步 %d 个展示字段到默认值", changed)
             else:
                 self._modules = deepcopy(DEFAULT_APP_MODULES)
                 self._save()

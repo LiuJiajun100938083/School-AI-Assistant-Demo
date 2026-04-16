@@ -1322,8 +1322,21 @@ const ClassroomStudentApp = {
             document.body.style.userSelect = 'none';
         });
 
+        function endDrag() {
+            if (!dragState) return;
+            dragState = null;
+            win.style.transition = '';
+            win.classList.remove('ai-float--dragging');
+            document.body.style.userSelect = '';
+        }
+
         document.addEventListener('mousemove', (e) => {
             if (!dragState) return;
+            // 安全檢查：鼠標已鬆開（在頁面外鬆開時 mouseup 不觸發）
+            if (e.buttons === 0) {
+                endDrag();
+                return;
+            }
             lastX = e.clientX;
             lastY = e.clientY;
             if (rafPending) return;
@@ -1337,13 +1350,8 @@ const ClassroomStudentApp = {
             });
         });
 
-        document.addEventListener('mouseup', () => {
-            if (!dragState) return;
-            dragState = null;
-            win.style.transition = '';
-            win.classList.remove('ai-float--dragging');
-            document.body.style.userSelect = '';
-        });
+        document.addEventListener('mouseup', endDrag);
+        window.addEventListener('blur', endDrag);
 
         // ---- Touch drag support (mobile) ----
         header.addEventListener('touchstart', (e) => {
@@ -1369,12 +1377,8 @@ const ClassroomStudentApp = {
             win.style.top = Math.max(0, Math.min(touch.clientY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
         }, { passive: true });
 
-        document.addEventListener('touchend', () => {
-            if (!dragState) return;
-            dragState = null;
-            win.style.transition = '';
-            win.classList.remove('ai-float--dragging');
-        });
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag);
     },
 
     /**
@@ -1610,15 +1614,29 @@ const ClassroomStudentApp = {
             }
         });
 
-        // Handle visibility changes
+        // Handle visibility changes — notify teacher when student switches tabs
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this._stopHeartbeat();
                 this._stopPing();
+                // 通知後端：學生切屏了
+                if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                    this.state.ws.send(JSON.stringify({
+                        type: 'tab_visibility',
+                        hidden: true,
+                    }));
+                }
             } else {
                 if (this.state.isConnected) {
                     this._startHeartbeat();
                     this._startPing();
+                }
+                // 通知後端：學生回來了
+                if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                    this.state.ws.send(JSON.stringify({
+                        type: 'tab_visibility',
+                        hidden: false,
+                    }));
                 }
             }
         });

@@ -22,6 +22,11 @@ class ExamGenerationRequest(BaseModel):
     exam_context: str = Field(default="", max_length=200, description="考試場景，如 '期中考試'")
     total_marks: Optional[int] = Field(default=None, ge=1, le=500, description="總分")
     geometry_description: str = Field(default="", max_length=500, description="幾何圖形描述（數學專用）")
+    language: str = Field(
+        default="zh",
+        pattern=r"^(zh|en)$",
+        description="出題語言: zh（中文）或 en（英文）",
+    )
     provider: str = Field(
         default="local",
         pattern=r"^(local|deepseek|qwen)$",

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <title data-i18n="cb.pageTitle">協作佈告板</title>
+    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/board.css?v=20260414">
+</head>
+<body>
+    <header class="cb-header">
+        <div class="cb-header__left">
+            <a href="/" class="cb-header__back">← <span data-i18n="cb.back">返回</span></a>
+            <span class="cb-header__title"><span class="emoji">📌</span><span data-i18n="cb.listHeader">協作佈告板</span></span>
+        </div>
+        <div class="cb-header__right">
+            <button id="btnCreate" class="cb-btn cb-btn--primary" data-i18n="cb.createBoard">建立佈告板</button>
+        </div>
+    </header>
+
+    <main class="cb-list">
+        <h1 class="cb-list__title" data-i18n="cb.listHeader">協作佈告板</h1>
+        <p class="cb-list__desc" data-i18n="cb.listDesc">老師建板，全班一起發帖互動</p>
+        <div id="boardsGrid" class="cb-list__grid">
+            <div class="cb-empty">
+                <div class="cb-empty__icon">⏳</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create modal -->
+    <div id="createModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.createBoard">建立佈告板</span>
+                <button class="cb-modal__close" onclick="closeModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div class="cb-field">
+                    <label class="cb-field__label" data-i18n="cb.chooseTemplate">選擇模板</label>
+                    <div id="fTemplates" class="cb-templates"></div>
+                </div>
+                <div class="cb-field">
+                    <label class="cb-field__label" data-i18n="cb.formTitle">標題</label>
+                    <input type="text" id="fTitle" data-i18n-placeholder="cb.formTitlePh">
+                </div>
+                <div class="cb-field">
+                    <label class="cb-field__label" data-i18n="cb.formDesc">描述</label>
+                    <textarea id="fDesc" data-i18n-placeholder="cb.formDescPh"></textarea>
+                </div>
+                <div class="cb-field__row">
+                    <div class="cb-field">
+                        <label class="cb-field__label" data-i18n="cb.formIcon">圖標</label>
+                        <input type="text" id="fIcon" value="📌" maxlength="8">
+                    </div>
+                    <div class="cb-field">
+                        <label class="cb-field__label" data-i18n="cb.formLayout">版式</label>
+                        <select id="fLayout">
+                            <option value="grid" data-i18n="cb.layoutGrid">瀑布流</option>
+                            <option value="shelf" data-i18n="cb.layoutShelf">分欄</option>
+                            <option value="stream" data-i18n="cb.layoutStream">時間軸</option>
+                            <option value="canvas" data-i18n="cb.layoutCanvas">畫布</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cb-field__row">
+                    <div class="cb-field">
+                        <label class="cb-field__label" data-i18n="cb.formVisibility">可見性</label>
+                        <select id="fVisibility">
+                            <option value="class" data-i18n="cb.visClass">班級</option>
+                            <option value="private" data-i18n="cb.visPrivate">私人</option>
+                            <option value="public" data-i18n="cb.visPublic">公開</option>
+                        </select>
+                    </div>
+                    <div class="cb-field">
+                        <label class="cb-field__label" data-i18n="cb.formClassName">班級</label>
+                        <div id="fClassButtons" class="cb-class-buttons">
+                            <span style="font-size:12px;color:var(--cb-text-3)">載入中…</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="cb-field">
+                    <label class="cb-field__label" data-i18n="cb.theme">主題</label>
+                    <div id="fThemes" class="cb-themes"></div>
+                </div>
+                <div class="cb-field">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cb-text-2)">
+                        <input type="checkbox" id="fModeration">
+                        <span data-i18n="cb.formModeration">開啟貼文審核</span>
+                    </label>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="btnSave" data-i18n="cb.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- i18n & scripts -->
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/board.js?v=20260414"></script>
+    <script src="/static/js/boards.js?v=20260414"></script>
+</body>
+</html>

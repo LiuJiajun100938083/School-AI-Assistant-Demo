@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>校園AI助手</title>
-    <link rel="stylesheet" href="/static/css/index.css">
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/spinner.css">
+    <title>培僑中學 學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/spinner.css?v=20260414">
     <!-- GSAP 動畫引擎（啟動畫面） -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="/static/vendor/gsap/gsap.min.js"></script>
 </head>
 <body>
 <!-- 未登入用戶直接跳轉登入頁（最早執行，零閃爍） -->
@@ -40,8 +40,8 @@
         <div class="modal-title" data-i18n="password.title">修改密碼</div>
         <form id="changePasswordForm" class="modal-form">
             <input type="password" id="oldPasswordInput" class="modal-input" data-i18n-placeholder="password.current" placeholder="當前密碼" required>
-            <input type="password" id="newPasswordInput" class="modal-input" data-i18n-placeholder="password.new" placeholder="新密碼（至少4位）"
-                   minlength="4" required>
+            <input type="password" id="newPasswordInput" class="modal-input" data-i18n-placeholder="password.new" placeholder="新密碼（至少8位）"
+                   minlength="8" required>
             <input type="password" id="confirmPasswordInput" class="modal-input" data-i18n-placeholder="password.confirmNew" placeholder="確認新密碼" required>
             <div id="passwordError" class="modal-error"></div>
             <div class="modal-buttons">
@@ -90,6 +90,10 @@
             <nav class="home-sidebar__nav" id="homeSidebarNav">
                 <!-- JS 動態生成分類導航 -->
             </nav>
+
+            <!-- 宠物组件（sidebar 下半部分） -->
+            <div id="homePetWidget" class="home-sidebar__pet" style="display:none;"></div>
+
             <div class="home-sidebar__footer">
                 <button class="home-sidebar__lang-toggle" onclick="i18n.toggle()" title="Switch Language">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -132,19 +136,28 @@
     </div>
 </div>
 
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
+<!-- 漫游桌面宠物（fixed 浮动，JS 控制位置） -->
+<div id="roamingPet" class="home-roaming-pet" style="display:none;">
+    <div class="home-roaming-pet__bubble" id="roamingPetBubble" style="display:none;"></div>
+    <canvas id="roamingPetCanvas" width="256" height="256"></canvas>
+    <div class="home-roaming-pet__info" id="roamingPetInfo"></div>
+</div>
+
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
 <script>
     document.title = i18n.t('home.pageTitle');
     i18n.applyDOM();
     var ll = document.getElementById('homeLangLabel');
     if (ll) ll.textContent = i18n.isZh ? 'EN' : '中文';
 </script>
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/shared/decrypt_text.js"></script>
-<script src="/static/js/index.js"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/shared/decrypt_text.js?v=20260414"></script>
+<script src="/static/js/pet_renderer.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
+<script src="/static/js/index.js?v=20260414b"></script>
 </body>
 </html>

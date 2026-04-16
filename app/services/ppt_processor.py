@@ -272,37 +272,9 @@ class PPTProcessor:
         pptx_path: str,
         output_dir: Path,
     ) -> List[str]:
-        """用 LibreOffice 将 PPT 每页转为 PNG"""
+        """用 LibreOffice 将 PPT 每页转为 PNG（走 PDF 中间格式）"""
         try:
-            # LibreOffice 命令行转换
-            cmd = [
-                self.libreoffice_path,
-                "--headless",
-                "--convert-to", "png",
-                "--outdir", str(output_dir),
-                pptx_path,
-            ]
-
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=120,
-            )
-
-            if process.returncode != 0:
-                logger.error(
-                    "LibreOffice 转换失败: %s",
-                    stderr.decode("utf-8", errors="replace"),
-                )
-                return self._convert_with_pillow_fallback(pptx_path, output_dir)
-
-            # LibreOffice 输出的是单个 PNG，需要用 PDF 中间步骤实现多页
-            # 改用 PDF 中间格式
             return await self._convert_via_pdf(pptx_path, output_dir)
-
         except asyncio.TimeoutError:
             logger.error("LibreOffice 转换超时 (120s)")
             return self._convert_with_pillow_fallback(pptx_path, output_dir)
@@ -321,27 +293,54 @@ class PPTProcessor:
         这是更可靠的多页转换方式。
         """
         # Step 1: PPTX → PDF
+        # 每次转换用独立用户配置目录，避免并发锁冲突
+        user_install = (output_dir / ".lo_profile").resolve()
+        abs_output = output_dir.resolve()
+        abs_pptx = Path(pptx_path).resolve()
         cmd_pdf = [
             self.libreoffice_path,
             "--headless",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file://{user_install}",
             "--convert-to", "pdf",
-            "--outdir", str(output_dir),
-            pptx_path,
+            "--outdir", str(abs_output),
+            str(abs_pptx),
         ]
+
+        logger.info("LibreOffice 命令: %s", " ".join(cmd_pdf))
 
         process = await asyncio.create_subprocess_exec(
             *cmd_pdf,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await asyncio.wait_for(process.communicate(), timeout=120)
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(), timeout=120,
+        )
+
+        logger.info(
+            "LibreOffice 结束 rc=%d, stdout=%s",
+            process.returncode,
+            stdout.decode("utf-8", errors="replace")[:300],
+        )
+
+        # 清理临时配置目录
+        shutil.rmtree(user_install, ignore_errors=True)
+
+        if process.returncode != 0:
+            logger.error(
+                "LibreOffice PPTX→PDF 失败 (rc=%d): %s",
+                process.returncode,
+                stderr.decode("utf-8", errors="replace")[:500],
+            )
 
         # 找到生成的 PDF 文件
         pdf_name = Path(pptx_path).stem + ".pdf"
-        pdf_path = output_dir / pdf_name
+        pdf_path = abs_output / pdf_name
 
         if not pdf_path.exists():
-            logger.warning("PDF 未生成，降级处理")
+            logger.warning("PDF 未生成 (期望: %s)，降级处理", pdf_path)
             return self._convert_with_pillow_fallback(pptx_path, output_dir)
 
         # Step 2: PDF → 每页 PNG (使用 PyMuPDF)
@@ -435,18 +434,26 @@ class PPTProcessor:
                     draw = ImageDraw.Draw(img)
                     text = self._extract_slide_text(slide)
 
-                    # 尝试加载系统字体
-                    try:
-                        font = ImageFont.truetype(
-                            "/System/Library/Fonts/PingFang.ttc", 32
-                        )
-                    except Exception:
+                    # 尝试加载系统字体 (优先 CJK 字体以支持中文)
+                    font = None
+                    for font_path, font_size in [
+                        # macOS
+                        ("/System/Library/Fonts/PingFang.ttc", 32),
+                        # Linux: Noto CJK (Docker apt: fonts-noto-cjk)
+                        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 30),
+                        ("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc", 30),
+                        # Linux: WenQuanYi
+                        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 28),
+                        # Fallback Latin
+                        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28),
+                    ]:
                         try:
-                            font = ImageFont.truetype(
-                                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28
-                            )
+                            font = ImageFont.truetype(font_path, font_size)
+                            break
                         except Exception:
-                            font = ImageFont.load_default()
+                            continue
+                    if font is None:
+                        font = ImageFont.load_default()
 
                     # 绘制标题
                     title_text = f"Slide {idx + 1}"

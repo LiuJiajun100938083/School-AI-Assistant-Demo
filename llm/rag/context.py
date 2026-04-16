@@ -103,6 +103,7 @@ def build_prompt_context(
         "\n請基於以上信息，用你的風格回答。"
         "不要重複對話歷史中已說過的內容。"
         "如果學生說「繼續」，請接著上一條回答的內容繼續。"
+        "Reply in the same language as the student's current question."
     )
 
     return "\n\n".join(prompt_parts)
@@ -151,12 +152,13 @@ def convert_to_api_messages(
     if context_parts:
         current_content = (
             "\n\n".join(context_parts) +
-            f"\n\n【用戶問題】\n{current_question}\n\n請根據以上資料，用你的風格回答。"
+            f"\n\n【用戶問題】\n{current_question}\n\n"
+            "請根據以上資料，用你的風格回答。Reply in the same language as the student's question."
         )
     else:
         current_content = (
             f"【用戶問題】\n{current_question}\n\n"
-            "知識庫中暫無相關資料，請基於你的通用知識回答。"
+            "知識庫中暫無相關資料，請基於你的通用知識回答。Reply in the same language as the student's question."
         )
 
     messages.append({"role": "user", "content": current_content})

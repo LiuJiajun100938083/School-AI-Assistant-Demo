@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統維護中 - AI 學習夥伴</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 24px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 520px;
+        }
+
+        .icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
+        }
+
+        .message {
+            font-size: 1.15rem;
+            line-height: 1.8;
+            opacity: 0.92;
+            margin-bottom: 32px;
+        }
+
+        .time-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 12px;
+            padding: 14px 28px;
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .time-badge svg {
+            width: 20px; height: 20px;
+            vertical-align: -4px;
+            margin-right: 6px;
+            fill: none; stroke: currentColor; stroke-width: 2;
+        }
+
+        .sub {
+            margin-top: 40px;
+            font-size: 0.85rem;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔧</div>
+        <h1>系統維護中</h1>
+        <p class="message">
+            我們正在進行系統升級與優化，<br>
+            為您帶來更好的學習體驗。<br>
+            請稍後再訪問，感謝您的耐心等待！
+        </p>
+        <div class="time-badge">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            預計恢復時間：4 月 1 日（星期二）早上
+        </div>
+        <p class="sub">AI 學習夥伴 · AI Learning Buddy</p>
+    </div>
+</body>
+</html>

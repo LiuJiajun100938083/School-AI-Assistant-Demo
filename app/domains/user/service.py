@@ -120,6 +120,10 @@ class UserService:
             "active_students": self._repo.count_active_students(),
         }
 
+    def get_users_by_class(self, class_name: str) -> List[Dict[str, Any]]:
+        """获取指定班级的所有活跃学生"""
+        return self._repo.get_students_by_class(class_name)
+
     # ------------------------------------------------------------------ #
     #                          创建操作                                    #
     # ------------------------------------------------------------------ #
@@ -155,7 +159,7 @@ class UserService:
             raise PasswordTooWeakError(errors)
 
         if self._repo.username_exists(username):
-            raise ConflictError("用户", username)
+            raise ConflictError(f"用户 '{username}' 已存在")
 
         password_hash = PasswordManager.hash_password(password)
         self._repo.create_user(
@@ -204,7 +208,7 @@ class UserService:
                 self._validate_role(role)
 
                 if username in existing_usernames:
-                    raise ConflictError("用户", username)
+                    raise ConflictError(f"用户 '{username}' 已存在")
 
                 password_hash = PasswordManager.hash_password(password)
                 self._repo.create_user(
@@ -361,7 +365,7 @@ class UserService:
         allowed_fields = {
             "display_name", "english_name", "card_id",
             "email", "class_name", "class_number",
-            "role", "status", "is_active",
+            "role", "status", "is_active", "notes",
         }
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
         if not update_data:

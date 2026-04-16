@@ -24,7 +24,7 @@ const AdminAPI = {
         const resp = await fetch(url, { ...options, headers });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || err.error?.message || `請求失敗 (${resp.status})`);
+            throw new Error(err.detail || err.error?.message || i18n.t('adm.api.requestFailed', {status: resp.status}));
         }
         return resp.json();
     },
@@ -34,7 +34,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/subjects', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入學科失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadSubjectsFailed'));
         return resp.json();
     },
 
@@ -46,7 +46,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '添加失敗');
+            throw new Error(err.detail || i18n.t('adm.api.addFailed'));
         }
         return resp.json();
     },
@@ -59,7 +59,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '更新失敗');
+            throw new Error(err.detail || i18n.t('adm.api.updateFailed'));
         }
         return resp.json();
     },
@@ -71,7 +71,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '刪除失敗');
+            throw new Error(err.detail || i18n.t('adm.api.deleteFailed'));
         }
         return resp.json();
     },
@@ -81,7 +81,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/statistics', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入統計失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadStatsFailed'));
         return resp.json();
     },
 
@@ -90,7 +90,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/knowledge-stats', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入知識庫統計失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadKnowledgeStatsFailed'));
         return resp.json();
     },
 
@@ -98,7 +98,7 @@ const AdminAPI = {
         const resp = await fetch(`/api/admin/documents/${subject}`, {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入文檔失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadDocsFailed'));
         return resp.json();
     },
 
@@ -116,7 +116,7 @@ const AdminAPI = {
             method: 'DELETE',
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('刪除文檔失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.deleteDocFailed'));
         return resp.json();
     },
 
@@ -136,7 +136,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '保存失敗');
+            throw new Error(err.detail || i18n.t('adm.api.saveFailed'));
         }
         return resp.json();
     },
@@ -146,7 +146,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/blocked-accounts', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入封鎖列表失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadBlockedFailed'));
         return resp.json();
     },
 
@@ -158,7 +158,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.message || '解除封鎖失敗');
+            throw new Error(err.message || i18n.t('adm.api.unblockFailed'));
         }
         return resp.json();
     },
@@ -174,7 +174,7 @@ const AdminAPI = {
         const resp = await fetch(`/api/admin/system-logs?${qs}`, {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入系統日誌失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadSyslogsFailed'));
         return resp.json();
     },
 
@@ -183,7 +183,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/users', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入用戶失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadUsersFailed'));
         return resp.json();
     },
 
@@ -195,7 +195,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '添加失敗');
+            throw new Error(err.detail || i18n.t('adm.api.addFailed'));
         }
         return resp.json();
     },
@@ -208,7 +208,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '更新失敗');
+            throw new Error(err.detail || i18n.t('adm.api.updateFailed'));
         }
         return resp.json();
     },
@@ -220,7 +220,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '刪除失敗');
+            throw new Error(err.detail || i18n.t('adm.api.deleteFailed'));
         }
         return resp.json();
     },
@@ -233,7 +233,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '重置失敗');
+            throw new Error(err.detail || i18n.t('adm.api.resetFailed'));
         }
         return resp.json();
     },
@@ -246,7 +246,7 @@ const AdminAPI = {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || '批量添加失敗');
+            throw new Error(err.detail || i18n.t('adm.api.batchAddFailed'));
         }
         return resp.json();
     },
@@ -264,7 +264,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/users/template', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('下載模板失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.downloadTemplateFailed'));
         return resp.blob();
     },
 
@@ -273,7 +273,7 @@ const AdminAPI = {
         const resp = await fetch(`/api/teacher/student/${studentId}/overview`, {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('获取學生概览失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadStudentOverviewFailed'));
         return resp.json();
     },
 
@@ -281,15 +281,39 @@ const AdminAPI = {
         const resp = await fetch(`/api/teacher/student/${studentId}/analysis/${subject}`, {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('获取分析失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadAnalysisFailed'));
         return resp.json();
     },
 
-    async fetchStudentsSummary() {
-        const resp = await fetch('/api/teacher/students/summary', {
+    async fetchStudentsSummary(className) {
+        // class_name optional — backend reads from student_risk_cache
+        const url = className
+            ? '/api/teacher/students/summary?class_name=' + encodeURIComponent(className)
+            : '/api/teacher/students/summary';
+        const resp = await fetch(url, {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('網絡錯誤');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.networkError'));
+        return resp.json();
+    },
+
+    async fetchTopAtRisk(limit) {
+        const resp = await fetch('/api/teacher/students/at_risk?limit=' + (limit || 10), {
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) throw new Error(i18n.t('adm.api.networkError'));
+        return resp.json();
+    },
+
+    async forceRefreshRisk() {
+        const resp = await fetch('/api/teacher/students/risk/refresh', {
+            method: 'POST',
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || i18n.t('adm.api.networkError'));
+        }
         return resp.json();
     },
 
@@ -318,7 +342,7 @@ const AdminAPI = {
             headers: { ...AuthModule.getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ session_id: sessionId })
         });
-        if (!resp.ok) throw new Error('匯出失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.exportFailed'));
         return resp.blob();
     },
 
@@ -327,7 +351,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/notice/templates', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入範本失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadTemplatesFailed'));
         return resp.json();
     },
 
@@ -345,7 +369,7 @@ const AdminAPI = {
         const resp = await fetch('/api/admin/apps', {
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('載入失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.loadAppsFailed'));
         return resp.json();
     },
 
@@ -355,7 +379,7 @@ const AdminAPI = {
             headers: { ...AuthModule.getAuthHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ modules })
         });
-        if (!resp.ok) throw new Error('保存失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.saveFailed'));
         return resp.json();
     },
 
@@ -364,7 +388,7 @@ const AdminAPI = {
             method: 'POST',
             headers: AuthModule.getAuthHeaders()
         });
-        if (!resp.ok) throw new Error('重置失敗');
+        if (!resp.ok) throw new Error(i18n.t('adm.api.resetFailed'));
         return resp.json();
     }
 };
@@ -422,21 +446,21 @@ const AdminUI = {
     /* ---------- 風險等級 ---------- */
     getRiskText(riskLevel) {
         const riskTexts = {
-            'low': '低风险',
-            'medium': '中风险',
-            'high': '高风险',
-            'unknown': '未评估'
+            'low': i18n.t('adm.risk.low'),
+            'medium': i18n.t('adm.risk.medium'),
+            'high': i18n.t('adm.risk.high'),
+            'unknown': i18n.t('adm.risk.unknown')
         };
-        return riskTexts[riskLevel] || '未知';
+        return riskTexts[riskLevel] || i18n.t('adm.risk.default');
     },
 
     getRiskDescription(riskLevel) {
         const descriptions = {
-            'low': '學生學習狀態良好，保持当前學習节奏即可',
-            'medium': '學生需要适当关注，建议增加互动和辅导',
-            'high': '學生需要重点关注，建议进行个别辅导和家长沟通'
+            'low': i18n.t('adm.risk.descLow'),
+            'medium': i18n.t('adm.risk.descMedium'),
+            'high': i18n.t('adm.risk.descHigh')
         };
-        return descriptions[riskLevel] || '评估中...';
+        return descriptions[riskLevel] || i18n.t('adm.risk.descDefault');
     },
 
     /* ---------- 學科名稱 ---------- */
@@ -446,7 +470,7 @@ const AdminUI = {
 
     /* ---------- 範本類型 ---------- */
     getTemplateTypeName(type) {
-        const names = { 'activity': '活动通告范本', 'exam': '考试通告范本', 'meeting': '会议通告范本', 'general': '一般通告范本' };
+        const names = { 'activity': i18n.t('adm.tplType.activity'), 'exam': i18n.t('adm.tplType.exam'), 'meeting': i18n.t('adm.tplType.meeting'), 'general': i18n.t('adm.tplType.general') };
         return names[type] || type;
     },
 
@@ -480,7 +504,7 @@ const AdminUI = {
 
         const entries = Object.entries(AdminApp.state.subjects || {});
         if (!entries.length) {
-            grid.innerHTML = '<div class="empty-state">暫無學科，請先添加</div>';
+            grid.innerHTML = '<div class="empty-state">' + i18n.t('adm.subject.noSubjects') + '</div>';
             const ts = document.getElementById('totalSubjects');
             if (ts) ts.textContent = 0;
             return;
@@ -506,21 +530,21 @@ const AdminUI = {
 
             card.innerHTML = `
                 <div class="subject-actions">
-                    <button class="icon-btn" title="編輯" data-action="editSubject" data-code="${code}">
+                    <button class="icon-btn" title="${i18n.t('adm.subject.edit')}" data-action="editSubject" data-code="${code}">
                         ${this.icon('pencil-sm', 'icon-sm')}
                     </button>
-                    <button class="icon-btn btn-danger" title="刪除" data-action="deleteSubject" data-code="${code}">
+                    <button class="icon-btn btn-danger" title="${i18n.t('adm.subject.delete')}" data-action="deleteSubject" data-code="${code}">
                         ${this.icon('trash', 'icon-sm')}
                     </button>
                 </div>
                 <div class="subject-icon">${icon}</div>
                 <div class="subject-name">${name}</div>
                 <div class="subject-code" style="color:#666; font-size:12px; margin-top:4px;">
-                    代码: ${code}
+                    ${i18n.t('adm.subject.code', {code})}
                 </div>
                 ${desc ? `<div style="margin-top:8px; color:#777; font-size:13px; line-height:1.4;">${desc}</div>` : ''}
                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary);">
-                    ${this.icon('document', 'icon-sm')} ${docCount} 个文檔
+                    ${this.icon('document', 'icon-sm')} ${i18n.t('adm.subject.docCount', {count: docCount})}
                 </div>
             `;
 
@@ -550,7 +574,7 @@ const AdminUI = {
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     <div style="margin-bottom: 1rem;">${this.icon('inbox', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
-                    <p>该學科暫無文檔</p>
+                    <p>${i18n.t('adm.docs.empty')}</p>
                 </div>
             `;
             return;
@@ -568,12 +592,12 @@ const AdminUI = {
                     <div style="flex: 1;">
                         <div style="font-weight: bold; margin-bottom: 4px;">${doc.name}</div>
                         <div style="font-size: 12px; color: var(--text-secondary);">
-                            ${size} • 上传于 ${date}
+                            ${size} • ${i18n.t('adm.docs.uploadedAt', {date})}
                         </div>
                     </div>
                     <button data-action="deleteDoc" data-subject="${subject}" data-name="${doc.name}"
                             style="padding: 8px 12px; background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer;">
-                        刪除
+                        ${i18n.t('adm.docs.deleteBtn')}
                     </button>
                 </div>
             `;
@@ -609,18 +633,18 @@ const AdminUI = {
 
         // 使用 innerHTML 一次寫入，避免逐行 DOM 操作
         const roleMap = {
-            'admin': '<span style="background: var(--color-error); color: white; padding: 2px 8px; border-radius: 12px;">管理员</span>',
-            'teacher': '<span style="background: var(--color-warning); color: white; padding: 2px 8px; border-radius: 12px;">教師</span>',
-            'student': '<span style="background: var(--color-success); color: white; padding: 2px 8px; border-radius: 12px;">學生</span>'
+            'admin': `<span style="background: var(--color-error); color: white; padding: 2px 8px; border-radius: 12px;">${i18n.t('adm.user.roleAdmin')}</span>`,
+            'teacher': `<span style="background: var(--color-warning); color: white; padding: 2px 8px; border-radius: 12px;">${i18n.t('adm.user.roleTeacher')}</span>`,
+            'student': `<span style="background: var(--color-success); color: white; padding: 2px 8px; border-radius: 12px;">${i18n.t('adm.user.roleStudent')}</span>`
         };
 
         const rows = [];
         for (let i = 0; i < users.length; i++) {
             const user = users[i];
             const roleDisplay = roleMap[user.role] || user.role;
-            const statusDisplay = user.status === 'active' ? '<span style="color: green;">✓ 活躍</span>' : '<span style="color: red;">✗ 禁用</span>';
-            let lastLogin = user.last_login || '从未登录';
-            if (lastLogin !== '从未登录') {
+            const statusDisplay = user.status === 'active' ? `<span style="color: green;">${i18n.t('adm.user.statusActive')}</span>` : `<span style="color: red;">${i18n.t('adm.user.statusDisabled')}</span>`;
+            let lastLogin = user.last_login || i18n.t('adm.user.neverLogin');
+            if (lastLogin !== i18n.t('adm.user.neverLogin')) {
                 try { lastLogin = new Date(lastLogin).toLocaleString('zh-CN'); } catch (e) {}
             }
             rows.push(`<tr>
@@ -634,9 +658,9 @@ const AdminUI = {
                 <td style="padding: 12px;">${user.login_count || 0}</td>
                 <td style="padding: 12px;">${lastLogin}</td>
                 <td style="padding: 12px;">
-                    <button data-action="editUser" data-username="${user.username}" style="padding: 4px 8px; background: var(--primary); color: white; border: none; border-radius: 4px; margin-right: 5px; cursor: pointer;">編輯</button>
-                    <button data-action="resetPwd" data-username="${user.username}" style="padding: 4px 8px; background: var(--warning); color: white; border: none; border-radius: 4px; margin-right: 5px; cursor: pointer;">重置密碼</button>
-                    <button data-action="deleteUser" data-username="${user.username}" style="padding: 4px 8px; background: var(--danger); color: white; border: none; border-radius: 4px; cursor: pointer;">刪除</button>
+                    <button data-action="editUser" data-username="${user.username}" style="padding: 4px 8px; background: var(--primary); color: white; border: none; border-radius: 4px; margin-right: 5px; cursor: pointer;">${i18n.t('adm.user.editBtn')}</button>
+                    <button data-action="resetPwd" data-username="${user.username}" style="padding: 4px 8px; background: var(--warning); color: white; border: none; border-radius: 4px; margin-right: 5px; cursor: pointer;">${i18n.t('adm.user.resetPwdBtn')}</button>
+                    <button data-action="deleteUser" data-username="${user.username}" style="padding: 4px 8px; background: var(--danger); color: white; border: none; border-radius: 4px; cursor: pointer;">${i18n.t('adm.user.deleteBtn')}</button>
                 </td>
             </tr>`);
         }
@@ -650,7 +674,7 @@ const AdminUI = {
 
         const entries = data?.data?.entries || [];
         if (entries.length === 0) {
-            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:2rem;">暫無日誌記錄</p>';
+            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:2rem;">' + i18n.t('adm.logs.empty') + '</p>';
             return;
         }
 
@@ -685,12 +709,12 @@ const AdminUI = {
             <table style="width:100%;border-collapse:collapse;font-size:0.85em;">
                 <thead>
                     <tr style="background:var(--light);text-align:left;">
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">時間</th>
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">級別</th>
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">事件</th>
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">用戶</th>
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">IP</th>
-                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);">詳情</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">${i18n.t('adm.logs.thTime')}</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">${i18n.t('adm.logs.thLevel')}</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">${i18n.t('adm.logs.thEvent')}</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">${i18n.t('adm.logs.thUser')}</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">${i18n.t('adm.logs.thIP')}</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);">${i18n.t('adm.logs.thDetails')}</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -712,7 +736,7 @@ const AdminUI = {
         }
 
         html += '</tbody></table>';
-        html += `<p style="text-align:center;color:var(--text-secondary);font-size:0.8em;margin-top:12px;">共 ${entries.length} 條記錄</p>`;
+        html += `<p style="text-align:center;color:var(--text-secondary);font-size:0.8em;margin-top:12px;">${i18n.t('adm.logs.totalRecords', {count: entries.length})}</p>`;
         container.innerHTML = html;
     },
 
@@ -726,7 +750,7 @@ const AdminUI = {
 
         (blocked.blocked_users || []).forEach(entry => {
             allEntries.push({
-                type: 'user', typeLabel: '用戶', key: entry.username,
+                type: 'user', typeLabel: i18n.t('adm.blocked.typeUser'), key: entry.username,
                 display: entry.username, remaining: entry.remaining_seconds,
                 blockedUntil: entry.blocked_until,
             });
@@ -740,7 +764,7 @@ const AdminUI = {
         });
         (blocked.blocked_ip_users || []).forEach(entry => {
             allEntries.push({
-                type: 'ip_user', typeLabel: 'IP+用戶', key: entry.key,
+                type: 'ip_user', typeLabel: i18n.t('adm.blocked.typeIPUser'), key: entry.key,
                 display: `${entry.ip} + ${entry.username}`, remaining: entry.remaining_seconds,
                 blockedUntil: entry.blocked_until,
             });
@@ -750,8 +774,8 @@ const AdminUI = {
             container.innerHTML = `
                 <div style="text-align:center;padding:3rem;color:var(--text-secondary);background:white;border-radius:10px;">
                     <div style="margin-bottom:1rem;">${AdminUI.icon('check-circle', '', 'width:48px;height:48px;stroke:var(--success)')}</div>
-                    <p style="font-size:1.05rem;margin-bottom:0.5rem;">目前沒有活躍的臨時封鎖</p>
-                    <p style="font-size:0.9rem;">此處僅顯示因登錄失敗觸發的臨時限制，已過期的封鎖不會顯示。</p>
+                    <p style="font-size:1.05rem;margin-bottom:0.5rem;">${i18n.t('adm.blocked.noBlocks')}</p>
+                    <p style="font-size:0.9rem;">${i18n.t('adm.blocked.noBlocksDesc')}</p>
                 </div>`;
             return;
         }
@@ -765,7 +789,7 @@ const AdminUI = {
         const rows = allEntries.map(entry => {
             const minutes = Math.floor(entry.remaining / 60);
             const seconds = entry.remaining % 60;
-            const timeStr = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+            const timeStr = minutes > 0 ? i18n.t('adm.blocked.timeMinSec', {minutes, seconds}) : i18n.t('adm.blocked.timeSec', {seconds});
             const expiryDate = new Date(entry.blockedUntil * 1000).toLocaleString('zh-TW');
 
             return `<tr>
@@ -778,7 +802,7 @@ const AdminUI = {
                 <td style="padding:12px;">
                     <button data-action="unblock" data-type="${entry.type}" data-key="${entry.key}" data-label="${entry.typeLabel}" data-display="${entry.display}"
                         style="padding:4px 14px;background:var(--color-success, #5cb85c);color:white;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">
-                        解鎖
+                        ${i18n.t('adm.blocked.unlockBtn')}
                     </button>
                 </td>
             </tr>`;
@@ -789,18 +813,18 @@ const AdminUI = {
             <table style="width:100%;background:white;border-radius:10px;border-collapse:collapse;">
                 <thead style="background:var(--light, #f8f9fa);">
                     <tr>
-                        <th style="padding:12px;text-align:left;">類型</th>
-                        <th style="padding:12px;text-align:left;">封鎖對象</th>
-                        <th style="padding:12px;text-align:left;">剩餘時間</th>
-                        <th style="padding:12px;text-align:left;">到期時間</th>
-                        <th style="padding:12px;text-align:left;">操作</th>
+                        <th style="padding:12px;text-align:left;">${i18n.t('adm.blocked.thType')}</th>
+                        <th style="padding:12px;text-align:left;">${i18n.t('adm.blocked.thTarget')}</th>
+                        <th style="padding:12px;text-align:left;">${i18n.t('adm.blocked.thRemaining')}</th>
+                        <th style="padding:12px;text-align:left;">${i18n.t('adm.blocked.thExpiry')}</th>
+                        <th style="padding:12px;text-align:left;">${i18n.t('adm.blocked.thAction')}</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
             </div>
             <p style="margin-top:12px;font-size:0.85em;color:var(--text-secondary);">
-                共 ${allEntries.length} 條活躍封鎖
+                ${i18n.t('adm.blocked.totalActive', {count: allEntries.length})}
             </p>`;
 
         container.querySelectorAll('[data-action="unblock"]').forEach(btn => {
@@ -815,7 +839,7 @@ const AdminUI = {
         const studentList = document.getElementById('studentList');
 
         if (students.length === 0) {
-            studentList.innerHTML = '<div class="empty-state"><p>沒有找到學生</p></div>';
+            studentList.innerHTML = '<div class="empty-state"><p>' + i18n.t('adm.student.noStudents') + '</p></div>';
             return;
         }
 
@@ -828,7 +852,7 @@ const AdminUI = {
             item.innerHTML = `
                 <div class="student-info">
                     <div class="student-name">${student.display_name || student.username}</div>
-                    <div class="student-class">${student.class_name || '未分班'}</div>
+                    <div class="student-class">${student.class_name || i18n.t('adm.student.noClass')}</div>
                 </div>
                 <div class="risk-indicator risk-${riskLevel}" title="${this.getRiskText(riskLevel)}"></div>
             `;
@@ -843,7 +867,7 @@ const AdminUI = {
         if (!container) return;
 
         if (!students || students.length === 0) {
-            container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">暫無摘要數據</div>';
+            container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">' + i18n.t('adm.student.noSummary') + '</div>';
             return;
         }
 
@@ -857,10 +881,10 @@ const AdminUI = {
                         <span class="risk-badge" style="background: ${riskColor}">${this.getRiskText(student.risk_level)}</span>
                     </div>
                     <div class="summary-content">${student.overall_summary || '—'}</div>
-                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} 预习狀態: ${student.preview_status || '—'}</div>
+                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} ${i18n.t('adm.student.previewStatus', {status: student.preview_status || '—'})}</div>
                     <div class="summary-footer">
-                        <span class="class-info">班级: ${student.class_name || '—'}</span>
-                        <span class="update-time">更新: ${this.formatDate(student.last_updated)}</span>
+                        <span class="class-info">${i18n.t('adm.student.classLabel', {name: student.class_name || '—'})}</span>
+                        <span class="update-time">${i18n.t('adm.student.updateLabel', {time: this.formatDate(student.last_updated)})}</span>
                     </div>
                 </div>
             `;
@@ -879,7 +903,7 @@ const AdminUI = {
     renderStudentsSummary(students) {
         const container = document.getElementById('studentsSummaryList');
         if (!students || students.length === 0) {
-            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #999;">暫無學生數據</div>';
+            container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #999;">' + i18n.t('adm.student.noData') + '</div>';
             return;
         }
 
@@ -896,13 +920,13 @@ const AdminUI = {
                     </div>
                     <div class="ai-evaluation">
                         <div class="ai-evaluation-content">
-                            ${this.formatMarkdownText(student.overall_summary || '暫無摘要')}
+                            ${this.formatMarkdownText(student.overall_summary || i18n.t('adm.student.noSummaryText'))}
                         </div>
                     </div>
-                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} 预习狀態: ${student.preview_status || '—'}</div>
+                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} ${i18n.t('adm.student.previewStatus', {status: student.preview_status || '—'})}</div>
                     <div class="summary-footer">
-                        <span class="class-info">班级: ${student.class_name || '—'}</span>
-                        <span class="update-time">更新: ${this.formatDate(student.last_updated)}</span>
+                        <span class="class-info">${i18n.t('adm.student.classLabel', {name: student.class_name || '—'})}</span>
+                        <span class="update-time">${i18n.t('adm.student.updateLabel', {time: this.formatDate(student.last_updated)})}</span>
                     </div>
                 </div>
             `;
@@ -922,46 +946,46 @@ const AdminUI = {
         return `
             <div class="report-section">
                 <h4 style="color: var(--primary); margin-bottom: 15px;">
-                    ${this.icon('books', 'icon-lg', 'stroke:var(--primary)')} ${this.getSubjectName(subject)} 科目詳細分析
+                    ${this.icon('books', 'icon-lg', 'stroke:var(--primary)')} ${i18n.t('adm.report.subjectAnalysis', {subject: this.getSubjectName(subject)})}
                 </h4>
 
                 <div class="risk-badge risk-${report.risk_level}" style="margin-bottom: 15px;">
-                    风险等级: ${this.getRiskText(report.risk_level)}
+                    ${i18n.t('adm.report.riskLevel', {level: this.getRiskText(report.risk_level)})}
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('books')} 知识掌握情况</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.knowledge_mastery_report || '暫無數據')}</div>
+                    <h4>${this.icon('books')} ${i18n.t('adm.report.knowledgeMastery')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.knowledge_mastery_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('palette')} 學習风格分析</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.learning_style_report || '暫無數據')}</div>
+                    <h4>${this.icon('palette')} ${i18n.t('adm.report.learningStyle')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.learning_style_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('warning')} 學習困难分析</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.difficulty_report || '暫無數據')}</div>
+                    <h4>${this.icon('warning')} ${i18n.t('adm.report.difficulty')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.difficulty_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('chat-bubble')} 情感狀態分析</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.emotion_report || '暫無數據')}</div>
+                    <h4>${this.icon('chat-bubble')} ${i18n.t('adm.report.emotion')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.emotion_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('trending-up')} 學習进度评估</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.progress_report || '暫無數據')}</div>
+                    <h4>${this.icon('trending-up')} ${i18n.t('adm.report.progress')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.progress_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4>${this.icon('lightbulb')} 个性化學習建议</h4>
-                    <div class="report-content formatted-text">${this.formatReportText(report.suggestion_report || '暫無數據')}</div>
+                    <h4>${this.icon('lightbulb')} ${i18n.t('adm.report.suggestion')}</h4>
+                    <div class="report-content formatted-text">${this.formatReportText(report.suggestion_report || i18n.t('adm.report.noData'))}</div>
                 </div>
 
                 ${report.teacher_attention_points ? `
                 <div class="teacher-attention">
-                    <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} 教師关注点</h5>
+                    <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} ${i18n.t('adm.report.teacherAttention')}</h5>
                     <div class="formatted-text">${this.formatReportText(report.teacher_attention_points)}</div>
                 </div>
                 ` : ''}
@@ -977,15 +1001,15 @@ const AdminUI = {
 
         content.innerHTML = `
             <div class="analysis-header">
-                <h3>${student.display_name || student.username} - 學習分析報告</h3>
+                <h3>${i18n.t('adm.report.title', {name: student.display_name || student.username})}</h3>
                 <div class="analysis-meta">
-                    <span>${this.icon('graduation', 'icon-sm')} 班级：${student.class_name || '未分班'}</span>
-                    <span>${this.icon('calendar', 'icon-sm')} 分析日期：${new Date(report.analysis_date).toLocaleDateString('zh-CN')}</span>
+                    <span>${this.icon('graduation', 'icon-sm')} ${i18n.t('adm.report.classLabel', {name: student.class_name || i18n.t('adm.student.noClass')})}</span>
+                    <span>${this.icon('calendar', 'icon-sm')} ${i18n.t('adm.report.analysisDate', {date: new Date(report.analysis_date).toLocaleDateString('zh-CN')})}</span>
                 </div>
             </div>
 
             <div class="risk-assessment-card">
-                <h4>${this.icon('warning')} 风险等级评估</h4>
+                <h4>${this.icon('warning')} ${i18n.t('adm.report.riskAssessment')}</h4>
                 <div class="risk-level-display ${riskClass}">
                     <span class="risk-badge">${riskLevelText}</span>
                     <div class="risk-description">${this.getRiskDescription(report.risk_level)}</div>
@@ -993,43 +1017,43 @@ const AdminUI = {
             </div>
 
             <div class="ai-assessment">
-                <h4>${this.icon('target', 'icon-white')} 總体评估</h4>
-                <div class="formatted-content">${this.formatMarkdownText(report.overall_assessment || '暫無评估')}</div>
+                <h4>${this.icon('target', 'icon-white')} ${i18n.t('adm.report.overallAssessment')}</h4>
+                <div class="formatted-content">${this.formatMarkdownText(report.overall_assessment || i18n.t('adm.report.noAssessment'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('books')} 知识掌握情况</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.knowledge_mastery_report || '暫無數據')}</div>
+                <h4>${this.icon('books')} ${i18n.t('adm.report.knowledgeMastery')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.knowledge_mastery_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('palette')} 學習风格分析</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.learning_style_report || '暫無數據')}</div>
+                <h4>${this.icon('palette')} ${i18n.t('adm.report.learningStyle')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.learning_style_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('wrench')} 难点与挑战</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.difficulty_report || '暫無數據')}</div>
+                <h4>${this.icon('wrench')} ${i18n.t('adm.report.difficultyChallenge')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.difficulty_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('chat-bubble')} 情感狀態</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.emotion_report || '暫無數據')}</div>
+                <h4>${this.icon('chat-bubble')} ${i18n.t('adm.report.emotionStatus')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.emotion_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('lightbulb')} 改进建议</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.suggestion_report || '暫無數據')}</div>
+                <h4>${this.icon('lightbulb')} ${i18n.t('adm.report.improveSuggestion')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.suggestion_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             <div class="report-section">
-                <h4>${this.icon('trending-up')} 进步情况</h4>
-                <div class="report-content formatted-text">${this.formatMarkdownText(report.progress_report || '暫無數據')}</div>
+                <h4>${this.icon('trending-up')} ${i18n.t('adm.report.progressStatus')}</h4>
+                <div class="report-content formatted-text">${this.formatMarkdownText(report.progress_report || i18n.t('adm.report.noData'))}</div>
             </div>
 
             ${report.teacher_attention_points ? `
             <div class="teacher-attention">
-                <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} 教師关注点</h5>
+                <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} ${i18n.t('adm.report.teacherAttention')}</h5>
                 <div class="formatted-text">${this.formatMarkdownText(report.teacher_attention_points)}</div>
             </div>
             ` : ''}
@@ -1052,7 +1076,7 @@ const AdminUI = {
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     <div style="margin-bottom: 1rem;">${this.icon('inbox', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
-                    <p>暫無${filterType === 'all' ? '' : this.getTemplateTypeName(filterType)}范本</p>
+                    <p>${i18n.t('adm.tpl.noTemplates', {type: filterType === 'all' ? '' : this.getTemplateTypeName(filterType)})}</p>
                 </div>`;
             return;
         }
@@ -1075,12 +1099,12 @@ const AdminUI = {
                             </div>
                             <button data-action="deleteTemplate" data-type="${type}" data-filename="${(template.filename || '').replace(/'/g, "\\'")}"
                                     style="padding: 6px 12px; background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
-                                刪除
+                                ${i18n.t('adm.tpl.deleteBtn')}
                             </button>
                         </div>
-                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">${AdminUI.icon('calendar', 'icon-sm')} 上传時間：${uploadTime}</div>
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">${AdminUI.icon('calendar', 'icon-sm')} ${i18n.t('adm.tpl.uploadTime', {time: uploadTime})}</div>
                         <div style="color: var(--text); font-size: 0.9rem; line-height: 1.6; padding: 1rem; background: white; border-radius: 6px; border: 1px solid var(--border);">
-                            <strong>內容预览：</strong><br>${template.content_preview || ''}
+                            <strong>${i18n.t('adm.tpl.contentPreview')}</strong><br>${template.content_preview || ''}
                         </div>
                     </div>`;
             });
@@ -1099,13 +1123,13 @@ const AdminUI = {
     /* ---------- 應用管理渲染 ---------- */
 
     // 分類配置
-    _categoryLabels: { learning: '學習工具', community: '社區', teaching: '教學管理', admin: '系統管理', other: '其他' },
+    get _categoryLabels() { return { learning: i18n.t('adm.app.catLearning'), community: i18n.t('adm.app.catCommunity'), teaching: i18n.t('adm.app.catTeaching'), admin: i18n.t('adm.app.catAdmin'), other: i18n.t('adm.app.catOther') }; },
 
     renderAppsConfig() {
         const container = document.getElementById('appmgrList');
         if (!container) return;
         const apps = AdminApp.state.appsConfig;
-        const roleLabels = { student: '學生', teacher: '教師', admin: '管理員' };
+        const roleLabels = { student: i18n.t('adm.app.roleStudent'), teacher: i18n.t('adm.app.roleTeacher'), admin: i18n.t('adm.app.roleAdmin') };
         const catLabels = this._categoryLabels;
 
         // 按 category 分組渲染
@@ -1160,8 +1184,8 @@ const AdminUI = {
                         </div>
                         <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
                             <div style="display:flex;flex-direction:column;gap:4px;">
-                                <button data-action="moveApp" data-index="${index}" data-dir="-1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="上移" ${index === 0 ? 'disabled' : ''}>▲</button>
-                                <button data-action="moveApp" data-index="${index}" data-dir="1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="下移" ${index === apps.length - 1 ? 'disabled' : ''}>▼</button>
+                                <button data-action="moveApp" data-index="${index}" data-dir="-1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="${i18n.t('adm.app.moveUp')}" ${index === 0 ? 'disabled' : ''}>▲</button>
+                                <button data-action="moveApp" data-index="${index}" data-dir="1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="${i18n.t('adm.app.moveDown')}" ${index === apps.length - 1 ? 'disabled' : ''}>▼</button>
                             </div>
                             <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
                                 <input type="checkbox" data-action="toggleEnabled" data-index="${index}" ${app.enabled ? 'checked' : ''}
@@ -1221,11 +1245,13 @@ const AdminApp = {
         noticeCanExport: false,
         // 提示詞
         currentPromptSubject: null,
-        promptTemplates: {
-            basic: '你是一個{subject_name}學科的AI助教。\n請用簡單易懂的語言回答學生的問題。\n始終保持友好、耐心的態度。',
-            interactive: '你是{subject_name}學科的互動學習助手。\n通過提問引導學生思考，而不是直接給出答案。\n鼓勵學生自主探索和學習。',
-            exam: '你是{subject_name}學科的考試輔導專家。\n幫助學生準備考試，提供練習題和詳細解答。\n重點關注易錯點和考試技巧。',
-            creative: '你是{subject_name}學科的創意思維導師。\n鼓勵學生跳出框架思考，培養創新能力。\n通過實例和項目激發學習興趣。'
+        get promptTemplates() {
+            return {
+                basic: i18n.t('adm.promptTpl.basic'),
+                interactive: i18n.t('adm.promptTpl.interactive'),
+                exam: i18n.t('adm.promptTpl.exam'),
+                creative: i18n.t('adm.promptTpl.creative')
+            };
         },
         // 知識庫
         currentDocuments: [],
@@ -1243,15 +1269,20 @@ const AdminApp = {
         aiMonitorTimer: null,
         aiMonitorReqSeq: 0,
         aiMonitorLastData: null,
-        aiMonitorFetching: false
+        aiMonitorFetching: false,
+        // Tab 緩存：已載入過的 tab 不重複請求
+        _tabLoaded: {}
     },
 
     /* ---------- 初始化 ---------- */
     init() {
-        this.loadAdminInfo();
-        this.loadSubjects();
-        this.loadStatistics();
-        this.loadStudentsSummary();
+        // 並行載入初始數據（不互相依賴）
+        Promise.all([
+            this.loadAdminInfo(),
+            this.loadSubjects(),
+            this.loadStatistics(),
+        ]).catch(e => console.error('Init load error:', e));
+        // StudentsSummary 較慢，延遲到切 tab 時再載入
         if (window.location.hash === '#knowledge') {
             this.loadNoticeTemplates();
         }
@@ -1348,6 +1379,9 @@ const AdminApp = {
         document.querySelectorAll('[data-action="loadStudentsSummary"]').forEach(btn => {
             btn.addEventListener('click', () => this.loadStudentsSummary());
         });
+        document.querySelectorAll('[data-action="forceRefreshRisk"]').forEach(btn => {
+            btn.addEventListener('click', () => this.forceRefreshRisk());
+        });
 
         // Blocked accounts
         document.querySelectorAll('[data-action="refreshBlocked"]').forEach(btn => {
@@ -1359,7 +1393,20 @@ const AdminApp = {
 
         // Filters
         const classFilter = document.getElementById('classFilter');
-        if (classFilter) classFilter.addEventListener('change', () => this.filterStudents());
+        if (classFilter) {
+            // Class change → load that class from cache (the new flow)
+            classFilter.addEventListener('change', (e) => {
+                const cls = e.target.value;
+                if (cls) {
+                    this.loadClassStudents(cls);
+                } else {
+                    document.getElementById('studentList').innerHTML =
+                        '<div class="empty-state"><p>' + i18n.t('adm.analysis.pickClassFirst') + '</p></div>';
+                    this.state.allStudents = [];
+                    this.updateStudentStats([]);
+                }
+            });
+        }
         const subjectFilter = document.getElementById('subjectFilter');
         if (subjectFilter) subjectFilter.addEventListener('change', () => this.filterStudents());
         const studentSearch = document.getElementById('studentSearch');
@@ -1483,7 +1530,7 @@ const AdminApp = {
 
     /* ---------- 管理員/教師信息 ---------- */
     loadAdminInfo() {
-        const adminName = localStorage.getItem('admin_name') || '管理员';
+        const adminName = localStorage.getItem('admin_name') || i18n.t('adm.info.defaultName');
         const role = (typeof AuthModule !== 'undefined' && AuthModule.getUserRole)
             ? AuthModule.getUserRole() : (localStorage.getItem('user_role') || 'admin');
 
@@ -1494,10 +1541,10 @@ const AdminApp = {
         const badge = document.getElementById('roleBadge');
         if (badge) {
             if (role === 'admin') {
-                badge.textContent = '管理員';
+                badge.textContent = i18n.t('adm.info.badgeAdmin');
                 badge.className = 'role-badge role-admin';
             } else {
-                badge.textContent = '教師';
+                badge.textContent = i18n.t('adm.info.badgeTeacher');
                 badge.className = 'role-badge role-teacher';
             }
         }
@@ -1547,33 +1594,44 @@ const AdminApp = {
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
         document.getElementById(`${tabName}-tab`).classList.add('active');
 
-        if (tabName === 'analysis') {
-            this.loadStudentAnalysis();
-            this.loadStudentsSummary();
-        } else if (tabName === 'knowledge') {
-            this.loadKnowledgeTab();
-            setTimeout(() => this.initDragDropUpload(), 120);
-            setTimeout(() => this.enhanceNoticeChat(), 120);
-        } else if (tabName === 'prompts') {
-            this.loadPromptsTab();
-        } else if (tabName === 'users') {
-            this.loadUsers();
-        } else if (tabName === 'notice') {
-            if (!this.state.noticeSessionId) {
-                this.initNoticeGenerator();
+        // 需要每次刷新的 tab（實時數據）
+        const alwaysRefresh = ['aimonitor', 'syslogs', 'blocked'];
+        const cached = this.state._tabLoaded[tabName] && !alwaysRefresh.includes(tabName);
+
+        if (!cached) {
+            if (tabName === 'analysis') {
+                this.loadStudentAnalysis();
+                this.loadStudentsSummary();
+            } else if (tabName === 'knowledge') {
+                this.loadKnowledgeTab();
+                setTimeout(() => this.initDragDropUpload(), 120);
+                setTimeout(() => this.enhanceNoticeChat(), 120);
+            } else if (tabName === 'prompts') {
+                this.loadPromptsTab();
+            } else if (tabName === 'users') {
+                this.loadUsers();
+            } else if (tabName === 'notice') {
+                if (!this.state.noticeSessionId) {
+                    this.initNoticeGenerator();
+                }
+            } else if (tabName === 'appmgr') {
+                this.loadAppsConfig();
+            } else if (tabName === 'classdiary') {
+                this.loadClassDiaryTab();
+            } else if (tabName === 'blocked') {
+                this.loadBlockedAccounts();
+            } else if (tabName === 'aimonitor') {
+                this.startAiMonitor();
+                loadAiUsageStats();
+            } else if (tabName === 'settings') {
+                loadCloudStatus();
+            } else if (tabName === 'syslogs') {
+                this.loadSystemLogs();
             }
-        } else if (tabName === 'appmgr') {
-            this.loadAppsConfig();
-        } else if (tabName === 'classdiary') {
-            this.loadClassDiaryTab();
-        } else if (tabName === 'blocked') {
-            this.loadBlockedAccounts();
+            this.state._tabLoaded[tabName] = true;
         } else if (tabName === 'aimonitor') {
+            // AI 監控需要重啟輪詢
             this.startAiMonitor();
-        } else if (tabName === 'settings') {
-            loadCloudStatus();
-        } else if (tabName === 'syslogs') {
-            this.loadSystemLogs();
         }
     },
 
@@ -1603,7 +1661,7 @@ const AdminApp = {
             } catch (e) {
                 console.error('載入系統日誌失敗:', e);
                 const c = document.getElementById('syslogsContainer');
-                if (c) c.innerHTML = `<p style="color:#DC2626;text-align:center;padding:2rem;">載入失敗: ${e.message}</p>`;
+                if (c) c.innerHTML = `<p style="color:#DC2626;text-align:center;padding:2rem;">${i18n.t('adm.syslogs.loadFailedPrefix')}${e.message}</p>`;
             }
         };
 
@@ -1655,20 +1713,20 @@ const AdminApp = {
             console.error('載入封鎖列表失敗:', error);
             const container = document.getElementById('blockedAccountsContainer');
             if (container) {
-                container.innerHTML = `<p style="color:var(--color-error);">載入封鎖列表失敗: ${error.message}</p>`;
+                container.innerHTML = `<p style="color:var(--color-error);">${i18n.t('adm.syslogs.loadBlockedFailed', {msg: error.message})}</p>`;
             }
         }
     },
 
     async unblockAccount(blockType, key, typeLabel, display) {
-        const msg = `確定要解除封鎖嗎？\n\n類型：${typeLabel || blockType}\n對象：${display || key}\n\n注意：如果該對象同時存在多條封鎖，解除此條不代表完全恢復登錄。`;
+        const msg = i18n.t('adm.unblock.confirmMsg', {typeLabel: typeLabel || blockType, display: display || key});
         if (!confirm(msg)) return;
         try {
             await AdminAPI.unblockAccount(blockType, key);
-            alert('已解除該條封鎖');
+            alert(i18n.t('adm.unblock.success'));
             this.loadBlockedAccounts();
         } catch (error) {
-            alert('解除封鎖失敗: ' + error.message);
+            alert(i18n.t('adm.unblock.failed', {msg: error.message}));
         }
     },
 
@@ -1687,7 +1745,7 @@ const AdminApp = {
     updateSubjectSelectors() {
         const subjectFilter = document.getElementById('subjectFilter');
         if (!subjectFilter) return;
-        subjectFilter.innerHTML = '<option value="">所有學科</option>';
+        subjectFilter.innerHTML = `<option value="">${i18n.t('adm.filter.allSubjects')}</option>`;
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const option = document.createElement('option');
             option.value = code;
@@ -1729,11 +1787,11 @@ const AdminApp = {
         };
         try {
             await AdminAPI.createSubject(subjectData);
-            alert('學科添加成功！');
+            alert(i18n.t('adm.subject.addSuccess'));
             this.closeAddSubjectModal();
             this.loadSubjects();
         } catch (error) {
-            alert('添加失敗：' + error.message);
+            alert(i18n.t('adm.subject.addFailedPrefix') + error.message);
         }
     },
 
@@ -1768,28 +1826,28 @@ const AdminApp = {
         };
         try {
             await AdminAPI.updateSubject(code, subjectData);
-            alert('學科更新成功！');
+            alert(i18n.t('adm.subject.updateSuccess'));
             this.closeEditSubjectModal();
             await this.loadSubjects();
         } catch (error) {
             console.error('更新學科失敗:', error);
-            alert('更新失敗: ' + error.message);
+            alert(i18n.t('adm.subject.updateFailedPrefix') + error.message);
         }
     },
 
     async deleteSubject(code) {
         const subject = this.state.subjects[code];
         if (!subject) return;
-        const confirmMsg = `确定要刪除學科 "${subject.name}" (${code}) 吗？\n\n注意：如果该學科下有文檔，需要先刪除所有文檔。`;
+        const confirmMsg = i18n.t('adm.subject.deleteConfirm', {name: subject.name, code});
         if (!confirm(confirmMsg)) return;
         try {
             await AdminAPI.deleteSubject(code);
-            alert('學科刪除成功！');
+            alert(i18n.t('adm.subject.deleteSuccess'));
             await this.loadSubjects();
             await this.loadStatistics();
         } catch (error) {
             console.error('刪除學科失敗:', error);
-            alert('刪除失敗: ' + error.message);
+            alert(i18n.t('adm.subject.deleteFailedPrefix') + error.message);
         }
     },
 
@@ -1802,7 +1860,7 @@ const AdminApp = {
     async loadKnowledgeSubjects() {
         const select = document.getElementById('knowledgeSubjectSelect');
         if (!select) return;
-        select.innerHTML = '<option value="">選擇學科</option>';
+        select.innerHTML = `<option value="">${i18n.t('adm.filter.selectSubject')}</option>`;
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const option = document.createElement('option');
             option.value = code;
@@ -1834,7 +1892,7 @@ const AdminApp = {
             document.getElementById('documentsList').innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                     <div style="margin-bottom: 1rem;">${AdminUI.icon('folder', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
-                    <p>請選擇學科查看文檔</p>
+                    <p>${i18n.t('adm.kb.selectSubjectHint')}</p>
                 </div>
             `;
             return;
@@ -1844,18 +1902,18 @@ const AdminApp = {
             AdminUI.renderDocuments(data.documents, subject);
         } catch (error) {
             console.error('載入文檔出错:', error);
-            document.getElementById('documentsList').innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--danger);"><p>載入失敗，請重试</p></div>';
+            document.getElementById('documentsList').innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--danger);"><p>' + i18n.t('adm.kb.loadFailed') + '</p></div>';
         }
     },
 
     async uploadDocuments(input) {
         const files = input.files;
         const subject = document.getElementById('knowledgeSubjectSelect').value;
-        if (!subject) { alert('請先選擇學科'); input.value = ''; return; }
+        if (!subject) { alert(i18n.t('adm.kb.selectSubjectFirst')); input.value = ''; return; }
         if (files.length === 0) return;
 
         const container = document.getElementById('documentsList');
-        container.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner"></div><p>正在上传文檔...</p></div>';
+        container.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="spinner"></div><p>' + i18n.t('adm.kb.uploading') + '</p></div>';
 
         let successCount = 0;
         let failCount = 0;
@@ -1870,26 +1928,26 @@ const AdminApp = {
         }
 
         if (successCount > 0) {
-            alert(`上传完成！\n成功: ${successCount} 个\n失敗: ${failCount} 个`);
+            alert(i18n.t('adm.kb.uploadComplete', {success: successCount, fail: failCount}));
             await this.loadSubjects();
             await this.loadDocuments(subject);
             await this.loadKnowledgeStats();
             await this.loadStatistics();
         } else {
-            alert('所有文件上传失敗，請检查文件格式');
+            alert(i18n.t('adm.kb.allUploadFailed'));
         }
         input.value = '';
     },
 
     async deleteDocument(subject, filename) {
-        if (!confirm(`确定要刪除文檔 "${filename}" 吗？`)) return;
+        if (!confirm(i18n.t('adm.kb.deleteConfirm', {name: filename}))) return;
         try {
             await AdminAPI.deleteDocument(subject, filename);
-            alert('文檔刪除成功');
+            alert(i18n.t('adm.kb.deleteSuccess'));
             await this.loadDocuments(subject);
         } catch (error) {
             console.error('刪除文檔出错:', error);
-            alert('刪除失敗');
+            alert(i18n.t('adm.kb.deleteFailedShort'));
         }
     },
 
@@ -1923,7 +1981,7 @@ const AdminApp = {
         }
         document.getElementById('promptEditor').style.display = 'block';
         document.getElementById('promptPlaceholder').style.display = 'none';
-        document.getElementById('promptSubjectTitle').textContent = `${subject.name || code} - 提示詞配置`;
+        document.getElementById('promptSubjectTitle').textContent = i18n.t('adm.prompt.title', {name: subject.name || code});
         await this.loadPrompt(code);
     },
 
@@ -1934,12 +1992,12 @@ const AdminApp = {
                 const data = await response.json();
                 document.getElementById('promptContent').value = data.prompt || '';
             } else {
-                const defaultPrompt = `你是${this.state.subjects[subjectCode]?.name || subjectCode}學科的AI學習助手。\n請根據學生的問題提供準確、易懂的解答。`;
+                const defaultPrompt = i18n.t('adm.prompt.defaultPrompt', {name: this.state.subjects[subjectCode]?.name || subjectCode});
                 document.getElementById('promptContent').value = defaultPrompt;
             }
         } catch (error) {
             console.error('載入提示詞失敗:', error);
-            const defaultPrompt = `你是${this.state.subjects[subjectCode]?.name || subjectCode}學科的AI學習助手。\n請根據學生的問題提供準確、易懂的解答。`;
+            const defaultPrompt = i18n.t('adm.prompt.defaultPrompt', {name: this.state.subjects[subjectCode]?.name || subjectCode});
             document.getElementById('promptContent').value = defaultPrompt;
         }
         this.updateCharCount();
@@ -1947,11 +2005,11 @@ const AdminApp = {
 
     updateCharCount() {
         const content = document.getElementById('promptContent').value;
-        document.getElementById('promptCharCount').textContent = `${content.length} 字符`;
+        document.getElementById('promptCharCount').textContent = i18n.t('adm.prompt.charCount', {count: content.length});
     },
 
     applyPromptTemplate(templateName) {
-        if (!this.state.currentPromptSubject) { alert('請先選擇學科'); return; }
+        if (!this.state.currentPromptSubject) { alert(i18n.t('adm.prompt.selectSubjectFirst')); return; }
         const template = this.state.promptTemplates[templateName];
         const subject = this.state.subjects[this.state.currentPromptSubject];
         const prompt = template.replace('{subject_name}', subject?.name || this.state.currentPromptSubject);
@@ -1960,14 +2018,14 @@ const AdminApp = {
     },
 
     async savePrompt() {
-        if (!this.state.currentPromptSubject) { alert('請選擇學科'); return; }
+        if (!this.state.currentPromptSubject) { alert(i18n.t('adm.prompt.selectSubject')); return; }
         const textarea = document.getElementById('promptContent');
         const prompt = textarea.value;
         try {
             await AdminAPI.savePrompt(this.state.currentPromptSubject, prompt);
             const status = document.getElementById('promptSaveStatus');
             status.style.display = 'inline';
-            status.textContent = '✓ 已保存';
+            status.textContent = i18n.t('adm.prompt.saved');
             status.style.color = 'var(--success)';
             textarea.style.border = '2px solid var(--success)';
             setTimeout(() => {
@@ -1976,7 +2034,7 @@ const AdminApp = {
             }, 3000);
             this.updateCharCount();
         } catch (error) {
-            alert('保存失敗: ' + error.message);
+            alert(i18n.t('adm.prompt.saveFailedPrefix') + error.message);
         }
     },
 
@@ -1990,36 +2048,116 @@ const AdminApp = {
 
     previewPrompt() {
         const content = document.getElementById('promptContent').value;
-        alert('提示詞預覽：\n\n' + content);
+        alert(i18n.t('adm.prompt.previewTitle') + content);
     },
 
     resetPrompt() {
-        if (confirm('確定要重置提示詞嗎？')) {
+        if (confirm(i18n.t('adm.prompt.resetConfirm'))) {
             document.getElementById('promptContent').value = '';
             this.updateCharCount();
         }
     },
 
-    /* ---------- 學生分析 ---------- */
+    /* ---------- 學生分析 ----------
+       新流程（風險快取版）：
+       1. 上方「全校高風險 Top 10」立即從快取讀（<10ms）
+       2. 為了讓班級下拉有選項，仍然 fetch user list（一次性，不跑風險計算）
+       3. 預設選教師自己的班；若沒有，提示「請先選擇班級」
+       4. 選班級後，從 cache 拉該班學生（瞬間）
+       「立即重算」按鈕呼叫 forceRefreshRisk，跑 ~5-10 秒。
+    */
     async loadStudentAnalysis() {
         console.log('[Analysis] 開始載入學生分析數據...');
-        document.getElementById('studentList').innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>載入學生列表...</p></div>';
+
+        // ① 載入「全校高風險 Top 10」（從快取，瞬間）
+        this.loadStudentsSummary();  // 即 fetchTopAtRisk + render
+
+        // ② 為了班級下拉，仍需要拿一次用戶列表（不再跑風險）
+        document.getElementById('studentList').innerHTML =
+            '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.analysis.loadingList') + '</p></div>';
         try {
             const data = await AdminAPI.fetchUsers();
             this.state.allStudents = (data.users || []).filter(user => user.role === 'student');
             this.updateClassFilter();
+
+            // ③ 預設選教師自己的班（如果有）
+            const myClass = (this.state.currentUser && this.state.currentUser.class_name) || '';
+            const classFilter = document.getElementById('classFilter');
+            if (myClass && [...classFilter.options].some(o => o.value === myClass)) {
+                classFilter.value = myClass;
+                await this.loadClassStudents(myClass);
+            } else {
+                // 沒有預設班 → 顯示「請先選擇班級」
+                document.getElementById('studentList').innerHTML =
+                    '<div class="empty-state"><p>' + i18n.t('adm.analysis.pickClassFirst') + '</p></div>';
+                this.updateStudentStats([]);
+            }
+        } catch (error) {
+            console.error('[Analysis] 載入學生數據失敗:', error);
+            document.getElementById('studentList').innerHTML =
+                '<div class="empty-state"><p>' + i18n.t('adm.analysis.loadFailed') + '</p></div>';
+        }
+    },
+
+    // 從風險快取讀某班學生並渲染左側列表
+    async loadClassStudents(className) {
+        document.getElementById('studentList').innerHTML =
+            '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.analysis.loadingList') + '</p></div>';
+        try {
+            const data = await AdminAPI.fetchStudentsSummary(className);
+            // 把 cache 回應接到既有的 state.allStudents 結構
+            // cache row 已含 risk_level / risk_score / overall_summary
+            this.state.allStudents = (data.students || []).map(s => ({
+                username: s.student_id,
+                display_name: s.display_name,
+                class_name: s.class_name,
+                role: 'student',
+                risk_level: s.risk_level,
+                risk_score: s.risk_score,
+                overall_summary: s.overall_summary,
+                last_active: s.last_active,
+            }));
+            // 把 risk_level 注入 studentReports state，讓 renderStudentList 能著色
+            this.state.allStudents.forEach(s => {
+                if (!this.state.studentReports) this.state.studentReports = {};
+                this.state.studentReports[s.username] = { risk_level: s.risk_level || 'unknown' };
+            });
             AdminUI.renderStudentList(this.state.allStudents);
             this.updateStudentStats(this.state.allStudents);
         } catch (error) {
-            console.error('[Analysis] 載入學生數據失敗:', error);
-            document.getElementById('studentList').innerHTML = '<div class="empty-state"><p>載入失敗，請重试</p></div>';
+            console.error('[Analysis] 載入該班學生失敗:', error);
+            document.getElementById('studentList').innerHTML =
+                '<div class="empty-state"><p>' + i18n.t('adm.analysis.loadFailed') + '</p></div>';
+        }
+    },
+
+    // 強制重算所有學生風險（耗時 5-10 秒，但給按鈕的人用）
+    async forceRefreshRisk() {
+        const btns = document.querySelectorAll('[data-action="forceRefreshRisk"]');
+        btns.forEach(b => { b.disabled = true; });
+        try {
+            await AdminAPI.forceRefreshRisk();
+            // 重新載入兩個區塊
+            await this.loadStudentsSummary();
+            const cls = (document.getElementById('classFilter') || {}).value || '';
+            if (cls) await this.loadClassStudents(cls);
+            if (typeof showToast === 'function') {
+                showToast(i18n.t('adm.atRisk.refreshSuccess'), 'success');
+            }
+        } catch (e) {
+            console.error('forceRefreshRisk failed:', e);
+            if (typeof showToast === 'function') {
+                showToast(i18n.t('adm.atRisk.refreshFailed'), 'error');
+            }
+        } finally {
+            btns.forEach(b => { b.disabled = false; });
         }
     },
 
     updateClassFilter() {
         const classFilter = document.getElementById('classFilter');
         const classes = [...new Set(this.state.allStudents.map(s => s.class_name).filter(c => c))];
-        classFilter.innerHTML = '<option value="">所有班级</option>';
+        classFilter.innerHTML = `<option value="">${i18n.t('adm.filter.allClasses')}</option>`;
         classes.forEach(className => {
             const option = document.createElement('option');
             option.value = className;
@@ -2029,7 +2167,7 @@ const AdminApp = {
     },
 
     async selectStudent(student) {
-        document.getElementById('analysisContent').innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>正在生成學生學習分析...</p><p style="font-size: 12px; color: #999;">这可能需要10-30秒，請耐心等待</p></div>';
+        document.getElementById('analysisContent').innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.overview.loadingAnalysis') + '</p><p style="font-size: 12px; color: #999;">' + i18n.t('adm.overview.loadingHint') + '</p></div>';
         this.state.currentStudent = student;
 
         document.querySelectorAll('.student-item').forEach(item => item.classList.remove('active'));
@@ -2040,28 +2178,28 @@ const AdminApp = {
             let analysisHTML = `
                 <div class="overall-card" style="background: var(--brand); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px;">
                     <h3 style="color: white; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px; margin-bottom: 15px;">
-                        ${AdminUI.icon('chart', 'icon-white')} ${student.display_name || student.username} - 整体學習概览
+                        ${AdminUI.icon('chart', 'icon-white')} ${i18n.t('adm.overview.title', {name: student.display_name || student.username})}
                     </h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                         <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold;">${overviewData.total_conversations || 0}</div>
-                            <div style="font-size: 12px; opacity: 0.9;">總對話数</div>
+                            <div style="font-size: 12px; opacity: 0.9;">${i18n.t('adm.overview.totalConversations')}</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold;">${overviewData.total_hours || 0}h</div>
-                            <div style="font-size: 12px; opacity: 0.9;">學習时长</div>
+                            <div style="font-size: 12px; opacity: 0.9;">${i18n.t('adm.overview.studyHours')}</div>
                         </div>
                         <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
                             <div style="font-size: 24px; font-weight: bold;">${(overviewData.active_subjects && overviewData.active_subjects.length) || 0}</div>
-                            <div style="font-size: 12px; opacity: 0.9;">活躍科目</div>
+                            <div style="font-size: 12px; opacity: 0.9;">${i18n.t('adm.overview.activeSubjects')}</div>
                         </div>
                     </div>
                     <div style="margin-top: 15px;">
-                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('books', 'icon-sm icon-white')} 活躍科目：</strong> ${(overviewData.active_subjects && overviewData.active_subjects.join(', ')) || '暫無'}</p>
-                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('calendar', 'icon-sm icon-white')} 最近活躍：</strong> ${overviewData.last_active || '暫無記錄'}</p>
+                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('books', 'icon-sm icon-white')} ${i18n.t('adm.overview.activeSubjectsList')}</strong> ${(overviewData.active_subjects && overviewData.active_subjects.join(', ')) || i18n.t('adm.overview.none')}</p>
+                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('calendar', 'icon-sm icon-white')} ${i18n.t('adm.overview.lastActive')}</strong> ${overviewData.last_active || i18n.t('adm.overview.noRecord')}</p>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; margin-top: 15px;">
-                            <h4 style="color: white; margin-bottom: 10px;">${AdminUI.icon('cpu', 'icon-sm icon-white')} AI智能評價</h4>
-                            <p style="line-height: 1.6; font-size: 14px;">${overviewData.overall_assessment || '需要更多數據生成評價'}</p>
+                            <h4 style="color: white; margin-bottom: 10px;">${AdminUI.icon('cpu', 'icon-sm icon-white')} ${i18n.t('adm.overview.aiEval')}</h4>
+                            <p style="line-height: 1.6; font-size: 14px;">${overviewData.overall_assessment || i18n.t('adm.overview.needMoreData')}</p>
                         </div>
                     </div>
                 </div>
@@ -2075,8 +2213,8 @@ const AdminApp = {
                 } else {
                     analysisHTML += `
                         <div class="report-card" style="background: white; padding: 20px; border-radius: 15px;">
-                            <h4 style="color: var(--primary);">${AdminUI.icon('books', 'icon-sm', 'stroke:var(--primary)')} ${AdminUI.getSubjectName(subject)} 科目分析</h4>
-                            <p style="color: #999; text-align: center; padding: 20px;">该學生在 ${AdminUI.getSubjectName(subject)} 科目暫無學習記錄</p>
+                            <h4 style="color: var(--primary);">${AdminUI.icon('books', 'icon-sm', 'stroke:var(--primary)')} ${i18n.t('adm.overview.subjectAnalysis', {subject: AdminUI.getSubjectName(subject)})}</h4>
+                            <p style="color: #999; text-align: center; padding: 20px;">${i18n.t('adm.overview.noSubjectRecord', {subject: AdminUI.getSubjectName(subject)})}</p>
                         </div>
                     `;
                 }
@@ -2087,7 +2225,7 @@ const AdminApp = {
             document.getElementById('analysisContent').innerHTML = analysisHTML;
         } catch (error) {
             console.error('[Analysis] 获取學生分析失敗:', error);
-            document.getElementById('analysisContent').innerHTML = '<div class="empty-state"><h4>載入失敗</h4><p>无法获取學生分析報告，請重试</p></div>';
+            document.getElementById('analysisContent').innerHTML = '<div class="empty-state"><h4>' + i18n.t('adm.overview.loadFailed') + '</h4><p>' + i18n.t('adm.overview.cannotLoad') + '</p></div>';
         }
     },
 
@@ -2133,73 +2271,82 @@ const AdminApp = {
 
     exportAnalysis() {
         if (!this.state.currentStudent || !this.state.studentReports[this.state.currentStudent.username]) {
-            alert('請先選擇一个學生');
+            alert(i18n.t('adm.analysis.selectStudent'));
             return;
         }
         const report = this.state.studentReports[this.state.currentStudent.username];
         const content = `
-學生學習分析報告
+${i18n.t('adm.export.title')}
 ================
-學生姓名：${this.state.currentStudent.display_name || this.state.currentStudent.username}
-班级：${this.state.currentStudent.class_name || '未分班'}
-科目：${AdminUI.getSubjectName(report.subject)}
-分析日期：${new Date(report.analysis_date).toLocaleDateString('zh-CN')}
-风险等级：${AdminUI.getRiskText(report.risk_level)}
+${i18n.t('adm.export.studentName', {name: this.state.currentStudent.display_name || this.state.currentStudent.username})}
+${i18n.t('adm.export.classLabel', {name: this.state.currentStudent.class_name || i18n.t('adm.student.noClass')})}
+${i18n.t('adm.export.subjectLabel', {name: AdminUI.getSubjectName(report.subject)})}
+${i18n.t('adm.export.dateLabel', {date: new Date(report.analysis_date).toLocaleDateString('zh-CN')})}
+${i18n.t('adm.export.riskLabel', {level: AdminUI.getRiskText(report.risk_level)})}
 
-總体评估
+${i18n.t('adm.export.overallSection')}
 --------
-${report.overall_assessment || '暫無评估'}
+${report.overall_assessment || i18n.t('adm.export.noAssessment')}
 
-知识掌握情况
+${i18n.t('adm.export.knowledgeSection')}
 ------------
-${report.knowledge_mastery_report || '暫無數據'}
+${report.knowledge_mastery_report || i18n.t('adm.export.noData')}
 
-學習风格分析
+${i18n.t('adm.export.styleSection')}
 ------------
-${report.learning_style_report || '暫無數據'}
+${report.learning_style_report || i18n.t('adm.export.noData')}
 
-學習困难分析
+${i18n.t('adm.export.difficultySection')}
 ------------
-${report.difficulty_report || '暫無數據'}
+${report.difficulty_report || i18n.t('adm.export.noData')}
 
-情感狀態分析
+${i18n.t('adm.export.emotionSection')}
 ------------
-${report.emotion_report || '暫無數據'}
+${report.emotion_report || i18n.t('adm.export.noData')}
 
-學習进度评估
+${i18n.t('adm.export.progressSection')}
 ------------
-${report.progress_report || '暫無數據'}
+${report.progress_report || i18n.t('adm.export.noData')}
 
-个性化學習建议
+${i18n.t('adm.export.suggestionSection')}
 --------------
-${report.suggestion_report || '暫無數據'}
+${report.suggestion_report || i18n.t('adm.export.noData')}
 
-教師关注点
+${i18n.t('adm.export.teacherSection')}
 ----------
-${report.teacher_attention_points || '暫無'}
+${report.teacher_attention_points || i18n.t('adm.export.none')}
         `;
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${this.state.currentStudent.username}_學習分析報告_${new Date().toISOString().split('T')[0]}.txt`;
+        a.download = i18n.t('adm.export.filename', {name: this.state.currentStudent.username, date: new Date().toISOString().split('T')[0]});
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     },
 
-    /* ---------- 學生摘要 ---------- */
+    /* ---------- 全校高風險 Top 10（從快取讀） ---------- */
     async loadStudentsSummary() {
         const container = document.getElementById('studentsSummaryList');
         if (!container) return;
-        container.innerHTML = '<div class="loading-spinner" style="grid-column: 1 / -1;"><div class="spinner"></div><p>載入學生摘要...</p></div>';
+        container.innerHTML = '<div class="loading-spinner" style="grid-column: 1 / -1;"><div class="spinner"></div><p>' + i18n.t('adm.atRisk.loading') + '</p></div>';
         try {
-            const data = await AdminAPI.fetchStudentsSummary();
+            const data = await AdminAPI.fetchTopAtRisk(10);
             AdminUI.displayStudentsSummary(data.students || []);
+            // 更新「最後刷新時間」標籤
+            const stamp = document.getElementById('riskLastRefresh');
+            if (stamp) {
+                if (data.last_refresh) {
+                    stamp.textContent = i18n.t('adm.atRisk.lastRefresh', {time: data.last_refresh});
+                } else {
+                    stamp.textContent = i18n.t('adm.atRisk.refreshNote');
+                }
+            }
         } catch (error) {
-            console.error('載入學生摘要失敗:', error);
-            container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">載入失敗，請稍后重试</div>';
+            console.error('載入高風險清單失敗:', error);
+            container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">' + i18n.t('adm.summary.loadFailed') + '</div>';
         }
     },
 
@@ -2216,11 +2363,11 @@ ${report.teacher_attention_points || '暫無'}
 
             const html = `
                 <div class="analysis-header">
-                    <h3>${pseudoStudent.display_name} - 學習分析報告</h3>
+                    <h3>${i18n.t('adm.report.title', {name: pseudoStudent.display_name})}</h3>
                     <div class="analysis-meta">
-                        <span>${AdminUI.icon('graduation', 'icon-sm')} 班级：${pseudoStudent.class_name || '未分班'}</span>
-                        <span>${AdminUI.icon('books', 'icon-sm')} 科目：${AdminUI.getSubjectName('ict')}</span>
-                        <span>${AdminUI.icon('calendar', 'icon-sm')} 分析日期：${report.analysis_date ? new Date(report.analysis_date).toLocaleDateString('zh-CN') : '-'}</span>
+                        <span>${AdminUI.icon('graduation', 'icon-sm')} ${i18n.t('adm.report.classLabel', {name: pseudoStudent.class_name || i18n.t('adm.student.noClass')})}</span>
+                        <span>${AdminUI.icon('books', 'icon-sm')} ${i18n.t('adm.analysis.subjectLabel', {name: AdminUI.getSubjectName('ict')})}</span>
+                        <span>${AdminUI.icon('calendar', 'icon-sm')} ${i18n.t('adm.report.analysisDate', {date: report.analysis_date ? new Date(report.analysis_date).toLocaleDateString('zh-CN') : '-'})}</span>
                     </div>
                 </div>
                 ${AdminUI.generateDetailedReport(pseudoStudent, { ...report, has_data: true }, 'ict')}
@@ -2228,13 +2375,13 @@ ${report.teacher_attention_points || '暫無'}
             document.getElementById('analysisContent').innerHTML = html;
         } catch (e) {
             console.error('載入詳細報告失敗', e);
-            document.getElementById('analysisContent').innerHTML = '<div class="empty-state">无法載入该學生的詳細報告</div>';
+            document.getElementById('analysisContent').innerHTML = '<div class="empty-state">' + i18n.t('adm.summary.cannotLoad') + '</div>';
         }
     },
 
     _showDetailLoading() {
         const el = document.getElementById('analysisContent');
-        if (el) el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>正在載入詳細報告...</p></div>';
+        if (el) el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.summary.loadingDetail') + '</p></div>';
     },
 
     /* ---------- 用戶管理 ---------- */
@@ -2251,14 +2398,14 @@ ${report.teacher_attention_points || '暫無'}
             AdminUI.renderUsersTable(this.state.allUsers);
         } catch (error) {
             console.error('載入用戶失敗:', error);
-            alert('載入用戶列表失敗');
+            alert(i18n.t('adm.user.loadFail'));
         }
     },
 
     updateUserClassFilter() {
         const classFilter = document.getElementById('userClassFilter');
         const classes = [...new Set(this.state.allUsers.map(u => u.class_name).filter(c => c))];
-        classFilter.innerHTML = '<option value="">所有班级</option>';
+        classFilter.innerHTML = `<option value="">${i18n.t('adm.filter.allClasses')}</option>`;
         classes.forEach(className => {
             const option = document.createElement('option');
             option.value = className;
@@ -2286,7 +2433,7 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     showAddUserModal() {
-        document.getElementById('userModalTitle').textContent = '添加用戶';
+        document.getElementById('userModalTitle').textContent = i18n.t('adm.modal.addUserTitle');
         document.getElementById('userForm').reset();
         document.getElementById('editUserId').value = '';
         document.getElementById('userUsername').disabled = false;
@@ -2297,7 +2444,7 @@ ${report.teacher_attention_points || '暫無'}
     editUser(username) {
         const user = this.state.allUsers.find(u => u.username === username);
         if (!user) return;
-        document.getElementById('userModalTitle').textContent = '編輯用戶';
+        document.getElementById('userModalTitle').textContent = i18n.t('adm.modal.editUserTitle');
         document.getElementById('editUserId').value = username;
         document.getElementById('userUsername').value = username;
         document.getElementById('userUsername').disabled = true;
@@ -2334,39 +2481,39 @@ ${report.teacher_attention_points || '暫無'}
         };
         if (!isEdit) {
             userData.password = document.getElementById('userPassword').value;
-            if (!userData.password) { alert('請輸入密碼'); return; }
+            if (!userData.password) { alert(i18n.t('adm.modal.enterPassword')); return; }
         } else if (document.getElementById('userPassword').value) {
             userData.password = document.getElementById('userPassword').value;
         }
         try {
             if (isEdit) {
                 await AdminAPI.updateUser(editUserId, userData);
-                alert('用戶更新成功！');
+                alert(i18n.t('adm.modal.userUpdateSuccess'));
             } else {
                 await AdminAPI.createUser(userData);
-                alert('用戶添加成功！');
+                alert(i18n.t('adm.modal.userAddSuccess'));
             }
             this.closeUserModal();
             this.loadUsers(true);
         } catch (error) {
-            alert('操作失敗：' + error.message);
+            alert(i18n.t('adm.modal.operationFail', {msg: error.message}));
         }
     },
 
     async resetUserPassword(username) {
-        const newPassword = prompt(`为用戶 ${username} 輸入新密碼：`);
+        const newPassword = prompt(i18n.t('adm.user.resetPwdPrompt', {username}));
         if (!newPassword) return;
         try {
             await AdminAPI.resetUserPassword(username, newPassword);
-            alert('密碼重置成功！');
+            alert(i18n.t('adm.user.resetPwdSuccess'));
         } catch (error) {
-            alert('重置失敗：' + error.message);
+            alert(i18n.t('adm.user.resetPwdFail', {msg: error.message}));
         }
     },
 
     deleteUser(username) {
         this.state.userToDelete = username;
-        document.getElementById('deleteConfirmMessage').textContent = `确定要刪除用戶 "${username}" 吗？此操作不可恢复。`;
+        document.getElementById('deleteConfirmMessage').textContent = i18n.t('adm.modal.deleteMessage', {username});
         document.getElementById('deleteConfirmModal').style.display = 'flex';
     },
 
@@ -2374,11 +2521,11 @@ ${report.teacher_attention_points || '暫無'}
         if (!this.state.userToDelete) return;
         try {
             await AdminAPI.deleteUser(this.state.userToDelete);
-            alert('用戶刪除成功！');
+            alert(i18n.t('adm.modal.userDeleteSuccess'));
             this.closeDeleteConfirm();
             this.loadUsers(true);
         } catch (error) {
-            alert('刪除失敗：' + error.message);
+            alert(i18n.t('adm.modal.userDeleteFail', {msg: error.message}));
         }
     },
 
@@ -2417,11 +2564,11 @@ ${report.teacher_attention_points || '暫無'}
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = '用戶批量導入模板.xlsx';
+            a.download = i18n.t('adm.batch.templateFilename');
             a.click();
             window.URL.revokeObjectURL(url);
         } catch (error) {
-            alert('下載失敗：' + error.message);
+            alert(i18n.t('adm.batch.downloadFailed', {msg: error.message}));
         }
     },
 
@@ -2443,7 +2590,7 @@ ${report.teacher_attention_points || '暫無'}
     async processBatchAddNew() {
         const btn = document.getElementById('batchSubmitBtn');
         btn.disabled = true;
-        btn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' 導入中...';
+        btn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' ' + i18n.t('adm.batch.importing');
         try {
             if (this.state.currentBatchTab === 'excel') {
                 await this._processExcelUpload();
@@ -2452,12 +2599,12 @@ ${report.teacher_attention_points || '暫無'}
             }
         } finally {
             btn.disabled = false;
-            btn.innerHTML = AdminUI.icon('rocket', 'icon-sm icon-white') + ' 開始導入';
+            btn.innerHTML = AdminUI.icon('rocket', 'icon-sm icon-white') + ' ' + i18n.t('adm.batch.startImport');
         }
     },
 
     async _processExcelUpload() {
-        if (!this.state.selectedExcelFile) { alert('請先選擇 Excel 文件'); return; }
+        if (!this.state.selectedExcelFile) { alert(i18n.t('adm.batch.selectExcel')); return; }
         const formData = new FormData();
         formData.append('file', this.state.selectedExcelFile);
         try {
@@ -2466,7 +2613,7 @@ ${report.teacher_attention_points || '暫無'}
             const resultsDiv = document.getElementById('importResults');
             const resultsList = document.getElementById('importResultsList');
             resultsDiv.style.display = 'block';
-            let html = `<p style="margin-bottom: 10px;"><strong>成功：${result.success_count || 0}</strong> | <strong style="color: var(--danger);">失敗：${result.failed_count || 0}</strong></p>`;
+            let html = `<p style="margin-bottom: 10px;"><strong>${i18n.t('adm.batch.successCount', {count: result.success_count || 0})}</strong> | <strong style="color: var(--danger);">${i18n.t('adm.batch.failedCount', {count: result.failed_count || 0})}</strong></p>`;
             if (result.failed_details && result.failed_details.length > 0) {
                 html += '<ul style="list-style: none; padding: 0; margin: 0; font-size: 13px;">';
                 result.failed_details.forEach(f => {
@@ -2477,22 +2624,22 @@ ${report.teacher_attention_points || '暫無'}
             resultsList.innerHTML = html;
             if (result.success_count > 0) this.loadUsers(true);
             if (result.failed_count === 0 && result.success_count > 0) {
-                alert(`導入完成！成功添加 ${result.success_count} 個用戶`);
+                alert(i18n.t('adm.batch.importComplete', {count: result.success_count}));
             }
         } catch (error) {
-            alert('導入失敗：' + error.message);
+            alert(i18n.t('adm.batch.importFailed', {msg: error.message}));
         }
     },
 
     async _processTextBatchAdd() {
         const role = document.getElementById('batchRole').value;
         const userData = document.getElementById('batchUserData').value.trim();
-        if (!userData) { alert('請輸入用戶數據'); return; }
+        if (!userData) { alert(i18n.t('adm.batch.enterData')); return; }
         const lines = userData.split('\n').filter(line => line.trim());
         const users = [];
         for (const line of lines) {
             const parts = line.split(',').map(p => p.trim());
-            if (parts.length < 2) { alert(`格式錯誤：${line}`); return; }
+            if (parts.length < 2) { alert(i18n.t('adm.batch.formatError', {line})); return; }
             users.push({
                 username: parts[0], password: parts[1], display_name: parts[2] || '',
                 class_name: parts[3] || '', notes: parts[4] || '', role
@@ -2501,11 +2648,11 @@ ${report.teacher_attention_points || '暫無'}
         try {
             const response_data = await AdminAPI.batchAddUsers(users);
             const result = response_data.data || response_data;
-            alert(`批量添加完成！\n成功：${result.success_count || 0}\n失敗：${result.failed_count || 0}`);
+            alert(i18n.t('adm.batch.batchComplete', {success: result.success_count || 0, fail: result.failed_count || 0}));
             this.closeBatchAddModal();
             this.loadUsers(true);
         } catch (error) {
-            alert('批量添加失敗：' + error.message);
+            alert(i18n.t('adm.batch.batchFailed', {msg: error.message}));
         }
     },
 
@@ -2517,7 +2664,7 @@ ${report.teacher_attention_points || '暫無'}
             this._addNoticeAIMessage(data.message);
             if (data.progress !== undefined) this._updateNoticeProgress(data.progress);
         } catch (error) {
-            this._addNoticeAIMessage('抱歉，連線出現問題。請刷新頁面重試。');
+            this._addNoticeAIMessage(i18n.t('adm.notice.connectionError'));
         }
     },
 
@@ -2534,7 +2681,7 @@ ${report.teacher_attention_points || '暫無'}
             if (data.can_export) this._enableNoticeExport();
             this._updateNoticeQuickActions(data.stage);
         } catch (error) {
-            this._addNoticeAIMessage('抱歉，處理您的訊息時出現問題。');
+            this._addNoticeAIMessage(i18n.t('adm.notice.processingError'));
         }
     },
 
@@ -2573,9 +2720,9 @@ ${report.teacher_attention_points || '暫無'}
         if (!container) return;
         container.innerHTML = '';
         let actions = [];
-        if (stage === 'select_type') actions = ['活動通告', '考試通告', '會議通告', '一般通告'];
-        else if (stage === 'confirming') actions = ['確認', '修改'];
-        else if (stage === 'completed') actions = ['新建通告'];
+        if (stage === 'select_type') actions = [i18n.t('adm.notice.activityNotice'), i18n.t('adm.notice.examNotice'), i18n.t('adm.notice.meetingNotice'), i18n.t('adm.notice.generalNotice')];
+        else if (stage === 'confirming') actions = [i18n.t('adm.notice.confirm'), i18n.t('adm.notice.modify')];
+        else if (stage === 'completed') actions = [i18n.t('adm.notice.newNotice')];
         actions.forEach(action => {
             const button = document.createElement('button');
             button.className = 'quick-action';
@@ -2595,20 +2742,20 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     async exportNotice() {
-        if (!this.state.noticeCanExport) { alert('請先完成通告產生'); return; }
+        if (!this.state.noticeCanExport) { alert(i18n.t('adm.notice.completeFirst')); return; }
         try {
             const blob = await AdminAPI.exportNotice(this.state.noticeSessionId);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `通告_${new Date().toISOString().split('T')[0]}.docx`;
+            a.download = i18n.t('adm.notice.filename', {date: new Date().toISOString().split('T')[0]});
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            this._addNoticeAIMessage(AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + ' Word 文件已成功匯出！');
+            this._addNoticeAIMessage(AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + i18n.t('adm.notice.exportSuccess'));
         } catch (error) {
-            alert('匯出時發生錯誤：' + error.message);
+            alert(i18n.t('adm.notice.exportError', {msg: error.message}));
         }
     },
 
@@ -2633,9 +2780,9 @@ ${report.teacher_attention_points || '暫無'}
         wrapper.innerHTML = `
             <div class="ddz-inner">
                 <div>${AdminUI.icon('folder', '', 'width:40px;height:40px;stroke:var(--text-secondary)')}</div>
-                <div class="ddz-title">拖拽通告/范本文件到这里</div>
-                <div class="ddz-sub">支持批量上传 · 自动分类 · 智能识别</div>
-                <button type="button" class="ddz-btn" id="ddzPickerBtn">或点击選擇文件</button>
+                <div class="ddz-title">${i18n.t('adm.dnd.title')}</div>
+                <div class="ddz-sub">${i18n.t('adm.dnd.subtitle')}</div>
+                <button type="button" class="ddz-btn" id="ddzPickerBtn">${i18n.t('adm.dnd.pickFile')}</button>
             </div>
         `;
 
@@ -2681,13 +2828,13 @@ ${report.teacher_attention_points || '暫無'}
             const formData = new FormData();
             formData.append('file', file);
             formData.append('template_type', guessTypeByName(file.name));
-            formData.append('description', '批量上传');
+            formData.append('description', i18n.t('adm.dnd.batchUploadDesc'));
             try {
                 const resp = await AdminAPI.uploadNoticeTemplate(formData);
                 if (resp.ok) ok++; else fail++;
             } catch (_) { fail++; }
         }
-        AdminUI.showSuccessNotification(`批量上传完成：成功 ${ok} 个，失敗 ${fail} 个`);
+        AdminUI.showSuccessNotification(i18n.t('adm.dnd.batchResult', {ok, fail}));
         await this.loadNoticeTemplates();
     },
 
@@ -2698,9 +2845,9 @@ ${report.teacher_attention_points || '暫無'}
             const bar = document.createElement('div');
             bar.style.cssText = 'display:flex; gap:8px; flex-wrap: wrap; margin: 8px 0 10px;';
             const quickTemplates = [
-                { icon: AdminUI.icon('target', 'icon-sm'), text: '使用去年同期通告作为参考' },
-                { icon: AdminUI.icon('clipboard', 'icon-sm'), text: '复制上次的活动通告格式' },
-                { icon: AdminUI.icon('bolt', 'icon-sm'), text: 'AI自动填充常用資訊' }
+                { icon: AdminUI.icon('target', 'icon-sm'), text: i18n.t('adm.noticeChat.refLastYear') },
+                { icon: AdminUI.icon('clipboard', 'icon-sm'), text: i18n.t('adm.noticeChat.copyLastFormat') },
+                { icon: AdminUI.icon('bolt', 'icon-sm'), text: i18n.t('adm.noticeChat.autoFill') }
             ];
             quickTemplates.forEach(q => {
                 const btn = document.createElement('button');
@@ -2723,8 +2870,8 @@ ${report.teacher_attention_points || '暫無'}
                 pane.id = 'noticePreviewPane';
                 pane.className = 'notice-preview-pane';
                 pane.innerHTML = `
-                    <h4>${AdminUI.icon('pencil', 'icon-sm', 'stroke:var(--primary)')} 实时预览</h4>
-                    <div id="noticePreviewBody" class="notice-preview-empty">生成的通告內容将实时顯示在这里。</div>
+                    <h4>${AdminUI.icon('pencil', 'icon-sm', 'stroke:var(--primary)')} ${i18n.t('adm.noticeChat.realtimePreview')}</h4>
+                    <div id="noticePreviewBody" class="notice-preview-empty">${i18n.t('adm.noticeChat.previewPlaceholder')}</div>
                 `;
                 rightMount.parentNode.insertBefore(pane, rightMount.nextSibling);
             }
@@ -2769,11 +2916,11 @@ ${report.teacher_attention_points || '暫無'}
         const uploadBtn = document.getElementById('uploadTemplateBtn');
 
         if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-            alert('請選擇要上传的范本文件');
+            alert(i18n.t('adm.noticeTpl.selectFile'));
             return;
         }
 
-        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' 上传中...'; }
+        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' ' + i18n.t('adm.noticeTpl.uploading'); }
 
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
@@ -2784,25 +2931,25 @@ ${report.teacher_attention_points || '暫無'}
             const response = await AdminAPI.uploadNoticeTemplate(formData);
             if (response.ok) {
                 await response.json().catch(() => ({}));
-                AdminUI.showSuccessNotification('范本上传成功！');
+                AdminUI.showSuccessNotification(i18n.t('adm.noticeTpl.uploadSuccess'));
                 this.clearTemplateForm();
                 await this.loadNoticeTemplates();
                 this.updateTemplateStats();
             } else {
                 const error = await response.json().catch(() => ({}));
-                alert('上传失敗：' + (error.detail || '未知錯誤'));
+                alert(i18n.t('adm.noticeTpl.uploadFailed', {msg: error.detail || i18n.t('adm.noticeTpl.unknownError')}));
             }
         } catch (error) {
-            alert('上传失敗：' + (error.message || '網絡錯誤'));
+            alert(i18n.t('adm.noticeTpl.uploadFailed', {msg: error.message || i18n.t('adm.noticeTpl.networkError')}));
         } finally {
-            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = AdminUI.icon('upload', 'icon-sm icon-white') + ' 上传范本'; }
+            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = AdminUI.icon('upload', 'icon-sm icon-white') + ' ' + i18n.t('adm.noticeTpl.uploadBtn'); }
         }
     },
 
     async loadNoticeTemplates() {
         const list = document.getElementById('noticeTemplatesList');
         if (list) {
-            list.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);"><div class="spinner"></div><p>載入范本列表...</p></div>';
+            list.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-secondary);"><div class="spinner"></div><p>' + i18n.t('adm.noticeTpl.loading') + '</p></div>';
         }
         try {
             const data = await AdminAPI.fetchNoticeTemplates();
@@ -2812,7 +2959,7 @@ ${report.teacher_attention_points || '暫無'}
             setTimeout(() => this.initDragDropUpload(), 60);
         } catch (e) {
             console.error('載入范本列表失敗:', e);
-            if (list) list.innerHTML = '<p style="text-align:center; color: var(--danger);">載入失敗，請检查網絡</p>';
+            if (list) list.innerHTML = '<p style="text-align:center; color: var(--danger);">' + i18n.t('adm.noticeTpl.loadFailed') + '</p>';
         }
     },
 
@@ -2847,8 +2994,8 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     async deleteTemplate(type, filename) {
-        if (!confirm(`确定要刪除范本 "${filename}" 吗？`)) return;
-        alert('刪除功能待实现');
+        if (!confirm(i18n.t('adm.tplDel.confirm', {name: filename}))) return;
+        alert(i18n.t('adm.tplDel.notImpl'));
     },
 
     /* ---------- 應用管理 ---------- */
@@ -2859,7 +3006,7 @@ ${report.teacher_attention_points || '暫無'}
             AdminUI.renderAppsConfig();
         } catch (error) {
             console.error('載入應用配置失敗:', error);
-            document.getElementById('appmgrList').innerHTML = '<p style="color:red;">載入失敗: ' + error.message + '</p>';
+            document.getElementById('appmgrList').innerHTML = '<p style="color:red;">' + i18n.t('adm.appCfg.loadFailedPrefix') + error.message + '</p>';
         }
     },
 
@@ -2898,23 +3045,23 @@ ${report.teacher_attention_points || '暫無'}
             const data = await AdminAPI.saveApps(this.state.appsConfig);
             this.state.appsConfig = data.apps || this.state.appsConfig;
             AdminUI.renderAppsConfig();
-            alert('應用配置已保存！');
+            alert(i18n.t('adm.appCfg.saveSuccess'));
         } catch (error) {
             console.error('保存應用配置失敗:', error);
-            alert('保存失敗: ' + error.message);
+            alert(i18n.t('adm.appCfg.saveFailedPrefix') + error.message);
         }
     },
 
     async resetAppsToDefault() {
-        if (!confirm('確定要重置為預設配置嗎？所有自定義更改將會丟失。')) return;
+        if (!confirm(i18n.t('adm.appCfg.resetConfirm'))) return;
         try {
             const data = await AdminAPI.resetApps();
             this.state.appsConfig = data.apps || [];
             AdminUI.renderAppsConfig();
-            alert('已重置為預設配置！');
+            alert(i18n.t('adm.appCfg.resetSuccess'));
         } catch (error) {
             console.error('重置失敗:', error);
-            alert('重置失敗: ' + error.message);
+            alert(i18n.t('adm.appCfg.resetFailedPrefix') + error.message);
         }
     },
 
@@ -2928,7 +3075,7 @@ ${report.teacher_attention_points || '暫無'}
         const gradeEl = document.getElementById('newClassGrade');
 
         const classCode = codeEl.value.trim();
-        if (!classCode) { alert('請輸入班級代碼'); return; }
+        if (!classCode) { alert(i18n.t('adm.classDiary.enterCode')); return; }
 
         try {
             await AdminAPI.fetchWithAuth('/api/class-diary/admin/classes', {
@@ -2945,19 +3092,19 @@ ${report.teacher_attention_points || '暫無'}
             gradeEl.value = '';
             this.loadClassDiaryQRGrid();
         } catch (error) {
-            alert('添加班級失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.addFailed', {msg: error.message}));
         }
     },
 
     async deleteClass(classCode) {
-        if (!confirm(`確定刪除班級 ${classCode}？`)) return;
+        if (!confirm(i18n.t('adm.classDiary.deleteConfirm', {code: classCode}))) return;
         try {
             await AdminAPI.fetchWithAuth(`/api/class-diary/admin/classes/${encodeURIComponent(classCode)}`, {
                 method: 'DELETE',
             });
             this.loadClassDiaryQRGrid();
         } catch (error) {
-            alert('刪除班級失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.deleteFailed', {msg: error.message}));
         }
     },
 
@@ -2985,7 +3132,7 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     _buildTeacherOptions(selectedUsername) {
-        let html = '<option value="">未設定</option>';
+        let html = `<option value="">${i18n.t('adm.classDiary.notSet')}</option>`;
         this._teacherList.forEach(u => {
             const sel = u.username === selectedUsername ? ' selected' : '';
             html += `<option value="${u.username}"${sel}>${u.display_name || u.username}</option>`;
@@ -3000,7 +3147,7 @@ ${report.teacher_attention_points || '暫無'}
             const classes = data.data || [];
 
             if (classes.length === 0) {
-                grid.innerHTML = '<p style="color:var(--text-secondary);">尚無班級記錄。請先在數據庫中添加班級。</p>';
+                grid.innerHTML = '<p style="color:var(--text-secondary);">' + i18n.t('adm.classDiary.noClasses') + '</p>';
                 return;
             }
 
@@ -3008,17 +3155,17 @@ ${report.teacher_attention_points || '暫無'}
                 <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;text-align:center;position:relative;">
                     <button onclick="AdminApp.deleteClass('${c.class_code}')"
                         style="position:absolute;top:8px;right:8px;width:24px;height:24px;border:none;background:none;color:var(--text-secondary);cursor:pointer;font-size:1rem;line-height:1;border-radius:4px;"
-                        title="刪除班級">✕</button>
+                        title="${i18n.t('adm.classDiary.deleteClass')}">✕</button>
                     <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;">${c.class_code}</div>
                     <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;">${c.class_name || ''} ${c.grade ? '(' + c.grade + ')' : ''}</div>
 
                     <div style="text-align:left;margin-bottom:0.5rem;font-size:0.8rem;">
-                        <label style="color:var(--text-secondary);display:block;margin-bottom:2px;">班主任</label>
+                        <label style="color:var(--text-secondary);display:block;margin-bottom:2px;">${i18n.t('adm.classDiary.classTeacher')}</label>
                         <select id="teacher-${c.class_code}" onchange="AdminApp.saveClassTeachers('${c.class_code}')"
                             style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
                             ${this._buildTeacherOptions(c.teacher_username)}
                         </select>
-                        <label style="color:var(--text-secondary);display:block;margin:4px 0 2px;">副班主任</label>
+                        <label style="color:var(--text-secondary);display:block;margin:4px 0 2px;">${i18n.t('adm.classDiary.viceTeacher')}</label>
                         <select id="vice-teacher-${c.class_code}" onchange="AdminApp.saveClassTeachers('${c.class_code}')"
                             style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
                             ${this._buildTeacherOptions(c.vice_teacher_username)}
@@ -3032,7 +3179,7 @@ ${report.teacher_attention_points || '暫無'}
                     <div id="qr-actions-${c.class_code}" style="display:none;gap:0.5rem;justify-content:center;">
                         <button onclick="AdminApp.downloadQR('${c.class_code}')"
                             style="padding:6px 12px;border:1px solid var(--primary);border-radius:6px;background:var(--primary);color:#fff;font-size:0.8rem;cursor:pointer;">
-                            ${AdminUI.icon('download', 'icon-sm icon-white')} 下載 PNG
+                            ${AdminUI.icon('download', 'icon-sm icon-white')} ${i18n.t('adm.classDiary.downloadPNG')}
                         </button>
                     </div>
                 </div>
@@ -3043,7 +3190,7 @@ ${report.teacher_attention_points || '暫無'}
                 this.showQR(c.class_code);
             }
         } catch (error) {
-            grid.innerHTML = '<p style="color:red;">載入班級失敗: ' + error.message + '</p>';
+            grid.innerHTML = '<p style="color:red;">' + i18n.t('adm.classDiary.loadFailed', {msg: error.message}) + '</p>';
         }
     },
 
@@ -3069,7 +3216,7 @@ ${report.teacher_attention_points || '暫無'}
                 setTimeout(() => { card.style.borderColor = old; }, 1000);
             }
         } catch (error) {
-            alert('保存班主任設定失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.saveTeacherFailed', {msg: error.message}));
         }
     },
 
@@ -3082,7 +3229,7 @@ ${report.teacher_attention_points || '暫無'}
             const resp = await fetch(`/api/class-diary/admin/qr/${encodeURIComponent(classCode)}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
-            if (!resp.ok) throw new Error('生成失敗');
+            if (!resp.ok) throw new Error(i18n.t('adm.classDiary.qrLoadFailed'));
             const blob = await resp.blob();
             // 存儲 blob 供下載用
             img._qrBlob = blob;
@@ -3091,14 +3238,14 @@ ${report.teacher_attention_points || '暫無'}
             if (loading) loading.style.display = 'none';
             if (actions) actions.style.display = 'flex';
         } catch (error) {
-            if (loading) loading.innerHTML = '<span style="color:red;font-size:0.8rem;">生成失敗</span>';
+            if (loading) loading.innerHTML = '<span style="color:red;font-size:0.8rem;">' + i18n.t('adm.classDiary.generateFailed') + '</span>';
         }
     },
 
     downloadQR(classCode) {
         const img = document.getElementById(`qr-${classCode}`);
         if (!img || !img._qrBlob) {
-            alert('請先生成 QR 碼');
+            alert(i18n.t('adm.classDiary.generateQRFirst'));
             return;
         }
         const url = URL.createObjectURL(img._qrBlob);
@@ -3119,7 +3266,7 @@ ${report.teacher_attention_points || '暫無'}
             });
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
-                throw new Error(err.detail || '下載失敗');
+                throw new Error(err.detail || i18n.t('adm.classDiary.downloadFailed'));
             }
             const blob = new Blob([await resp.arrayBuffer()], { type: 'application/zip' });
             const url = URL.createObjectURL(blob);
@@ -3131,7 +3278,7 @@ ${report.teacher_attention_points || '暫無'}
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         } catch (error) {
-            alert('批量下載失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.batchDownloadFailed', {msg: error.message}));
         }
     },
 
@@ -3140,7 +3287,7 @@ ${report.teacher_attention_points || '暫無'}
             const data = await AdminAPI.fetchWithAuth('/api/admin/users?role=teacher');
             const users = data.data || data.users || [];
             const select = document.getElementById('reviewerSelect');
-            select.innerHTML = '<option value="">選擇教師帳戶...</option>';
+            select.innerHTML = `<option value="">${i18n.t('adm.classDiary.selectTeacher')}</option>`;
             users.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.username;
@@ -3159,7 +3306,7 @@ ${report.teacher_attention_points || '暫無'}
             const reviewers = data.data || [];
 
             if (reviewers.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">尚未添加任何 Reviewer。</p>';
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">' + i18n.t('adm.classDiary.noReviewers') + '</p>';
                 return;
             }
 
@@ -3167,16 +3314,16 @@ ${report.teacher_attention_points || '暫無'}
                 <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 16px;">
                     <div>
                         <span style="font-weight:600;">${r.username}</span>
-                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">由 ${r.granted_by} 授權</span>
+                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">${i18n.t('adm.classDiary.grantedBy', {name: r.granted_by})}</span>
                     </div>
                     <button onclick="AdminApp.removeReviewer('${r.username}')"
                         style="padding:4px 10px;border:1px solid #EF4444;border-radius:6px;background:#fff;color:#EF4444;font-size:0.8rem;cursor:pointer;">
-                        移除
+                        ${i18n.t('adm.classDiary.removeBtn')}
                     </button>
                 </div>
             `).join('');
         } catch (error) {
-            container.innerHTML = '<p style="color:red;">載入失敗: ' + error.message + '</p>';
+            container.innerHTML = '<p style="color:red;">' + i18n.t('adm.appCfg.loadFailedPrefix') + error.message + '</p>';
         }
     },
 
@@ -3184,7 +3331,7 @@ ${report.teacher_attention_points || '暫無'}
         const select = document.getElementById('reviewerSelect');
         const username = select.value;
         if (!username) {
-            alert('請選擇教師帳戶');
+            alert(i18n.t('adm.classDiary.selectTeacherFirst'));
             return;
         }
         try {
@@ -3196,19 +3343,19 @@ ${report.teacher_attention_points || '暫無'}
             select.value = '';
             await this.loadReviewers();
         } catch (error) {
-            alert('添加失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.addFailed2', {msg: error.message}));
         }
     },
 
     async removeReviewer(username) {
-        if (!confirm(`確定移除 ${username} 的 Review 權限？`)) return;
+        if (!confirm(i18n.t('adm.classDiary.removeConfirm', {name: username}))) return;
         try {
             await AdminAPI.fetchWithAuth(`/api/class-diary/admin/reviewers/${username}`, {
                 method: 'DELETE',
             });
             await this.loadReviewers();
         } catch (error) {
-            alert('移除失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.removeFailed', {msg: error.message}));
         }
     },
 
@@ -3220,7 +3367,7 @@ ${report.teacher_attention_points || '暫無'}
         try {
             const select = document.getElementById('reportRecipientSelect');
             if (!select) return;
-            select.innerHTML = '<option value="">選擇教師帳戶...</option>';
+            select.innerHTML = `<option value="">${i18n.t('adm.classDiary.selectTeacher')}</option>`;
             this._teacherList.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.username;
@@ -3240,7 +3387,7 @@ ${report.teacher_attention_points || '暫無'}
             const recipients = data.data || [];
 
             if (recipients.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">尚未添加任何報告接收人。</p>';
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">' + i18n.t('adm.classDiary.noRecipients') + '</p>';
                 return;
             }
 
@@ -3248,16 +3395,16 @@ ${report.teacher_attention_points || '暫無'}
                 <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 16px;">
                     <div>
                         <span style="font-weight:600;">${r.username}</span>
-                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">由 ${r.granted_by} 授權</span>
+                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">${i18n.t('adm.classDiary.grantedBy', {name: r.granted_by})}</span>
                     </div>
                     <button onclick="AdminApp.removeReportRecipient('${r.username}')"
                         style="padding:4px 10px;border:1px solid #EF4444;border-radius:6px;background:#fff;color:#EF4444;font-size:0.8rem;cursor:pointer;">
-                        移除
+                        ${i18n.t('adm.classDiary.removeBtn')}
                     </button>
                 </div>
             `).join('');
         } catch (error) {
-            container.innerHTML = '<p style="color:red;">載入失敗: ' + error.message + '</p>';
+            container.innerHTML = '<p style="color:red;">' + i18n.t('adm.appCfg.loadFailedPrefix') + error.message + '</p>';
         }
     },
 
@@ -3265,7 +3412,7 @@ ${report.teacher_attention_points || '暫無'}
         const select = document.getElementById('reportRecipientSelect');
         const username = select.value;
         if (!username) {
-            alert('請選擇教師帳戶');
+            alert(i18n.t('adm.classDiary.selectTeacherFirst'));
             return;
         }
         try {
@@ -3277,25 +3424,25 @@ ${report.teacher_attention_points || '暫無'}
             select.value = '';
             await this.loadReportRecipients();
         } catch (error) {
-            alert('添加失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.addFailed2', {msg: error.message}));
         }
     },
 
     async removeReportRecipient(username) {
-        if (!confirm(`確定移除 ${username} 的報告接收權限？`)) return;
+        if (!confirm(i18n.t('adm.classDiary.removeRecipientConfirm', {name: username}))) return;
         try {
             await AdminAPI.fetchWithAuth(`/api/class-diary/admin/report-recipients/${username}`, {
                 method: 'DELETE',
             });
             await this.loadReportRecipients();
         } catch (error) {
-            alert('移除失敗: ' + error.message);
+            alert(i18n.t('adm.classDiary.removeFailed', {msg: error.message}));
         }
     },
 
     async manualGenerateReport() {
         const statusEl = document.getElementById('reportGenStatus');
-        if (statusEl) statusEl.innerHTML = AdminUI.icon('refresh', 'icon-sm', 'animation:spin 0.8s linear infinite') + ' 報告生成中...';
+        if (statusEl) statusEl.innerHTML = AdminUI.icon('refresh', 'icon-sm', 'animation:spin 0.8s linear infinite') + ' ' + i18n.t('adm.classDiary.reportGenerating');
 
         try {
             const today = new Date().toISOString().split('T')[0];
@@ -3304,11 +3451,11 @@ ${report.teacher_attention_points || '暫無'}
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ report_date: today }),
             });
-            if (statusEl) statusEl.innerHTML = AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + ' 報告生成已啟動，AI 正在分析中...';
+            if (statusEl) statusEl.innerHTML = AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + ' ' + i18n.t('adm.classDiary.reportStarted');
             // 10 秒後清除狀態提示
             setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 10000);
         } catch (error) {
-            if (statusEl) statusEl.innerHTML = AdminUI.icon('warning', 'icon-sm', 'stroke:var(--danger)') + ' 生成失敗: ' + error.message;
+            if (statusEl) statusEl.innerHTML = AdminUI.icon('warning', 'icon-sm', 'stroke:var(--danger)') + ' ' + i18n.t('adm.classDiary.reportFailed', {msg: error.message});
         }
     },
 
@@ -3344,11 +3491,11 @@ ${report.teacher_attention_points || '暫無'}
     renderAiMonitor(data, apiError, errorMsg) {
         // Timestamp
         const ts = document.getElementById('aiMonitorTimestamp');
-        if (ts) ts.textContent = '更新: ' + new Date().toLocaleTimeString();
+        if (ts) ts.textContent = i18n.t('adm.aiMon.updateTime') + new Date().toLocaleTimeString();
 
         // If no data at all
         if (!data && apiError) {
-            this._setAiCongestion('DEGRADED', 'API 無法連線', errorMsg);
+            this._setAiCongestion('DEGRADED', i18n.t('adm.aiMon.apiDisconnected'), errorMsg);
             return;
         }
         if (!data) return;
@@ -3360,9 +3507,9 @@ ${report.teacher_attention_points || '暫無'}
 
         // --- Congestion level ---
         if (apiError) {
-            this._setAiCongestion('DEGRADED', 'API 無法連線', errorMsg);
+            this._setAiCongestion('DEGRADED', i18n.t('adm.aiMon.apiDisconnected'), errorMsg);
         } else if (!ollama.connected) {
-            this._setAiCongestion('DEGRADED', 'Ollama 無法連線', ollama.last_error || '');
+            this._setAiCongestion('DEGRADED', i18n.t('adm.aiMon.ollamaDisconnected'), ollama.last_error || '');
         } else {
             const queued = gate.queued || 0;
             const used = gate.capacity_used || 0;
@@ -3370,13 +3517,13 @@ ${report.teacher_attention_points || '暫無'}
             const pct = used / total * 100;
 
             if (queued >= 10 || pct >= 90) {
-                this._setAiCongestion('CONGESTED', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+                this._setAiCongestion('CONGESTED', i18n.t('adm.aiMon.capacityQueued', {pct: Math.round(pct), queued}));
             } else if (queued >= 5 || pct >= 60) {
-                this._setAiCongestion('BUSY', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+                this._setAiCongestion('BUSY', i18n.t('adm.aiMon.capacityQueued', {pct: Math.round(pct), queued}));
             } else if ((gate.running || 0) > 0) {
-                this._setAiCongestion('NORMAL', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+                this._setAiCongestion('NORMAL', i18n.t('adm.aiMon.capacityQueued', {pct: Math.round(pct), queued}));
             } else {
-                this._setAiCongestion('IDLE', '系統空閒');
+                this._setAiCongestion('IDLE', i18n.t('adm.aiMon.idle'));
             }
         }
 
@@ -3385,17 +3532,17 @@ ${report.teacher_attention_points || '暫無'}
         const rtEl = document.getElementById('aiOllamaRuntime');
         if (connEl) {
             if (ollama.connected) {
-                connEl.innerHTML = '<span style="color:var(--success);">已連線</span>';
+                connEl.innerHTML = `<span style="color:var(--success);">${i18n.t('adm.aiMon.connected')}</span>`;
             } else {
-                connEl.innerHTML = '<span style="color:var(--danger);">斷線</span>';
+                connEl.innerHTML = `<span style="color:var(--danger);">${i18n.t('adm.aiMon.disconnected')}</span>`;
             }
         }
         if (rtEl) {
             if (ollama.runtime_available) {
-                const models = (ollama.running_models || []).map(m => m.name).join(', ') || '無';
+                const models = (ollama.running_models || []).map(m => m.name).join(', ') || i18n.t('adm.aiMon.noModel');
                 rtEl.innerHTML = `<span style="color:var(--success);">${models}</span>`;
             } else {
-                rtEl.innerHTML = '<span style="color:var(--text-secondary);">不可用</span>';
+                rtEl.innerHTML = `<span style="color:var(--text-secondary);">${i18n.t('adm.aiMon.unavailable')}</span>`;
             }
         }
 
@@ -3429,7 +3576,7 @@ ${report.teacher_attention_points || '暫無'}
             const qd = gate.queue_details || {};
             const keys = Object.keys(qd);
             if (keys.length === 0 || keys.every(k => (qd[k].depth || 0) === 0)) {
-                qdEl.textContent = '無排隊任務';
+                qdEl.textContent = i18n.t('adm.aiMon.noQueueTasks');
             } else {
                 let html = '';
                 keys.forEach(pri => {
@@ -3437,7 +3584,7 @@ ${report.teacher_attention_points || '暫無'}
                     if (layer.depth > 0) {
                         html += `<div style="margin-bottom:8px;"><strong>${pri}</strong> (${layer.depth})</div>`;
                         (layer.entries || []).forEach(e => {
-                            html += `<div style="padding:2px 0 2px 12px;">${e.task_name} <span style="color:var(--text-secondary);">w=${e.weight}, 等待 ${e.wait_seconds}s</span></div>`;
+                            html += `<div style="padding:2px 0 2px 12px;">${e.task_name} <span style="color:var(--text-secondary);">w=${e.weight}, ${i18n.t('adm.aiMon.waitSeconds', {sec: e.wait_seconds})}</span></div>`;
                         });
                     }
                 });
@@ -3450,14 +3597,14 @@ ${report.teacher_attention_points || '暫無'}
         if (rdEl) {
             const rd = gate.running_details || [];
             if (rd.length === 0) {
-                rdEl.textContent = '無運行中任務';
+                rdEl.textContent = i18n.t('adm.aiMon.noRunningTasks');
             } else {
-                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 0;font-weight:600;">任務</th><th style="text-align:center;padding:4px;font-weight:600;">優先級</th><th style="text-align:center;padding:4px;font-weight:600;">權重</th><th style="text-align:right;padding:4px;font-weight:600;">時長</th><th style="text-align:center;padding:4px;font-weight:600;">操作</th></tr></thead><tbody>';
+                let html = `<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 0;font-weight:600;">${i18n.t('adm.aiMon.thTask')}</th><th style="text-align:center;padding:4px;font-weight:600;">${i18n.t('adm.aiMon.thPriority')}</th><th style="text-align:center;padding:4px;font-weight:600;">${i18n.t('adm.aiMon.thWeight')}</th><th style="text-align:right;padding:4px;font-weight:600;">${i18n.t('adm.aiMon.thDuration')}</th><th style="text-align:center;padding:4px;font-weight:600;">${i18n.t('adm.aiMon.thAction')}</th></tr></thead><tbody>`;
                 rd.forEach(t => {
                     const dur = t.running_seconds || 0;
                     const durColor = dur > 30 ? 'var(--danger)' : dur > 10 ? 'var(--warning)' : 'inherit';
                     const staleWarning = dur > 1800 ? ' background:rgba(220,53,69,0.08);' : '';
-                    html += `<tr style="${staleWarning}"><td style="padding:4px 0;">${t.task_name}</td><td style="text-align:center;padding:4px;">${t.priority}</td><td style="text-align:center;padding:4px;">${t.weight}</td><td style="text-align:right;padding:4px;color:${durColor};font-weight:600;">${dur}s</td><td style="text-align:center;padding:4px;"><button onclick="AdminApp._forceReleaseTask(${t.id},'${t.task_name}')" title="釋放此任務的調度容量（不保證底層請求立即終止）" style="padding:2px 8px;font-size:0.78em;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:4px;cursor:pointer;">釋放占用</button></td></tr>`;
+                    html += `<tr style="${staleWarning}"><td style="padding:4px 0;">${t.task_name}</td><td style="text-align:center;padding:4px;">${t.priority}</td><td style="text-align:center;padding:4px;">${t.weight}</td><td style="text-align:right;padding:4px;color:${durColor};font-weight:600;">${dur}s</td><td style="text-align:center;padding:4px;"><button onclick="AdminApp._forceReleaseTask(${t.id},'${t.task_name}')" title="${i18n.t('adm.aiMon.releaseTitle')}" style="padding:2px 8px;font-size:0.78em;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:4px;cursor:pointer;">${i18n.t('adm.aiMon.releaseTask')}</button></td></tr>`;
                 });
                 html += '</tbody></table>';
                 rdEl.innerHTML = html;
@@ -3494,25 +3641,26 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     async _forceReleaseTask(taskId, taskName) {
-        if (!confirm(`確定要釋放任務「${taskName}」的調度占用嗎？\n\n注意：這會釋放調度容量讓後續任務可以執行，但不保證底層網路請求立即終止。`)) return;
+        if (!confirm(i18n.t('adm.aiMon.releaseConfirm', {name: taskName}))) return;
         try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
             const resp = await fetch('/api/admin/ai-task/force-release', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                    'Authorization': 'Bearer ' + (token || ''),
                 },
                 body: JSON.stringify({ task_id: taskId }),
             });
             const data = await resp.json();
             if (data.success) {
-                this.showToast(`已釋放任務 ${taskName} 的調度占用`, 'success');
-                this.refreshAiMonitor();
+                if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.releaseSuccess', {name: taskName}), 'success');
+                AdminApp.refreshAiMonitor();
             } else {
-                this.showToast(`釋放失敗: ${data.message || '未知錯誤'}`, 'error');
+                if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.releaseFailed', {msg: data.message || i18n.t('adm.aiMon.unknownError')}), 'error');
             }
         } catch (e) {
-            this.showToast(`請求失敗: ${e.message}`, 'error');
+            if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.requestFailed', {msg: e.message}), 'error');
         }
     },
 
@@ -3520,11 +3668,11 @@ ${report.teacher_attention_points || '暫無'}
         const banner = document.getElementById('aiCongestionBanner');
         if (!banner) return;
         const styles = {
-            IDLE:      { bg: '#E8F5EC', color: '#006633', label: '空閒' },
-            NORMAL:    { bg: '#E3F2FD', color: '#1565C0', label: '正常' },
-            BUSY:      { bg: '#FFF3E0', color: '#E65100', label: '繁忙' },
-            CONGESTED: { bg: '#FFEBEE', color: '#C62828', label: '擁堵' },
-            DEGRADED:  { bg: '#F5F5F5', color: '#616161', label: '異常' },
+            IDLE:      { bg: '#E8F5EC', color: '#006633', label: i18n.t('adm.aiMon.congestionIdle') },
+            NORMAL:    { bg: '#E3F2FD', color: '#1565C0', label: i18n.t('adm.aiMon.congestionNormal') },
+            BUSY:      { bg: '#FFF3E0', color: '#E65100', label: i18n.t('adm.aiMon.congestionBusy') },
+            CONGESTED: { bg: '#FFEBEE', color: '#C62828', label: i18n.t('adm.aiMon.congestionCongested') },
+            DEGRADED:  { bg: '#F5F5F5', color: '#616161', label: i18n.t('adm.aiMon.congestionDegraded') },
         };
         const s = styles[level] || styles.DEGRADED;
         banner.style.background = s.bg;
@@ -3535,6 +3683,325 @@ ${report.teacher_attention_points || '暫無'}
         banner.innerHTML = html;
     }
 };
+
+/* ============================================================
+   API Token 使用量監控
+   ============================================================ */
+
+let _aiUsageChartInstance = null;
+
+async function loadAiUsageStats() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+        // 並行載入 summary + daily + recent + by-user
+        const [summaryRes, dailyRes, recentRes] = await Promise.all([
+            fetch('/api/admin/ai-usage/summary', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/daily?days=30', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/recent?limit=30', { headers }).then(r => r.json()),
+        ]);
+        // 同時觸發用戶排行 + 本地模型使用量（不阻塞主流程）
+        loadAiUsageByUser();
+        loadLocalUsageStats();
+
+        // 渲染 summary 卡片
+        if (summaryRes.success) {
+            const d = summaryRes.data;
+            document.getElementById('aiUsageTotalTokens').textContent = (d.total_tokens || 0).toLocaleString();
+            document.getElementById('aiUsagePromptTokens').textContent = (d.prompt_tokens || 0).toLocaleString();
+            document.getElementById('aiUsageCompletionTokens').textContent = (d.completion_tokens || 0).toLocaleString();
+            document.getElementById('aiUsageCallCount').textContent = (d.call_count || 0).toLocaleString();
+            document.getElementById('aiUsageCost').textContent = '$' + (d.estimated_cost_usd || 0).toFixed(4);
+        }
+
+        // 渲染 Chart.js 折線圖
+        if (dailyRes.success && dailyRes.data) {
+            renderAiUsageChart(dailyRes.data);
+        }
+
+        // 渲染最近調用記錄
+        if (recentRes.success && recentRes.data) {
+            renderAiUsageRecent(recentRes.data);
+        }
+    } catch (err) {
+        console.error('載入 AI usage 失敗:', err);
+    }
+}
+
+function renderAiUsageChart(dailyData) {
+    const canvas = document.getElementById('aiUsageChart');
+    if (!canvas) return;
+
+    // 銷毀舊圖表
+    if (_aiUsageChartInstance) {
+        _aiUsageChartInstance.destroy();
+        _aiUsageChartInstance = null;
+    }
+
+    if (!dailyData.length) {
+        canvas.parentElement.querySelector('h4').textContent = i18n.t('adm.aiUsage.noChartData');
+        return;
+    }
+
+    const labels = dailyData.map(d => d.date);
+    const totals = dailyData.map(d => d.total_tokens || 0);
+    const prompts = dailyData.map(d => d.prompt_tokens || 0);
+    const completions = dailyData.map(d => d.completion_tokens || 0);
+
+    _aiUsageChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: i18n.t('adm.aiUsage.totalTokensLabel'),
+                    data: totals,
+                    borderColor: '#006633',
+                    backgroundColor: 'rgba(0, 102, 51, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                },
+                {
+                    label: 'Input',
+                    data: prompts,
+                    borderColor: '#4facfe',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    borderDash: [4, 2],
+                },
+                {
+                    label: 'Output',
+                    data: completions,
+                    borderColor: '#f093fb',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    borderDash: [4, 2],
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v },
+                },
+            },
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} tokens`,
+                    },
+                },
+            },
+        },
+    });
+}
+
+async function loadAiUsageByUser() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const days = document.getElementById('aiUsageByUserDays')?.value || 7;
+    try {
+        const res = await fetch(`/api/admin/ai-usage/by-user?days=${days}`, { headers }).then(r => r.json());
+        if (res.success && res.data) {
+            renderAiUsageByUser(res.data);
+        }
+    } catch (err) {
+        console.error('載入用戶使用量排行失敗:', err);
+    }
+}
+
+function renderAiUsageByUser(records) {
+    const container = document.getElementById('aiUsageByUser');
+    if (!container) return;
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">' + i18n.t('adm.aiUsage.noData') + '</div>';
+        return;
+    }
+
+    const ROLE_LABELS = { student: i18n.t('adm.app.roleStudent'), teacher: i18n.t('adm.app.roleTeacher'), admin: i18n.t('adm.app.roleAdmin') };
+    const maxTokens = records[0]?.total_tokens || 1;
+
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += '<th style="text-align:left;padding:6px 4px;width:8%;">#</th>';
+    html += `<th style="text-align:left;padding:6px 4px;width:22%;">${i18n.t('adm.aiUsage.userCol')}</th>`;
+    html += `<th style="text-align:left;padding:6px 4px;width:12%;">${i18n.t('adm.aiUsage.roleCol')}</th>`;
+    html += '<th style="text-align:right;padding:6px 4px;width:18%;">Tokens</th>';
+    html += `<th style="text-align:right;padding:6px 4px;width:12%;">${i18n.t('adm.aiUsage.callsCol')}</th>`;
+    html += `<th style="text-align:right;padding:6px 4px;width:13%;">${i18n.t('adm.aiUsage.costCol')}</th>`;
+    html += '<th style="text-align:left;padding:6px 4px;width:15%;"></th>';
+    html += '</tr></thead><tbody>';
+
+    records.forEach((r, i) => {
+        const name = r.display_name || r.username || i18n.t('adm.aiUsage.unknown');
+        const role = ROLE_LABELS[r.role] || r.role || '--';
+        const tokens = (r.total_tokens || 0).toLocaleString();
+        const calls = (r.call_count || 0).toLocaleString();
+        const cost = '$' + (r.estimated_cost_usd || 0).toFixed(4);
+        const pct = Math.round((r.total_tokens || 0) / maxTokens * 100);
+        const barColor = i === 0 ? 'var(--brand)' : i < 3 ? '#4facfe' : 'var(--border)';
+
+        html += `<tr style="border-bottom:1px solid var(--border-light);">`;
+        html += `<td style="padding:6px 4px;font-weight:600;color:${i < 3 ? 'var(--brand)' : 'var(--text-tertiary)'};">${i + 1}</td>`;
+        html += `<td style="padding:6px 4px;font-weight:500;">${name}</td>`;
+        html += `<td style="padding:6px 4px;">${role}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${calls}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${cost}</td>`;
+        html += `<td style="padding:6px 4px;"><div style="height:6px;border-radius:3px;background:var(--bg-page);"><div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};"></div></div></td>`;
+        html += `</tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function renderAiUsageRecent(records) {
+    const container = document.getElementById('aiUsageRecent');
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">' + i18n.t('adm.aiUsage.noRecent') + '</div>';
+        return;
+    }
+
+    const PURPOSE_LABELS = {
+        game_gen: i18n.t('adm.aiUsage.purposeGameGen'),
+        exam_gen: i18n.t('adm.aiUsage.purposeExamGen'),
+        practice_gen: i18n.t('adm.aiUsage.purposePracticeGen'),
+        analysis: i18n.t('adm.aiUsage.purposeAnalysis'),
+        chat: i18n.t('adm.aiUsage.purposeChat'),
+    };
+
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += `<th style="text-align:left;padding:6px 4px;width:20%;">${i18n.t('adm.aiUsage.thTime')}</th>`;
+    html += `<th style="text-align:left;padding:6px 4px;width:16%;">${i18n.t('adm.aiUsage.thUser')}</th>`;
+    html += `<th style="text-align:left;padding:6px 4px;width:18%;">${i18n.t('adm.aiUsage.thPurpose')}</th>`;
+    html += `<th style="text-align:left;padding:6px 4px;width:16%;">${i18n.t('adm.aiUsage.thModel')}</th>`;
+    html += '<th style="text-align:right;padding:6px 4px;width:16%;">Tokens</th>';
+    html += `<th style="text-align:right;padding:6px 4px;width:12%;">${i18n.t('adm.aiUsage.thDuration')}</th>`;
+    html += '</tr></thead><tbody>';
+
+    records.forEach(r => {
+        const time = r.created_at ? r.created_at.replace('T', ' ').substring(5, 16) : '--';
+        const user = r.display_name || r.username || '--';
+        const purpose = PURPOSE_LABELS[r.purpose] || r.purpose || '--';
+        const model = (r.model || '--').replace('deepseek-', '');
+        const tokens = (r.total_tokens || 0).toLocaleString();
+        const duration = r.duration_ms ? (r.duration_ms / 1000).toFixed(1) + 's' : '--';
+
+        html += `<tr style="border-bottom:1px solid var(--border-light);">`;
+        html += `<td style="padding:6px 4px;">${time}</td>`;
+        html += `<td style="padding:6px 4px;">${user}</td>`;
+        html += `<td style="padding:6px 4px;">${purpose}</td>`;
+        html += `<td style="padding:6px 4px;">${model}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${duration}</td>`;
+        html += `</tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+
+/* ============================================================
+   本地模型（Ollama）使用量
+   ============================================================ */
+
+async function loadLocalUsageStats() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+        const [summaryRes, recentRes] = await Promise.all([
+            fetch('/api/admin/ai-usage/local/summary', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/local/recent?limit=30', { headers }).then(r => r.json()),
+        ]);
+
+        // 渲染汇总卡片
+        if (summaryRes.success) {
+            const d = summaryRes.data;
+            const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+            el('localUsageCallCount', (d.call_count || 0).toLocaleString());
+            el('localUsageTotalTokens', (d.total_tokens || 0).toLocaleString());
+            const avgMs = d.avg_duration_ms || 0;
+            el('localUsageAvgDuration', avgMs > 1000 ? (avgMs / 1000).toFixed(1) + 's' : avgMs + 'ms');
+        }
+
+        // 渲染最近调用表
+        if (recentRes.success && recentRes.data) {
+            renderLocalUsageRecent(recentRes.data);
+        }
+    } catch (err) {
+        console.error('载入本地模型使用量失败:', err);
+    }
+}
+
+function renderLocalUsageRecent(records) {
+    const container = document.getElementById('localUsageRecent');
+    if (!container) return;
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">暂无本地模型调用记录</div>';
+        return;
+    }
+
+    const PURPOSE_LABELS = {
+        chat: 'AI 问答',
+        pet_chat: '宠物聊天',
+        moderation: '内容审核',
+        practice_gen: '练习生成',
+        exam_gen: '试卷生成',
+    };
+
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += '<th style="text-align:left;padding:6px 4px;width:18%;">时间</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">用户</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">用途</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">模型</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:14%;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:10%;">输入</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:10%;">输出</th>';
+    html += '</tr></thead><tbody>';
+
+    records.forEach(function(r) {
+        var time = r.created_at || '--';
+        var user = r.display_name || r.username || '--';
+        var purpose = PURPOSE_LABELS[r.purpose] || r.purpose || '--';
+        var model = (r.model || '--');
+        var tokens = (r.total_tokens || 0).toLocaleString();
+        var input = (r.prompt_tokens || 0).toLocaleString();
+        var output = (r.completion_tokens || 0).toLocaleString();
+
+        html += '<tr style="border-bottom:1px solid var(--border-light);">';
+        html += '<td style="padding:6px 4px;">' + time + '</td>';
+        html += '<td style="padding:6px 4px;">' + user + '</td>';
+        html += '<td style="padding:6px 4px;">' + purpose + '</td>';
+        html += '<td style="padding:6px 4px;">' + model + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;font-weight:600;">' + tokens + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;color:var(--text-secondary);">' + input + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;color:var(--text-secondary);">' + output + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
 
 /* ============================================================
    BOOTSTRAP
@@ -3585,20 +4052,20 @@ async function loadCloudStatus() {
         }
         if (statusEl) {
             if (info.available) {
-                statusEl.textContent = 'API Key 已配置，雲端可用';
+                statusEl.textContent = i18n.t('adm.cloud.apiKeyConfigured');
                 statusEl.style.color = 'var(--success, #22c55e)';
             } else {
                 const reasons = {
-                    missing_api_key: '未配置 API Key',
-                    config_error: '配置載入錯誤',
+                    missing_api_key: i18n.t('adm.cloud.missingApiKey'),
+                    config_error: i18n.t('adm.cloud.configError'),
                 };
-                statusEl.textContent = reasons[info.reason] || '不可用';
+                statusEl.textContent = reasons[info.reason] || i18n.t('adm.cloud.unavailable');
                 statusEl.style.color = 'var(--warning, #f59e0b)';
             }
         }
     } catch (e) {
         if (statusEl) {
-            statusEl.textContent = '載入失敗';
+            statusEl.textContent = i18n.t('adm.cloud.loadFailed');
             statusEl.style.color = 'var(--danger, #ef4444)';
         }
     }
@@ -3618,7 +4085,7 @@ async function saveCloudConfig() {
     if (apiModel) payload.api_model = apiModel;
 
     if (!apiKey && !apiModel) {
-        showCloudMsg('請輸入 API Key 或選擇模型', 'warning');
+        showCloudMsg(i18n.t('adm.cloud.enterKeyOrModel'), 'warning');
         return;
     }
 
@@ -3628,26 +4095,26 @@ async function saveCloudConfig() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        showCloudMsg('配置已保存', 'success');
+        showCloudMsg(i18n.t('adm.cloud.saved'), 'success');
         if (keyInput) keyInput.value = '';
         loadCloudStatus();
     } catch (e) {
-        showCloudMsg('保存失敗: ' + e.message, 'error');
+        showCloudMsg(i18n.t('adm.cloud.saveFailedPrefix') + e.message, 'error');
     }
 }
 
 async function testCloudConnection() {
-    showCloudMsg('測試中...', 'info');
+    showCloudMsg(i18n.t('adm.cloud.testing'), 'info');
     try {
         const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-status');
         const info = data.data || data;
         if (info.available) {
-            showCloudMsg('連接正常，雲端 API 可用', 'success');
+            showCloudMsg(i18n.t('adm.cloud.testOK'), 'success');
         } else {
-            showCloudMsg('雲端不可用: ' + (info.reason === 'missing_api_key' ? '未配置 API Key' : info.reason), 'warning');
+            showCloudMsg(info.reason === 'missing_api_key' ? i18n.t('adm.cloud.testFailedNoKey') : i18n.t('adm.cloud.testFailedPrefix') + info.reason, 'warning');
         }
     } catch (e) {
-        showCloudMsg('測試失敗: ' + e.message, 'error');
+        showCloudMsg(i18n.t('adm.cloud.testError', {msg: e.message}), 'error');
     }
 }
 

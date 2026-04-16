@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>校園AI助手 - 教師管理後台</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/admin_dashboard.css">
+    <title data-i18n="adm.page.title">AI學習夥伴 - 教師管理後台</title>
+    <link rel="stylesheet" href="/static/css/admin_dashboard.css?v=20260414">
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/admin_dashboard.js?v=20260414"></script>
 </head>
 <body>
     <!-- SVG Icon Sprite (Heroicons Outline, MIT) -->
@@ -60,16 +62,17 @@
     <nav class="navbar">
         <div class="navbar-brand">
             <svg class="icon icon-brand"><use href="#i-graduation"/></svg>
-            <span>校園AI助手 - 教師管理後台</span>
+            <span data-i18n="adm.navbar.brand">AI學習夥伴 - 教師管理後台</span>
         </div>
         <div class="navbar-user">
+            <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
             <button class="btn btn-primary" data-action="backToMain">
-                <svg class="icon icon-white"><use href="#i-home"/></svg>返回主系統
+                <svg class="icon icon-white"><use href="#i-home"/></svg><span data-i18n="adm.navbar.backToMain">返回主系統</span>
             </button>
             <div class="user-info">
                 <div class="user-avatar" id="adminAvatar">A</div>
-                <span id="adminName">管理員</span>
-                <span class="role-badge" id="roleBadge">管理員</span>
+                <span id="adminName" data-i18n="adm.navbar.admin">管理員</span>
+                <span class="role-badge" id="roleBadge" data-i18n="adm.navbar.roleBadge">管理員</span>
             </div>
         </div>
     </nav>
@@ -80,45 +83,45 @@
         <aside class="admin-sidebar" id="adminSidebar">
             <nav class="admin-sidebar__nav">
                 <!-- 教學管理 -->
-                <div class="admin-sidebar__group-label">教學管理</div>
+                <div class="admin-sidebar__group-label" data-i18n="adm.sidebar.teachingMgmt">教學管理</div>
                 <div class="admin-sidebar__item admin-sidebar__item--active" data-tab="subjects">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-book"/></svg></span><span>學科管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-book"/></svg></span><span data-i18n="adm.sidebar.subjects">學科管理</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="knowledge">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-archive"/></svg></span><span>知識庫管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-archive"/></svg></span><span data-i18n="adm.sidebar.knowledge">知識庫管理</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="prompts">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chat-bubble"/></svg></span><span>提示詞配置</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chat-bubble"/></svg></span><span data-i18n="adm.sidebar.prompts">提示詞配置</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="analysis">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chart"/></svg></span><span>學生分析</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chart"/></svg></span><span data-i18n="adm.sidebar.analysis">學生分析</span>
                 </div>
 
                 <!-- 系統管理 (admin only) -->
-                <div class="admin-sidebar__group-label admin-only">系統管理</div>
+                <div class="admin-sidebar__group-label admin-only" data-i18n="adm.sidebar.systemMgmt">系統管理</div>
                 <div class="admin-sidebar__item admin-only" data-tab="users">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-users"/></svg></span><span>用戶管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-users"/></svg></span><span data-i18n="adm.sidebar.users">用戶管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="settings">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cog"/></svg></span><span>系統設定</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cog"/></svg></span><span data-i18n="adm.sidebar.settings">系統設定</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="notice">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-pencil"/></svg></span><span>通告管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-pencil"/></svg></span><span data-i18n="adm.sidebar.notice">通告管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="appmgr">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-phone"/></svg></span><span>應用管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-phone"/></svg></span><span data-i18n="adm.sidebar.appmgr">應用管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="classdiary">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-clipboard"/></svg></span><span>課室日誌</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-clipboard"/></svg></span><span data-i18n="adm.sidebar.classdiary">課室日誌</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="blocked">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-lock"/></svg></span><span>封禁管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-lock"/></svg></span><span data-i18n="adm.sidebar.blocked">封禁管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="aimonitor">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cpu"/></svg></span><span>AI 監控</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cpu"/></svg></span><span data-i18n="adm.sidebar.aimonitor">AI 監控</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="syslogs">
-                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-server"/></svg></span><span>系統日誌</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-server"/></svg></span><span data-i18n="adm.sidebar.syslogs">系統日誌</span>
                 </div>
             </nav>
             <div class="admin-sidebar__footer">v3.0</div>
@@ -129,24 +132,24 @@
             <!-- 統計卡片 -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-books"/></svg> 學科總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-books"/></svg> <span data-i18n="adm.stats.totalSubjects">學科總數</span></div>
                     <div class="stat-value" id="totalSubjects">-</div>
-                    <div class="stat-subtitle">已配置的學科</div>
+                    <div class="stat-subtitle" data-i18n="adm.stats.configuredSubjects">已配置的學科</div>
                 </div>
                 <div class="stat-card success">
-                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-document"/></svg> 文檔總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-document"/></svg> <span data-i18n="adm.stats.totalDocs">文檔總數</span></div>
                     <div class="stat-value" id="totalDocuments">-</div>
-                    <div class="stat-subtitle">知識庫文檔</div>
+                    <div class="stat-subtitle" data-i18n="adm.stats.knowledgeDocs">知識庫文檔</div>
                 </div>
                 <div class="stat-card warning">
-                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-users"/></svg> 學生總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-users"/></svg> <span data-i18n="adm.stats.totalStudents">學生總數</span></div>
                     <div class="stat-value" id="totalStudents">-</div>
-                    <div class="stat-subtitle">活躍用戶</div>
+                    <div class="stat-subtitle" data-i18n="adm.stats.activeUsers">活躍用戶</div>
                 </div>
                 <div class="stat-card info">
-                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-message"/></svg> 對話總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-message"/></svg> <span data-i18n="adm.stats.totalConversations">對話總數</span></div>
                     <div class="stat-value" id="totalConversations">-</div>
-                    <div class="stat-subtitle">累計對話</div>
+                    <div class="stat-subtitle" data-i18n="adm.stats.cumulativeConversations">累計對話</div>
                 </div>
             </div>
 
@@ -154,9 +157,9 @@
                 <!-- 學科管理標籤 -->
                 <div class="tab-pane active" id="subjects-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3>學科管理</h3>
+                        <h3 data-i18n="adm.subjects.title">學科管理</h3>
                         <button class="btn btn-primary" data-action="showAddSubjectModal">
-                            <svg class="icon icon-white"><use href="#i-plus"/></svg> 添加新學科
+                            <svg class="icon icon-white"><use href="#i-plus"/></svg> <span data-i18n="adm.subjects.addNew">添加新學科</span>
                         </button>
                     </div>
                     <div class="subject-grid" id="subjectGrid"></div>
@@ -165,37 +168,37 @@
                 <!-- 知識庫管理標籤 -->
                 <div class="tab-pane" id="knowledge-tab">
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-archive"/></svg> 知識庫管理</h3>
-                        <span style="color: var(--text-secondary);">管理各學科的知識文檔</span>
+                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-archive"/></svg> <span data-i18n="adm.knowledge.title">知識庫管理</span></h3>
+                        <span style="color: var(--text-secondary);" data-i18n="adm.knowledge.subtitle">管理各學科的知識文檔</span>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                         <div class="knowledge-stat-card">
                             <div style="font-size: 2rem; font-weight: bold;" id="totalDocsCount">0</div>
-                            <div style="opacity: 0.9;">總文檔數</div>
+                            <div style="opacity: 0.9;" data-i18n="adm.knowledge.totalDocs">總文檔數</div>
                         </div>
                         <div class="knowledge-stat-card" style="background: var(--color-warning);">
                             <div style="font-size: 2rem; font-weight: bold;" id="totalSizeCount">0 MB</div>
-                            <div style="opacity: 0.9;">總存儲量</div>
+                            <div style="opacity: 0.9;" data-i18n="adm.knowledge.totalSize">總存儲量</div>
                         </div>
                         <div class="knowledge-stat-card" style="background: var(--color-info);">
                             <div style="font-size: 2rem; font-weight: bold;" id="subjectsWithDocs">0</div>
-                            <div style="opacity: 0.9;">已配置學科</div>
+                            <div style="opacity: 0.9;" data-i18n="adm.knowledge.configuredSubjects">已配置學科</div>
                         </div>
                     </div>
 
                     <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow);">
                         <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
                             <select id="knowledgeSubjectSelect" class="filter-select" style="flex: 1; max-width: 300px; padding: 12px; border-radius: 8px;">
-                                <option value="">選擇學科</option>
+                                <option value="" data-i18n="adm.knowledge.selectSubject">選擇學科</option>
                             </select>
                             <button data-action="triggerDocUpload"
                                     style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
-                                <svg class="icon icon-white"><use href="#i-upload"/></svg> 上傳文檔
+                                <svg class="icon icon-white"><use href="#i-upload"/></svg> <span data-i18n="adm.knowledge.uploadDoc">上傳文檔</span>
                             </button>
                             <button data-action="refreshDocuments"
                                     style="padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; cursor: pointer;">
-                                <svg class="icon icon-white"><use href="#i-refresh"/></svg> 刷新
+                                <svg class="icon icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.common.refresh">刷新</span>
                             </button>
                             <input type="file" id="documentUpload" accept=".txt,.pdf,.docx,.pptx,.md" multiple style="display: none;">
                         </div>
@@ -203,7 +206,7 @@
                         <div id="documentsList">
                             <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                                 <div style="margin-bottom: 1rem;"><svg class="icon-3xl icon" style="width:48px;height:48px;stroke:var(--text-secondary)"><use href="#i-folder"/></svg></div>
-                                <p>請選擇學科查看文檔</p>
+                                <p data-i18n="adm.knowledge.selectToView">請選擇學科查看文檔</p>
                             </div>
                         </div>
 
@@ -211,74 +214,74 @@
                         <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid var(--primary);">
                             <div style="margin-bottom: 2rem;">
                                 <h3 style="display: inline-block; margin-right: 1rem; color: var(--primary);">
-                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> 通告範本庫
+                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> <span data-i18n="adm.templates.title">培僑中學通告範本庫</span>
                                 </h3>
-                                <span style="color: var(--text-secondary);">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
+                                <span style="color: var(--text-secondary);" data-i18n="adm.templates.subtitle">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
                             </div>
 
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
                                 <div style="background: var(--brand); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
                                     <div style="font-size: 2rem; font-weight: bold;" id="totalTemplatesCount">0</div>
-                                    <div style="font-size: 0.9rem; opacity: 0.9;">總範本數</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;" data-i18n="adm.templates.totalTemplates">總範本數</div>
                                 </div>
                                 <div style="background: var(--color-warning); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
                                     <div style="font-size: 2rem; font-weight: bold;" id="activityTemplatesCount">0</div>
-                                    <div style="font-size: 0.9rem; opacity: 0.9;">活動通告</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;" data-i18n="adm.templates.activityNotice">活動通告</div>
                                 </div>
                                 <div style="background: var(--color-info); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
                                     <div style="font-size: 2rem; font-weight: bold;" id="examTemplatesCount">0</div>
-                                    <div style="font-size: 0.9rem; opacity: 0.9;">考試通告</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;" data-i18n="adm.templates.examNotice">考試通告</div>
                                 </div>
                                 <div style="background: var(--color-success); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
                                     <div style="font-size: 2rem; font-weight: bold;" id="meetingTemplatesCount">0</div>
-                                    <div style="font-size: 0.9rem; opacity: 0.9;">會議通告</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;" data-i18n="adm.templates.meetingNotice">會議通告</div>
                                 </div>
                             </div>
 
                             <!-- 上傳範本區域 -->
                             <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow); margin-bottom: 2rem;">
                                 <h4 style="color: var(--primary); margin-bottom: 1.5rem;">
-                                    <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-upload"/></svg>上傳新範本
+                                    <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-upload"/></svg><span data-i18n="adm.templates.uploadNew">上傳新範本</span>
                                 </h4>
                                 <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
                                     <div>
                                         <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                                            選擇範本檔案 <span style="color: var(--danger);">*</span>
+                                            <span data-i18n="adm.templates.selectFile">選擇範本檔案</span> <span style="color: var(--danger);">*</span>
                                         </label>
                                         <input type="file" id="noticeTemplateFile" accept=".txt,.docx,.pdf"
                                                style="width: 100%; padding: 10px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg);">
-                                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">支援格式：TXT, DOCX, PDF</small>
+                                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;" data-i18n="adm.templates.supportedFormats">支援格式：TXT, DOCX, PDF</small>
                                     </div>
                                     <div>
                                         <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-                                            範本類型 <span style="color: var(--danger);">*</span>
+                                            <span data-i18n="adm.templates.templateType">範本類型</span> <span style="color: var(--danger);">*</span>
                                         </label>
                                         <select id="noticeTemplateType" style="width: 100%; padding: 11px; border: 2px solid var(--border); border-radius: 8px; background: white;">
-                                            <option value="activity">活動通告</option>
-                                            <option value="exam">考試通告</option>
-                                            <option value="meeting">會議通告</option>
-                                            <option value="general">一般通告</option>
+                                            <option value="activity" data-i18n="adm.templates.activityNotice">活動通告</option>
+                                            <option value="exam" data-i18n="adm.templates.examNotice">考試通告</option>
+                                            <option value="meeting" data-i18n="adm.templates.meetingNotice">會議通告</option>
+                                            <option value="general" data-i18n="adm.templates.generalNotice">一般通告</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">範本描述</label>
-                                        <input type="text" id="noticeTemplateDescription" placeholder="例如：2024年秋季運動會通告"
+                                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;" data-i18n="adm.templates.description">範本描述</label>
+                                        <input type="text" id="noticeTemplateDescription" placeholder="例如：2024年秋季運動會通告" data-i18n-placeholder="adm.templates.descriptionPlaceholder"
                                                style="width: 100%; padding: 10px; border: 2px solid var(--border); border-radius: 8px;">
                                     </div>
                                 </div>
                                 <div id="templateFilePreview" style="display: none; margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: 8px; border-left: 4px solid var(--primary);">
-                                    <strong>檔案資訊：</strong>
+                                    <strong data-i18n="adm.templates.fileInfo">檔案資訊：</strong>
                                     <span id="previewFileName"></span> |
                                     <span id="previewFileSize"></span>
                                 </div>
                                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                                     <button data-action="clearTemplateForm"
-                                            style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                            style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;" data-i18n="adm.common.clear">
                                         清空
                                     </button>
                                     <button data-action="uploadNoticeTemplate" id="uploadTemplateBtn"
                                             style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
-                                        <svg class="icon icon-white"><use href="#i-upload"/></svg> 上傳範本
+                                        <svg class="icon icon-white"><use href="#i-upload"/></svg> <span data-i18n="adm.templates.uploadTemplate">上傳範本</span>
                                     </button>
                                 </div>
                             </div>
@@ -287,25 +290,25 @@
                             <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                     <h4 style="color: var(--primary); margin: 0;">
-                                        <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-books"/></svg>已上傳的範本
+                                        <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-books"/></svg><span data-i18n="adm.templates.uploadedList">已上傳的範本</span>
                                     </h4>
                                     <div style="display: flex; gap: 0.5rem;">
                                         <button data-action="filterTemplates" data-type="all" class="template-filter-btn active"
-                                                style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">全部</button>
+                                                style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;" data-i18n="adm.common.all">全部</button>
                                         <button data-action="filterTemplates" data-type="activity" class="template-filter-btn"
-                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">活动</button>
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;" data-i18n="adm.templates.filterActivity">活动</button>
                                         <button data-action="filterTemplates" data-type="exam" class="template-filter-btn"
-                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">考试</button>
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;" data-i18n="adm.templates.filterExam">考试</button>
                                         <button data-action="filterTemplates" data-type="meeting" class="template-filter-btn"
-                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">会议</button>
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;" data-i18n="adm.templates.filterMeeting">会议</button>
                                         <button data-action="filterTemplates" data-type="general" class="template-filter-btn"
-                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">一般</button>
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;" data-i18n="adm.templates.filterGeneral">一般</button>
                                     </div>
                                 </div>
                                 <div id="noticeTemplatesList">
                                     <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                                         <div class="spinner"></div>
-                                        <p>載入范本列表...</p>
+                                        <p data-i18n="adm.templates.loading">載入范本列表...</p>
                                     </div>
                                 </div>
                             </div>
@@ -316,42 +319,42 @@
                 <!-- 提示詞配置标签 -->
                 <div class="tab-pane" id="prompts-tab">
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chat-bubble"/></svg> 提示詞配置</h3>
-                        <span style="color: var(--text-secondary);">为每个學科配置AI助手的行为和知识范围</span>
+                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chat-bubble"/></svg> <span data-i18n="adm.prompts.title">提示詞配置</span></h3>
+                        <span style="color: var(--text-secondary);" data-i18n="adm.prompts.subtitle">为每个學科配置AI助手的行为和知识范围</span>
                     </div>
                     <div style="background: var(--brand); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; color: white;">
-                        <h4 style="margin-bottom: 1rem;"><svg class="icon icon-white" style="margin-right:4px"><use href="#i-target"/></svg> 快速模板</h4>
+                        <h4 style="margin-bottom: 1rem;"><svg class="icon icon-white" style="margin-right:4px"><use href="#i-target"/></svg> <span data-i18n="adm.prompts.quickTemplates">快速模板</span></h4>
                         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                            <button data-action="applyTemplate" data-template="basic" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">基础教学模板</button>
-                            <button data-action="applyTemplate" data-template="interactive" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">互动问答模板</button>
-                            <button data-action="applyTemplate" data-template="exam" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">考试辅导模板</button>
-                            <button data-action="applyTemplate" data-template="creative" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">创意思维模板</button>
+                            <button data-action="applyTemplate" data-template="basic" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;" data-i18n="adm.prompts.tplBasic">基础教学模板</button>
+                            <button data-action="applyTemplate" data-template="interactive" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;" data-i18n="adm.prompts.tplInteractive">互动问答模板</button>
+                            <button data-action="applyTemplate" data-template="exam" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;" data-i18n="adm.prompts.tplExam">考试辅导模板</button>
+                            <button data-action="applyTemplate" data-template="creative" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;" data-i18n="adm.prompts.tplCreative">创意思维模板</button>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 300px 1fr; gap: 2rem;">
                         <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow); height: fit-content;">
-                            <h4 style="margin-bottom: 1rem; color: var(--primary);"><svg class="icon" style="stroke:var(--primary)"><use href="#i-books"/></svg> 學科列表</h4>
+                            <h4 style="margin-bottom: 1rem; color: var(--primary);"><svg class="icon" style="stroke:var(--primary)"><use href="#i-books"/></svg> <span data-i18n="adm.prompts.subjectList">學科列表</span></h4>
                             <div id="promptSubjectList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                         </div>
                         <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow);">
                             <div id="promptEditor" style="display: none;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                                    <h4 id="promptSubjectTitle" style="color: var(--primary); margin: 0;">學科提示詞</h4>
+                                    <h4 id="promptSubjectTitle" style="color: var(--primary); margin: 0;" data-i18n="adm.prompts.subjectPrompt">學科提示詞</h4>
                                     <div style="display: flex; gap: 8px;">
-                                        <span id="promptCharCount" style="color: var(--text-secondary); font-size: 14px;">0 字符</span>
-                                        <span id="promptSaveStatus" style="color: var(--success); font-size: 14px; display: none;">✓ 已保存</span>
+                                        <span id="promptCharCount" style="color: var(--text-secondary); font-size: 14px;">0 <span data-i18n="adm.prompts.chars">字符</span></span>
+                                        <span id="promptSaveStatus" style="color: var(--success); font-size: 14px; display: none;" data-i18n="adm.prompts.saved">✓ 已保存</span>
                                     </div>
                                 </div>
                                 <div style="position: relative; margin-bottom: 1rem;">
-                                    <textarea id="promptContent" placeholder="輸入提示詞內容..."
+                                    <textarea id="promptContent" placeholder="輸入提示詞內容..." data-i18n-placeholder="adm.prompts.inputPlaceholder"
                                               style="width: 100%; min-height: 400px; padding: 15px; border: 2px solid var(--border); border-radius: 10px; font-family: 'Monaco', 'Menlo', monospace; font-size: 14px; line-height: 1.6; resize: vertical;"></textarea>
                                     <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
-                                        <button data-action="formatPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">格式化</button>
-                                        <button data-action="previewPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">预览</button>
+                                        <button data-action="formatPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;" data-i18n="adm.prompts.format">格式化</button>
+                                        <button data-action="previewPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;" data-i18n="adm.prompts.preview">预览</button>
                                     </div>
                                 </div>
                                 <div style="background: var(--bg); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                                    <h5 style="color: var(--text-secondary); margin-bottom: 0.5rem;">可用变量：</h5>
+                                    <h5 style="color: var(--text-secondary); margin-bottom: 0.5rem;" data-i18n="adm.prompts.availableVars">可用变量：</h5>
                                     <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 13px;">
                                         <code style="background: white; padding: 4px 8px; border-radius: 4px;">{subject_name}</code>
                                         <code style="background: white; padding: 4px 8px; border-radius: 4px;">{student_name}</code>
@@ -361,13 +364,13 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                    <button data-action="resetPrompt" style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">重置</button>
-                                    <button data-action="savePrompt" style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><svg class="icon icon-white"><use href="#i-save"/></svg> 保存提示詞</button>
+                                    <button data-action="resetPrompt" style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;" data-i18n="adm.common.reset">重置</button>
+                                    <button data-action="savePrompt" style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><svg class="icon icon-white"><use href="#i-save"/></svg> <span data-i18n="adm.prompts.savePrompt">保存提示詞</span></button>
                                 </div>
                             </div>
                             <div id="promptPlaceholder" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
                                 <div style="margin-bottom: 1rem;"><svg class="icon" style="width:48px;height:48px;stroke:var(--text-secondary)"><use href="#i-chat-bubble"/></svg></div>
-                                <p>請選擇左侧學科開始配置提示詞</p>
+                                <p data-i18n="adm.prompts.selectSubject">請選擇左侧學科開始配置提示詞</p>
                             </div>
                         </div>
                     </div>
@@ -376,70 +379,71 @@
                 <!-- 學生分析标签 -->
                 <div class="tab-pane" id="analysis-tab">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chart"/></svg> 學生學習分析</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chart"/></svg> <span data-i18n="adm.analysis.title">學生學習分析</span></h3>
                         <div>
-                            <button class="refresh-btn" data-action="refreshAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新數據</button>
-                            <button class="export-btn" data-action="exportAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-download"/></svg> 匯出報告</button>
+                            <button class="refresh-btn" data-action="refreshAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.analysis.refreshData">刷新數據</span></button>
+                            <button class="export-btn" data-action="exportAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-download"/></svg> <span data-i18n="adm.analysis.exportReport">匯出報告</span></button>
                         </div>
                     </div>
-                    <div class="students-summary-wrapper">
+                    <div class="students-summary-wrapper" id="atRiskDashboard">
                         <div class="students-summary-header">
-                            <h4 style="color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-                                <svg class="icon" style="stroke:var(--primary)"><use href="#i-receipt"/></svg> 學生摘要總览（最近更新）
+                            <h4 style="color: var(--danger); margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <svg class="icon" style="stroke:var(--danger)"><use href="#i-alert-triangle"/></svg> <span data-i18n="adm.atRisk.title">全校高風險 Top 10</span>
                             </h4>
-                            <div>
-                                <button class="refresh-btn" data-action="loadStudentsSummary"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新摘要</button>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span id="riskLastRefresh" class="muted-small" data-i18n="adm.atRisk.refreshNote">每日 03:00 自動更新</span>
+                                <button class="refresh-btn" data-action="forceRefreshRisk"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.atRisk.forceRefresh">立即重算</span></button>
                             </div>
                         </div>
                         <div id="studentsSummaryList" class="students-summary-grid">
                             <div class="loading-spinner" style="grid-column: 1 / -1;">
                                 <div class="spinner"></div>
-                                <p>載入學生摘要...</p>
+                                <p data-i18n="adm.atRisk.loading">載入高風險清單...</p>
                             </div>
                         </div>
                     </div>
                     <div class="analysis-container">
                         <div class="student-list-panel">
-                            <div class="student-list-header"><h4>學生列表</h4></div>
+                            <div class="student-list-header"><h4 data-i18n="adm.analysis.studentList">學生列表</h4></div>
                             <div class="filter-controls">
                                 <select class="filter-select" id="classFilter">
-                                    <option value="">所有班级</option>
+                                    <option value="" data-i18n="adm.analysis.allClasses">所有班级</option>
                                 </select>
                                 <select class="filter-select" id="subjectFilter">
-                                    <option value="">所有學科</option>
+                                    <option value="" data-i18n="adm.analysis.allSubjects">所有學科</option>
                                 </select>
-                                <input type="text" class="filter-select" id="studentSearch" placeholder="搜索學生姓名...">
+                                <input type="text" class="filter-select" id="studentSearch" placeholder="搜索學生姓名..." data-i18n-placeholder="adm.analysis.searchStudent">
                             </div>
                             <div class="class-overview" id="classOverview">
                                 <div class="overview-card">
-                                    <h5>總人数</h5>
+                                    <h5 data-i18n="adm.analysis.totalCount">總人数</h5>
                                     <div class="value" id="totalStudentCount">0</div>
                                 </div>
                                 <div class="overview-card">
-                                    <h5>高风险</h5>
+                                    <h5 data-i18n="adm.analysis.highRisk">高风险</h5>
                                     <div class="value" style="color: var(--danger);" id="highRiskCount">0</div>
                                 </div>
                                 <div class="overview-card">
-                                    <h5>中风险</h5>
+                                    <h5 data-i18n="adm.analysis.mediumRisk">中风险</h5>
                                     <div class="value" style="color: var(--warning);" id="mediumRiskCount">0</div>
                                 </div>
                                 <div class="overview-card">
-                                    <h5>低风险</h5>
+                                    <h5 data-i18n="adm.analysis.lowRisk">低风险</h5>
                                     <div class="value" style="color: var(--success);" id="lowRiskCount">0</div>
                                 </div>
                             </div>
                             <div class="student-list" id="studentList">
                                 <div class="loading-spinner">
                                     <div class="spinner"></div>
-                                    <p>載入學生列表...</p>
+                                    <p data-i18n="adm.analysis.loadingStudents">載入學生列表...</p>
                                 </div>
                             </div>
                         </div>
                         <div class="analysis-panel">
                             <div id="analysisContent">
                                 <div class="empty-state">
-                                    <h4><svg class="icon" style="margin-right:4px"><use href="#i-arrow-left"/></svg> 請選擇一个學生查看分析報告</h4>
-                                    <p>選擇左侧學生列表中的學生，查看其詳細的學習分析報告</p>
+                                    <h4><svg class="icon" style="margin-right:4px"><use href="#i-arrow-left"/></svg> <span data-i18n="adm.analysis.selectStudent">請選擇一个學生查看分析報告</span></h4>
+                                    <p data-i18n="adm.analysis.selectStudentHint">選擇左侧學生列表中的學生，查看其詳細的學習分析報告</p>
                                 </div>
                             </div>
                         </div>
@@ -451,7 +455,7 @@
                     <div class="notice-chat-container">
                         <div class="notice-chat-header">
                             <svg class="icon icon-xl icon-white"><use href="#i-cpu"/></svg>
-                            <h3 style="margin: 0;">智能通告助手</h3>
+                            <h3 style="margin: 0;" data-i18n="adm.notice.title">智能通告助手</h3>
                             <div style="flex: 1;"></div>
                             <div class="progress-bar" style="width: 150px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px;">
                                 <div class="progress-fill" id="noticeProgressBar" style="height: 100%; background: white; border-radius: 3px; width: 0%;"></div>
@@ -461,53 +465,53 @@
                         <div class="notice-input-container">
                             <div class="notice-input-wrapper">
                                 <input type="text" class="notice-chat-input" id="noticeChatInput"
-                                       placeholder="輸入您的回复或粘贴通告內容...">
-                                <button class="notice-send-button" data-action="sendNoticeMessage">发送</button>
+                                       placeholder="輸入您的回复或粘贴通告內容..." data-i18n-placeholder="adm.notice.inputPlaceholder">
+                                <button class="notice-send-button" data-action="sendNoticeMessage" data-i18n="adm.notice.send">发送</button>
                             </div>
                             <div class="quick-actions" id="noticeQuickActions" style="margin-top: 10px;"></div>
                         </div>
                     </div>
                     <button id="noticeExportButton" data-action="exportNotice"
                             style="position: fixed; bottom: 30px; right: 30px; padding: 12px 20px; background: var(--color-success); color: white; border: none; border-radius: 25px; cursor: pointer; display: none;">
-                        <svg class="icon icon-white"><use href="#i-document"/></svg> 匯出Word文檔
+                        <svg class="icon icon-white"><use href="#i-document"/></svg> <span data-i18n="adm.notice.exportWord">匯出Word文檔</span>
                     </button>
                 </div>
 
                 <!-- 用戶管理标签 -->
                 <div class="tab-pane" id="users-tab">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-users"/></svg> 用戶管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-users"/></svg> <span data-i18n="adm.users.title">用戶管理</span></h3>
                         <div>
-                            <button class="btn btn-primary" data-action="showAddUserModal"><svg class="icon icon-white"><use href="#i-plus"/></svg> 添加用戶</button>
-                            <button class="btn btn-primary" data-action="showBatchAddModal"><svg class="icon icon-white"><use href="#i-box"/></svg> 批量添加</button>
+                            <button class="btn btn-primary" data-action="showAddUserModal"><svg class="icon icon-white"><use href="#i-plus"/></svg> <span data-i18n="adm.users.addUser">添加用戶</span></button>
+                            <button class="btn btn-primary" data-action="showBatchAddModal"><svg class="icon icon-white"><use href="#i-box"/></svg> <span data-i18n="adm.users.batchAdd">批量添加</span></button>
                         </div>
                     </div>
                     <div class="filter-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
                         <select class="filter-select" id="userRoleFilter" style="width: auto; flex: 0 0 auto; min-width: 120px;">
-                            <option value="">所有角色</option>
-                            <option value="admin">管理员</option>
-                            <option value="teacher">教師</option>
-                            <option value="student">學生</option>
+                            <option value="" data-i18n="adm.users.allRoles">所有角色</option>
+                            <option value="admin" data-i18n="adm.users.roleAdmin">管理员</option>
+                            <option value="teacher" data-i18n="adm.users.roleTeacher">教師</option>
+                            <option value="student" data-i18n="adm.users.roleStudent">學生</option>
                         </select>
                         <select class="filter-select" id="userClassFilter" style="width: auto; flex: 0 0 auto; min-width: 120px;">
-                            <option value="">所有班级</option>
+                            <option value="" data-i18n="adm.users.allClasses">所有班级</option>
                         </select>
-                        <input type="text" class="filter-select" id="userSearchInput" placeholder="搜索用戶名 / 英文名 / 卡號..." style="flex: 1; min-width: 200px;">
+                        <input type="text" class="filter-select" id="userSearchInput" placeholder="搜索用戶名 / 英文名 / 卡號..." style="flex: 1; min-width: 200px;" data-i18n-placeholder="adm.users.searchPlaceholder">
                     </div>
                     <div style="overflow-x: auto;">
                         <table id="usersTable" style="width: 100%; background: white; border-radius: 10px;">
                             <thead style="background: var(--light);">
                                 <tr>
-                                    <th style="padding: 12px;">用戶名</th>
-                                    <th style="padding: 12px;">顯示名称</th>
-                                    <th style="padding: 12px;">英文名</th>
-                                    <th style="padding: 12px;">角色</th>
-                                    <th style="padding: 12px;">班级/部门</th>
-                                    <th style="padding: 12px;">卡號</th>
-                                    <th style="padding: 12px;">狀態</th>
-                                    <th style="padding: 12px;">登录次数</th>
-                                    <th style="padding: 12px;">最后登录</th>
-                                    <th style="padding: 12px;">操作</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thUsername">用戶名</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thDisplayName">顯示名称</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thEnglishName">英文名</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thRole">角色</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thClassDept">班级/部门</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thCardId">卡號</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thStatus">狀態</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thLoginCount">登录次数</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thLastLogin">最后登录</th>
+                                    <th style="padding: 12px;" data-i18n="adm.users.thActions">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody"></tbody>
@@ -517,36 +521,35 @@
 
                 <!-- 系統設定标签 -->
                 <div class="tab-pane" id="settings-tab">
-                    <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cog"/></svg> 系統設定</h3>
+                    <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cog"/></svg> <span data-i18n="adm.settings.title">系統設定</span></h3>
 
                     <!-- LLM 雲端配置 -->
                     <div style="background:white;border-radius:12px;padding:1.5rem;margin-top:1rem;border:1px solid var(--border);">
                         <h4 style="margin:0 0 1rem;color:var(--text-secondary);">
-                            <svg class="icon" style="margin-right:4px"><use href="#i-cpu"/></svg> LLM 雲端生成配置 (Qwen)
+                            <svg class="icon" style="margin-right:4px"><use href="#i-cpu"/></svg> <span data-i18n="adm.settings.llmTitle">LLM 雲端生成配置 (DeepSeek)</span>
                         </h4>
-                        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">
+                        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;" data-i18n="adm.settings.llmDesc">
                             配置雲端 API Key 後，教師可在出卷頁面選擇「雲端生成」以獲得更高品質的題目。
                         </p>
                         <div style="display:grid;grid-template-columns:140px 1fr;gap:0.75rem 1rem;align-items:center;max-width:500px;">
-                            <label style="font-weight:500;color:var(--text);">API Key</label>
+                            <label style="font-weight:500;color:var(--text);" data-i18n="adm.settings.apiKey">API Key</label>
                             <div style="display:flex;gap:0.5rem;">
                                 <input type="password" id="cloudApiKey" placeholder="請輸入 API Key..."
                                     autocomplete="off" oncopy="return false" oncut="return false" onpaste="return true"
                                     style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;font-family:monospace;">
                             </div>
-                            <label style="font-weight:500;color:var(--text);">模型</label>
+                            <label style="font-weight:500;color:var(--text);" data-i18n="adm.settings.model">模型</label>
                             <select id="cloudApiModel"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:white;color:var(--text);cursor:pointer;">
-                                <option value="qwen-plus">qwen-plus (均衡模式，推薦)</option>
-                                <option value="qwen-max">qwen-max (旗艦模型)</option>
-                                <option value="qwen-turbo">qwen-turbo (快速模式)</option>
+                                <option value="deepseek-reasoner" data-i18n="adm.settings.modelReasoner">deepseek-reasoner (推理模式，質量最高)</option>
+                                <option value="deepseek-chat" data-i18n="adm.settings.modelChat">deepseek-chat (對話模式，速度較快)</option>
                             </select>
-                            <label style="font-weight:500;color:var(--text);">狀態</label>
-                            <span id="cloudConfigStatus" style="font-size:0.9rem;color:var(--text-muted);">載入中...</span>
+                            <label style="font-weight:500;color:var(--text);" data-i18n="adm.settings.status">狀態</label>
+                            <span id="cloudConfigStatus" style="font-size:0.9rem;color:var(--text-muted);" data-i18n="adm.common.loading">載入中...</span>
                         </div>
                         <div style="margin-top:1.25rem;display:flex;gap:0.75rem;">
-                            <button class="btn btn-primary" onclick="saveCloudConfig()">保存配置</button>
-                            <button class="btn btn-outline" onclick="testCloudConnection()">測試連接</button>
+                            <button class="btn btn-primary" onclick="saveCloudConfig()" data-i18n="adm.settings.saveConfig">保存配置</button>
+                            <button class="btn btn-outline" onclick="testCloudConnection()" data-i18n="adm.settings.testConnection">測試連接</button>
                         </div>
                         <div id="cloudConfigMsg" style="margin-top:0.75rem;font-size:0.85rem;display:none;"></div>
                     </div>
@@ -556,81 +559,81 @@
                 <!-- 課室日誌管理標籤 -->
                 <div class="tab-pane" id="classdiary-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-clipboard"/></svg> 課室日誌管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-clipboard"/></svg> <span data-i18n="adm.classdiary.title">課室日誌管理</span></h3>
                     </div>
 
                     <!-- 添加班級 -->
                     <div style="margin-bottom:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-plus"/></svg> 添加班級</h4>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-plus"/></svg> <span data-i18n="adm.classdiary.addClass">添加班級</span></h4>
                         <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="newClassCode" placeholder="班級代碼 (如 1A)"
+                            <input type="text" id="newClassCode" placeholder="班級代碼 (如 1A)" data-i18n-placeholder="adm.classdiary.classCodePlaceholder"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:140px;">
-                            <input type="text" id="newClassName" placeholder="班級名稱 (如 中一A班)"
+                            <input type="text" id="newClassName" placeholder="班級名稱 (如 中一A班)" data-i18n-placeholder="adm.classdiary.classNamePlaceholder"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:180px;">
-                            <input type="text" id="newClassGrade" placeholder="年級 (如 中一)"
+                            <input type="text" id="newClassGrade" placeholder="年級 (如 中一)" data-i18n-placeholder="adm.classdiary.gradeplaceholder"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:120px;">
                             <button class="btn btn-primary" data-action="addClass" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> <span data-i18n="adm.common.add">添加</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- QR 碼管理 -->
                     <div style="margin-bottom:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-qr"/></svg> QR 碼管理</h4>
-                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-qr"/></svg> <span data-i18n="adm.classdiary.qrTitle">QR 碼管理</span></h4>
+                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;" data-i18n="adm.classdiary.qrDesc">
                             為每個班級生成 QR 碼，教師掃碼後可在手機上填寫課堂評級。
                         </p>
                         <div style="margin-bottom:1rem;">
                             <button class="btn btn-primary" data-action="batchDownloadQR" style="border-radius:8px;padding:8px 16px;">
-                                <svg class="icon icon-sm icon-white"><use href="#i-box"/></svg> 批量下載全部 QR 碼 (ZIP)
+                                <svg class="icon icon-sm icon-white"><use href="#i-box"/></svg> <span data-i18n="adm.classdiary.batchDownloadQR">批量下載全部 QR 碼 (ZIP)</span>
                             </button>
                         </div>
                         <div id="classDiaryQRGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-                            <p style="color:var(--text-secondary);">載入中...</p>
+                            <p style="color:var(--text-secondary);" data-i18n="adm.common.loading">載入中...</p>
                         </div>
                     </div>
 
                     <!-- Reviewer 管理 -->
                     <div>
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-users"/></svg> Review 授權管理（整理人）</h4>
-                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-users"/></svg> <span data-i18n="adm.classdiary.reviewerTitle">Review 授權管理（整理人）</span></h4>
+                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;" data-i18n="adm.classdiary.reviewerDesc">
                             設定哪些教師帳戶可以查看「課室日誌 Review」頁面（含全部班級記錄 + 匯出功能）。管理員自動擁有查看權限。
                         </p>
                         <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;">
                             <select id="reviewerSelect" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;">
-                                <option value="">選擇教師帳戶...</option>
+                                <option value="" data-i18n="adm.classdiary.selectTeacher">選擇教師帳戶...</option>
                             </select>
                             <button class="btn btn-primary" data-action="addReviewer" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> <span data-i18n="adm.common.add">添加</span>
                             </button>
                         </div>
                         <div id="reviewersList" style="display:flex;flex-direction:column;gap:8px;">
-                            <p style="color:var(--text-secondary);">載入中...</p>
+                            <p style="color:var(--text-secondary);" data-i18n="adm.common.loading">載入中...</p>
                         </div>
                     </div>
 
                     <!-- 每日報告接收人管理 -->
                     <div style="margin-top:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-chart"/></svg> 每日報告接收人</h4>
-                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-chart"/></svg> <span data-i18n="adm.classdiary.reportTitle">每日報告接收人</span></h4>
+                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;" data-i18n="adm.classdiary.reportDesc">
                             被選中的教師訪問課室日誌 Review 頁面時，會看到 AI 生成的每日總結和異常信息。系統每天下午 4 點自動生成報告。
                         </p>
                         <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;">
                             <select id="reportRecipientSelect" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;">
-                                <option value="">選擇教師帳戶...</option>
+                                <option value="" data-i18n="adm.classdiary.selectTeacher">選擇教師帳戶...</option>
                             </select>
                             <button class="btn btn-primary" data-action="addReportRecipient" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> <span data-i18n="adm.common.add">添加</span>
                             </button>
                         </div>
                         <div id="reportRecipientsList" style="display:flex;flex-direction:column;gap:8px;">
-                            <p style="color:var(--text-secondary);">載入中...</p>
+                            <p style="color:var(--text-secondary);" data-i18n="adm.common.loading">載入中...</p>
                         </div>
                         <div style="margin-top:1rem;display:flex;gap:10px;align-items:center;">
                             <button class="btn" data-action="manualGenerateReport"
                                 style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:0.9rem;">
-                                <svg class="icon icon-sm"><use href="#i-cpu"/></svg> 手動生成今日報告
+                                <svg class="icon icon-sm"><use href="#i-cpu"/></svg> <span data-i18n="adm.classdiary.manualGenerate">手動生成今日報告</span>
                             </button>
                             <span id="reportGenStatus" style="font-size:0.85rem;color:var(--text-secondary);"></span>
                         </div>
@@ -639,25 +642,25 @@
 
                 <div class="tab-pane" id="appmgr-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3>首頁應用管理</h3>
+                        <h3 data-i18n="adm.appmgr.title">首頁應用管理</h3>
                         <div style="display:flex;gap:10px;">
-                            <button class="btn" data-action="resetAppsToDefault" style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;"><svg class="icon icon-sm"><use href="#i-refresh"/></svg> 重置為預設</button>
-                            <button class="btn btn-primary" data-action="saveAppsConfig" style="border-radius:8px;padding:8px 16px;"><svg class="icon icon-sm icon-white"><use href="#i-save"/></svg> 保存配置</button>
+                            <button class="btn" data-action="resetAppsToDefault" style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;"><svg class="icon icon-sm"><use href="#i-refresh"/></svg> <span data-i18n="adm.appmgr.resetDefault">重置為預設</span></button>
+                            <button class="btn btn-primary" data-action="saveAppsConfig" style="border-radius:8px;padding:8px 16px;"><svg class="icon icon-sm icon-white"><use href="#i-save"/></svg> <span data-i18n="adm.appmgr.saveConfig">保存配置</span></button>
                         </div>
                     </div>
-                    <p style="color:var(--text-secondary);margin-bottom:20px;">管理首頁顯示的應用卡片。可切換啟用/停用狀態、調整排序和角色可見性。</p>
+                    <p style="color:var(--text-secondary);margin-bottom:20px;" data-i18n="adm.appmgr.desc">管理首頁顯示的應用卡片。可切換啟用/停用狀態、調整排序和角色可見性。</p>
                     <div id="appmgrList" style="display:flex;flex-direction:column;gap:12px;"></div>
                 </div>
 
                 <!-- 封禁管理標籤 -->
                 <div class="tab-pane" id="blocked-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-lock"/></svg> 封禁管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-lock"/></svg> <span data-i18n="adm.blocked.title">封禁管理</span></h3>
                         <button class="btn btn-primary" data-action="refreshBlocked" style="border-radius:8px;padding:8px 16px;">
-                            <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新
+                            <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.common.refresh">刷新</span>
                         </button>
                     </div>
-                    <p style="color:var(--text-secondary);margin-bottom:1.5rem;">
+                    <p style="color:var(--text-secondary);margin-bottom:1.5rem;" data-i18n="adm.blocked.desc" data-i18n-html>
                         查看因登錄失敗次數過多而被<strong>臨時封鎖</strong>的帳戶和 IP 地址。封鎖會自動到期，也可手動解除。
                         <span style="font-size:0.9em;">（每 10 秒自動刷新）</span>
                     </p>
@@ -667,12 +670,12 @@
                 <!-- AI 調度監控標籤 -->
                 <div class="tab-pane" id="aimonitor-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cpu"/></svg> AI 調度監控</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cpu"/></svg> <span data-i18n="adm.aimonitor.title">AI 調度監控</span></h3>
                         <span id="aiMonitorTimestamp" style="color:var(--text-secondary);font-size:0.85em;"></span>
                     </div>
 
                     <!-- 擁堵狀態橫幅 -->
-                    <div id="aiCongestionBanner" style="padding:16px 20px;border-radius:10px;margin-bottom:1.5rem;font-size:1.1em;font-weight:600;text-align:center;background:#EEF2FF;color:#6366F1;">
+                    <div id="aiCongestionBanner" style="padding:16px 20px;border-radius:10px;margin-bottom:1.5rem;font-size:1.1em;font-weight:600;text-align:center;background:#E8F5EC;color:#006633;" data-i18n="adm.common.loading">
                         載入中...
                     </div>
 
@@ -680,15 +683,15 @@
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;" id="aiStatusCards">
                         <!-- Ollama 連線 -->
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">Ollama 狀態</div>
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;" data-i18n="adm.aimonitor.ollamaStatus">Ollama 狀態</div>
                             <div id="aiOllamaStatus" style="font-size:0.95em;line-height:1.6;">
-                                <div>連線: <span id="aiOllamaConn">--</span></div>
-                                <div>運行: <span id="aiOllamaRuntime">--</span></div>
+                                <div><span data-i18n="adm.aimonitor.connection">連線</span>: <span id="aiOllamaConn">--</span></div>
+                                <div><span data-i18n="adm.aimonitor.running">運行</span>: <span id="aiOllamaRuntime">--</span></div>
                             </div>
                         </div>
                         <!-- AI 容量 -->
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">AI 容量</div>
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;" data-i18n="adm.aimonitor.aiCapacity">AI 容量</div>
                             <div id="aiCapacityText" style="font-size:1.3em;font-weight:700;margin-bottom:6px;">--</div>
                             <div style="background:#eee;border-radius:4px;height:8px;overflow:hidden;">
                                 <div id="aiCapacityBar" style="height:100%;border-radius:4px;width:0%;transition:width .3s;background:var(--success);"></div>
@@ -696,12 +699,12 @@
                         </div>
                         <!-- 排隊數 -->
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">排隊中</div>
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;" data-i18n="adm.aimonitor.queued">排隊中</div>
                             <div id="aiQueuedCount" style="font-size:1.8em;font-weight:700;">--</div>
                         </div>
                         <!-- 已完成 -->
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">已完成</div>
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;" data-i18n="adm.aimonitor.completed">已完成</div>
                             <div id="aiCompletedCount" style="font-size:1.8em;font-weight:700;color:var(--success);">--</div>
                         </div>
                     </div>
@@ -709,19 +712,19 @@
                     <!-- 雙欄：排隊詳情 + 運行中任務 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-clipboard"/></svg> 排隊詳情</h4>
-                            <div id="aiQueueDetails" style="font-size:0.9em;color:var(--text-secondary);">無排隊任務</div>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-clipboard"/></svg> <span data-i18n="adm.aimonitor.queueDetails">排隊詳情</span></h4>
+                            <div id="aiQueueDetails" style="font-size:0.9em;color:var(--text-secondary);" data-i18n="adm.aimonitor.noQueuedTasks">無排隊任務</div>
                         </div>
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-bolt"/></svg> 運行中任務</h4>
-                            <div id="aiRunningDetails" style="font-size:0.9em;color:var(--text-secondary);">無運行中任務</div>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-bolt"/></svg> <span data-i18n="adm.aimonitor.runningTasks">運行中任務</span></h4>
+                            <div id="aiRunningDetails" style="font-size:0.9em;color:var(--text-secondary);" data-i18n="adm.aimonitor.noRunningTasks">無運行中任務</div>
                         </div>
                     </div>
 
                     <!-- 雙欄：伺服器資源 + 歷史統計 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-server"/></svg> 伺服器資源</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-server"/></svg> <span data-i18n="adm.aimonitor.serverResources">伺服器資源</span></h4>
                             <div id="aiServerResources" style="font-size:0.9em;">
                                 <div style="margin-bottom:8px;">
                                     <span>CPU</span>
@@ -733,7 +736,7 @@
                                     </div>
                                 </div>
                                 <div style="margin-bottom:8px;">
-                                    <span>記憶體</span>
+                                    <span data-i18n="adm.aimonitor.memory">記憶體</span>
                                     <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
                                         <div style="flex:1;background:#eee;border-radius:4px;height:8px;overflow:hidden;">
                                             <div id="aiMemBar" style="height:100%;border-radius:4px;width:0%;transition:width .3s;background:var(--color-info);"></div>
@@ -742,23 +745,120 @@
                                     </div>
                                 </div>
                                 <div style="margin-top:10px;color:var(--text-secondary);font-size:0.85em;">
-                                    <div>模型: <span id="aiModelName">--</span></div>
-                                    <div>地址: <span id="aiBaseUrl">--</span></div>
-                                    <div>延遲: <span id="aiOllamaLatency">--</span></div>
+                                    <div><span data-i18n="adm.aimonitor.modelLabel">模型</span>: <span id="aiModelName">--</span></div>
+                                    <div><span data-i18n="adm.aimonitor.addressLabel">地址</span>: <span id="aiBaseUrl">--</span></div>
+                                    <div><span data-i18n="adm.aimonitor.latencyLabel">延遲</span>: <span id="aiOllamaLatency">--</span></div>
                                 </div>
                             </div>
                         </div>
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> 歷史統計</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> <span data-i18n="adm.aimonitor.historyStats">歷史統計</span></h4>
                             <div id="aiHistoryStats" style="font-size:0.9em;">
                                 <table style="width:100%;border-collapse:collapse;">
                                     <tbody>
-                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">已完成</td><td id="aiStatCompleted" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
-                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">失敗</td><td id="aiStatFailed" style="padding:4px 0;text-align:right;font-weight:600;color:var(--danger);">--</td></tr>
-                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">已拒絕</td><td id="aiStatRejected" style="padding:4px 0;text-align:right;font-weight:600;color:var(--warning);">--</td></tr>
-                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">運行時間</td><td id="aiStatUptime" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);" data-i18n="adm.aimonitor.statCompleted">已完成</td><td id="aiStatCompleted" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);" data-i18n="adm.aimonitor.statFailed">失敗</td><td id="aiStatFailed" style="padding:4px 0;text-align:right;font-weight:600;color:var(--danger);">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);" data-i18n="adm.aimonitor.statRejected">已拒絕</td><td id="aiStatRejected" style="padding:4px 0;text-align:right;font-weight:600;color:var(--warning);">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);" data-i18n="adm.aimonitor.statUptime">運行時間</td><td id="aiStatUptime" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Token 使用量監控 ── -->
+                    <div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                            <h4 style="margin:0;font-size:1.05em;">
+                                <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-chart"/></svg>
+                                <span data-i18n="adm.aimonitor.tokenUsage">API Token 使用量</span>
+                            </h4>
+                            <button id="aiUsageRefreshBtn" onclick="loadAiUsageStats()" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-page);font-size:0.85em;cursor:pointer;" data-i18n="adm.common.refresh">
+                                刷新
+                            </button>
+                        </div>
+
+                        <!-- 3 張統計卡片 -->
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+                            <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:4px;" data-i18n="adm.aimonitor.todayTokens">今日 Tokens</div>
+                                <div id="aiUsageTotalTokens" style="font-size:1.6em;font-weight:700;">--</div>
+                                <div style="font-size:0.75em;color:var(--text-tertiary);margin-top:2px;">
+                                    入: <span id="aiUsagePromptTokens">--</span> / 出: <span id="aiUsageCompletionTokens">--</span>
+                                </div>
+                            </div>
+                            <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:4px;" data-i18n="adm.aimonitor.apiCallCount">API 調用次數</div>
+                                <div id="aiUsageCallCount" style="font-size:1.6em;font-weight:700;">--</div>
+                            </div>
+                            <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:4px;" data-i18n="adm.aimonitor.estimatedCost">預估費用 (USD)</div>
+                                <div id="aiUsageCost" style="font-size:1.6em;font-weight:700;">--</div>
+                            </div>
+                        </div>
+
+                        <!-- 30 天折線圖 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:1.5rem;">
+                            <h4 style="margin:0 0 12px;font-size:0.95em;" data-i18n="adm.aimonitor.last30Days">近 30 天 Token 用量</h4>
+                            <div style="position:relative;height:220px;">
+                                <canvas id="aiUsageChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 用戶使用量排行 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:1.5rem;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h4 style="margin:0;font-size:0.95em;">
+                                    <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-user"/></svg>
+                                    <span data-i18n="adm.aimonitor.userUsageRanking">用戶使用量排行</span>
+                                </h4>
+                                <select id="aiUsageByUserDays" onchange="loadAiUsageByUser()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-page);font-size:0.8em;">
+                                    <option value="1" data-i18n="adm.aimonitor.today">今日</option>
+                                    <option value="7" selected data-i18n="adm.aimonitor.last7Days">近 7 天</option>
+                                    <option value="30" data-i18n="adm.aimonitor.last30DaysOpt">近 30 天</option>
+                                </select>
+                            </div>
+                            <div id="aiUsageByUser" style="max-height:360px;overflow-y:auto;font-size:0.85em;color:var(--text-secondary);" data-i18n="adm.aimonitor.clickRefreshToLoad">
+                                點擊「刷新」載入數據
+                            </div>
+                        </div>
+
+                        <!-- 最近調用記錄 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <h4 style="margin:0 0 12px;font-size:0.95em;" data-i18n="adm.aimonitor.recentApiCalls">最近 API 調用</h4>
+                            <div id="aiUsageRecent" style="max-height:300px;overflow-y:auto;font-size:0.85em;color:var(--text-secondary);" data-i18n="adm.aimonitor.clickRefreshToLoad">
+                                點擊「刷新」載入數據
+                            </div>
+                        </div>
+
+                        <!-- ── 本地模型使用量 ── -->
+                        <div style="margin-top:24px;">
+                            <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:1.05em;">
+                                <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-chart"/></svg>
+                                <span>🖥️ 本地模型使用量 (Ollama)</span>
+                                <button onclick="loadLocalUsageStats()" style="margin-left:auto;padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;font-size:0.8em;">刷新</button>
+                            </h4>
+
+                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">今日调用次数</div>
+                                    <div id="localUsageCallCount" style="font-size:1.6em;font-weight:700;">0</div>
+                                </div>
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">今日 Tokens</div>
+                                    <div id="localUsageTotalTokens" style="font-size:1.6em;font-weight:700;">0</div>
+                                </div>
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">平均响应时长</div>
+                                    <div id="localUsageAvgDuration" style="font-size:1.6em;font-weight:700;">--</div>
+                                </div>
+                            </div>
+
+                            <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                <h4 style="margin:0 0 12px;font-size:0.95em;">最近本地模型调用</h4>
+                                <div id="localUsageRecent" style="max-height:300px;overflow-y:auto;font-size:0.85em;color:var(--text-secondary);">
+                                    点击「刷新」载入数据
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -768,13 +868,13 @@
                 <!-- 系統日誌標籤 -->
                 <div class="tab-pane" id="syslogs-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-server"/></svg> 系統日誌</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-server"/></svg> <span data-i18n="adm.syslogs.title">系統日誌</span></h3>
                         <div style="display:flex;gap:8px;align-items:center;">
                             <label style="display:flex;align-items:center;gap:4px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
-                                <input type="checkbox" id="syslogsAutoRefresh"> 自動刷新
+                                <input type="checkbox" id="syslogsAutoRefresh"> <span data-i18n="adm.syslogs.autoRefresh">自動刷新</span>
                             </label>
                             <button class="btn btn-primary" data-action="refreshSyslogs" style="border-radius:8px;padding:8px 16px;">
-                                <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新
+                                <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.common.refresh">刷新</span>
                             </button>
                         </div>
                     </div>
@@ -782,28 +882,28 @@
                     <!-- 篩選列 -->
                     <div style="display:flex;gap:12px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
                         <select id="syslogsType" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
-                            <option value="app_file">應用日誌（文件）</option>
-                            <option value="security_db">安全審計（DB）</option>
+                            <option value="app_file" data-i18n="adm.syslogs.appFile">應用日誌（文件）</option>
+                            <option value="security_db" data-i18n="adm.syslogs.securityDb">安全審計（DB）</option>
                         </select>
                         <select id="syslogsLevel" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
-                            <option value="">全部級別</option>
+                            <option value="" data-i18n="adm.syslogs.allLevels">全部級別</option>
                             <option value="ERROR">ERROR</option>
                             <option value="WARNING">WARNING</option>
                             <option value="INFO">INFO</option>
                         </select>
-                        <input type="text" id="syslogsSearch" placeholder="搜尋用戶名 / IP / 事件..."
+                        <input type="text" id="syslogsSearch" placeholder="搜尋用戶名 / IP / 事件..." data-i18n-placeholder="adm.syslogs.searchPlaceholder"
                                style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
                         <select id="syslogsLimit" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
-                            <option value="50">50 條</option>
-                            <option value="100" selected>100 條</option>
-                            <option value="200">200 條</option>
-                            <option value="500">500 條</option>
+                            <option value="50" data-i18n="adm.syslogs.rows50">50 條</option>
+                            <option value="100" selected data-i18n="adm.syslogs.rows100">100 條</option>
+                            <option value="200" data-i18n="adm.syslogs.rows200">200 條</option>
+                            <option value="500" data-i18n="adm.syslogs.rows500">500 條</option>
                         </select>
                     </div>
 
                     <!-- 日誌表格 -->
                     <div id="syslogsContainer" style="overflow-x:auto;">
-                        <p style="color:var(--text-secondary);text-align:center;padding:2rem;">點擊刷新載入日誌...</p>
+                        <p style="color:var(--text-secondary);text-align:center;padding:2rem;" data-i18n="adm.syslogs.clickRefresh">點擊刷新載入日誌...</p>
                     </div>
                 </div>
 
@@ -813,27 +913,27 @@
     <!-- 添加學科模态框 -->
     <div id="addSubjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%;">
-            <h3 style="margin-bottom: 20px; color: var(--primary);">添加新學科</h3>
+            <h3 style="margin-bottom: 20px; color: var(--primary);" data-i18n="adm.subjects.addNew">添加新學科</h3>
             <form id="addSubjectForm">
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">學科代码：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.codeLabel">學科代码：</label>
                     <input type="text" id="subjectCode" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">學科名称：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.nameLabel">學科名称：</label>
                     <input type="text" id="subjectName" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">學科圖標：</label>
-                    <input type="text" id="subjectIcon" placeholder="例如：📚" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.iconLabel">學科圖標：</label>
+                    <input type="text" id="subjectIcon" placeholder="例如：📚" data-i18n-placeholder="adm.subjects.iconPlaceholder" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">學科描述：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.descLabel">學科描述：</label>
                     <textarea id="subjectDescription" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; min-height: 80px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" data-action="closeAddSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">添加</button>
+                    <button type="button" data-action="closeAddSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.cancel">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.add">添加</button>
                 </div>
             </form>
         </div>
@@ -842,28 +942,28 @@
     <!-- 編輯學科模态框 -->
     <div id="editSubjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%;">
-            <h3 id="editSubjectTitle" style="margin-bottom: 20px; color: var(--primary);">編輯學科</h3>
+            <h3 id="editSubjectTitle" style="margin-bottom: 20px; color: var(--primary);" data-i18n="adm.subjects.editTitle">編輯學科</h3>
             <form id="editSubjectForm">
                 <input type="hidden" id="editSubjectCode">
                 <div style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom: 5px;">學科代码</label>
+                    <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.codeLabel">學科代码</label>
                     <input type="text" id="editSubjectCodeDisplay" class="modal-input" disabled style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px; background: var(--bg-page);">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom: 5px;">學科名称</label>
+                    <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.nameLabel">學科名称</label>
                     <input type="text" id="editSubjectName" class="modal-input" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom: 5px;">圖標</label>
-                    <input type="text" id="editSubjectIcon" class="modal-input" placeholder="例如: 📚" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
+                    <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.iconLabel">圖標</label>
+                    <input type="text" id="editSubjectIcon" class="modal-input" placeholder="例如: 📚" data-i18n-placeholder="adm.subjects.iconPlaceholder" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom: 5px;">描述</label>
+                    <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.descLabel">描述</label>
                     <textarea id="editSubjectDescription" class="modal-input" rows="3" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;"></textarea>
                 </div>
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button type="button" data-action="closeEditSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">保存更改</button>
+                    <button type="button" data-action="closeEditSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.cancel">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.saveChanges">保存更改</button>
                 </div>
             </form>
         </div>
@@ -872,53 +972,53 @@
     <!-- 添加/編輯用戶模态框 -->
     <div id="userModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3 id="userModalTitle" style="margin-bottom: 20px; color: var(--primary);">添加用戶</h3>
+            <h3 id="userModalTitle" style="margin-bottom: 20px; color: var(--primary);" data-i18n="adm.users.addUser">添加用戶</h3>
             <form id="userForm">
                 <input type="hidden" id="editUserId">
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">用戶名：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.usernameLabel">用戶名：</label>
                     <input type="text" id="userUsername" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;" id="passwordField">
-                    <label style="display: block; margin-bottom: 5px;">密碼：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.passwordLabel">密碼：</label>
                     <input type="password" id="userPassword" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
-                    <small style="color: #666;">留空则不修改密碼</small>
+                    <small style="color: #666;" data-i18n="adm.users.passwordHint">留空则不修改密碼</small>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">顯示名称（中文名）：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.displayNameLabel">顯示名称（中文名）：</label>
                     <input type="text" id="userDisplayName" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">英文名：</label>
-                    <input type="text" id="userEnglishName" placeholder="例如: CHAN Tai Man" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.englishNameLabel">英文名：</label>
+                    <input type="text" id="userEnglishName" placeholder="例如: CHAN Tai Man" data-i18n-placeholder="adm.users.englishNamePlaceholder" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">卡號 (Card ID)：</label>
-                    <input type="text" id="userCardId" placeholder="學生證卡號" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.cardIdLabel">卡號 (Card ID)：</label>
+                    <input type="text" id="userCardId" placeholder="學生證卡號" data-i18n-placeholder="adm.users.cardIdPlaceholder" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">角色：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.roleLabel">角色：</label>
                     <select id="userRole" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
-                        <option value="student">學生</option>
-                        <option value="teacher">教師</option>
-                        <option value="admin">管理员</option>
+                        <option value="student" data-i18n="adm.users.roleStudent">學生</option>
+                        <option value="teacher" data-i18n="adm.users.roleTeacher">教師</option>
+                        <option value="admin" data-i18n="adm.users.roleAdmin">管理员</option>
                     </select>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">班级/部门：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.classDeptLabel">班级/部门：</label>
                     <input type="text" id="userClass" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">班號（學號）：</label>
-                    <input type="number" id="userClassNumber" min="1" placeholder="例如: 1" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.classNumberLabel">班號（學號）：</label>
+                    <input type="number" id="userClassNumber" min="1" placeholder="例如: 1" data-i18n-placeholder="adm.users.classNumberPlaceholder" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">备注：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.notesLabel">备注：</label>
                     <textarea id="userNotes" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; min-height: 80px;"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" data-action="closeUserModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">保存</button>
+                    <button type="button" data-action="closeUserModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.cancel">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.save">保存</button>
                 </div>
             </form>
         </div>
@@ -927,20 +1027,20 @@
     <!-- 批量添加用戶模态框 -->
     <div id="batchAddModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3 style="margin-bottom: 20px; color: var(--primary);"><svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-box"/></svg> 批量添加用戶</h3>
+            <h3 style="margin-bottom: 20px; color: var(--primary);"><svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-box"/></svg> <span data-i18n="adm.users.batchAddTitle">批量添加用戶</span></h3>
             <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-                <button id="tabExcel" data-action="switchBatchTab" data-tab="excel" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-spreadsheet"/></svg> Excel 導入</button>
-                <button id="tabText" data-action="switchBatchTab" data-tab="text" style="padding: 10px 20px; background: #eee; color: #666; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm"><use href="#i-text"/></svg> 文本輸入</button>
+                <button id="tabExcel" data-action="switchBatchTab" data-tab="excel" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-spreadsheet"/></svg> <span data-i18n="adm.users.excelImport">Excel 導入</span></button>
+                <button id="tabText" data-action="switchBatchTab" data-tab="text" style="padding: 10px 20px; background: #eee; color: #666; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm"><use href="#i-text"/></svg> <span data-i18n="adm.users.textInput">文本輸入</span></button>
             </div>
             <div id="excelUploadSection">
                 <div style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border: 2px dashed var(--primary); border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 20px;">
                     <div style="margin-bottom: 15px;"><svg class="icon" style="width:48px;height:48px;stroke:var(--primary)"><use href="#i-spreadsheet"/></svg></div>
-                    <h4 style="margin-bottom: 10px; color: var(--primary);">上傳 Excel 文件</h4>
-                    <p style="color: #666; margin-bottom: 15px;">支持 .xlsx 格式，可批量導入教師或學生</p>
+                    <h4 style="margin-bottom: 10px; color: var(--primary);" data-i18n="adm.users.uploadExcel">上傳 Excel 文件</h4>
+                    <p style="color: #666; margin-bottom: 15px;" data-i18n="adm.users.excelDesc">支持 .xlsx 格式，可批量導入教師或學生</p>
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button data-action="triggerExcelPicker" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm icon-white"><use href="#i-folder"/></svg> 選擇文件</button>
-                        <button data-action="downloadTemplate" style="padding: 12px 24px; background: white; color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm" style="stroke:var(--primary)"><use href="#i-download"/></svg> 下載模板</button>
+                        <button data-action="triggerExcelPicker" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm icon-white"><use href="#i-folder"/></svg> <span data-i18n="adm.users.selectFile">選擇文件</span></button>
+                        <button data-action="downloadTemplate" style="padding: 12px 24px; background: white; color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm" style="stroke:var(--primary)"><use href="#i-download"/></svg> <span data-i18n="adm.users.downloadTemplate">下載模板</span></button>
                     </div>
                 </div>
                 <div id="selectedFileInfo" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
@@ -950,45 +1050,45 @@
                     </div>
                 </div>
                 <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <strong style="color: #e65100;"><svg class="icon icon-sm" style="stroke:#e65100"><use href="#i-clipboard"/></svg> Excel 格式說明：</strong>
+                    <strong style="color: #e65100;"><svg class="icon icon-sm" style="stroke:#e65100"><use href="#i-clipboard"/></svg> <span data-i18n="adm.users.excelFormat">Excel 格式說明：</span></strong>
                     <table style="width: 100%; margin-top: 10px; font-size: 13px;">
                         <tr style="background: #ffe0b2;">
-                            <th style="padding: 8px; text-align: left;">列</th>
-                            <th style="padding: 8px; text-align: left;">內容</th>
-                            <th style="padding: 8px; text-align: left;">必填</th>
+                            <th style="padding: 8px; text-align: left;" data-i18n="adm.users.colColumn">列</th>
+                            <th style="padding: 8px; text-align: left;" data-i18n="adm.users.colContent">內容</th>
+                            <th style="padding: 8px; text-align: left;" data-i18n="adm.users.colRequired">必填</th>
                         </tr>
-                        <tr><td style="padding: 6px;">A</td><td>登入名稱</td><td>是</td></tr>
-                        <tr style="background: #fafafa;"><td style="padding: 6px;">B</td><td>密碼</td><td>是</td></tr>
-                        <tr><td style="padding: 6px;">C</td><td>顯示名稱</td><td>是</td></tr>
-                        <tr style="background: #fafafa;"><td style="padding: 6px;">D</td><td>班級</td><td>否</td></tr>
-                        <tr><td style="padding: 6px;">E</td><td>角色 (student / teacher)</td><td>否（默認 student）</td></tr>
+                        <tr><td style="padding: 6px;">A</td><td data-i18n="adm.users.colLoginName">登入名稱</td><td data-i18n="adm.common.yes">是</td></tr>
+                        <tr style="background: #fafafa;"><td style="padding: 6px;">B</td><td data-i18n="adm.users.colPassword">密碼</td><td data-i18n="adm.common.yes">是</td></tr>
+                        <tr><td style="padding: 6px;">C</td><td data-i18n="adm.users.colDisplayName">顯示名稱</td><td data-i18n="adm.common.yes">是</td></tr>
+                        <tr style="background: #fafafa;"><td style="padding: 6px;">D</td><td data-i18n="adm.users.colClass">班級</td><td data-i18n="adm.common.no">否</td></tr>
+                        <tr><td style="padding: 6px;">E</td><td data-i18n="adm.users.colRole">角色 (student / teacher)</td><td data-i18n="adm.users.colRoleDefault">否（默認 student）</td></tr>
                     </table>
                 </div>
             </div>
             <div id="textInputSection" style="display: none;">
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">默认角色：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.defaultRole">默认角色：</label>
                     <select id="batchRole" style="padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
-                        <option value="student">學生</option>
-                        <option value="teacher">教師</option>
+                        <option value="student" data-i18n="adm.users.roleStudent">學生</option>
+                        <option value="teacher" data-i18n="adm.users.roleTeacher">教師</option>
                     </select>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">用戶數據（每行一个用戶）：</label>
+                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.users.userDataLabel">用戶數據（每行一个用戶）：</label>
                     <div style="background: var(--bg-page); padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>格式：</strong> 用戶名,密碼,顯示名称,班级/部门,备注<br>
-                        <strong>示例：</strong> zhang01,Pass123!,张三,1A班,优秀學生
+                        <strong data-i18n="adm.users.formatLabel">格式：</strong> <span data-i18n="adm.users.formatDesc">用戶名,密碼,顯示名称,班级/部门,备注</span><br>
+                        <strong data-i18n="adm.users.exampleLabel">示例：</strong> zhang01,Pass123!,张三,1A班,优秀學生
                     </div>
                     <textarea id="batchUserData" rows="10" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; font-family: monospace;"></textarea>
                 </div>
             </div>
             <div id="importResults" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto;">
-                <h4 style="margin-bottom: 10px;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> 導入結果</h4>
+                <h4 style="margin-bottom: 10px;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> <span data-i18n="adm.users.importResults">導入結果</span></h4>
                 <div id="importResultsList"></div>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" data-action="closeBatchAddModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                <button id="batchSubmitBtn" data-action="processBatchAdd" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-rocket"/></svg> 開始導入</button>
+                <button type="button" data-action="closeBatchAddModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.cancel">取消</button>
+                <button id="batchSubmitBtn" data-action="processBatchAdd" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-rocket"/></svg> <span data-i18n="adm.users.startImport">開始導入</span></button>
             </div>
         </div>
     </div>
@@ -996,22 +1096,31 @@
     <!-- 確認刪除對話框 -->
     <div id="deleteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 400px; max-width: 90%; text-align: center;">
-            <h3 style="color: var(--danger); margin-bottom: 20px;"><svg class="icon icon-lg" style="stroke:var(--danger)"><use href="#i-warning"/></svg> 確認刪除</h3>
-            <p id="deleteConfirmMessage" style="margin-bottom: 30px;">确定要刪除这个用戶吗？</p>
+            <h3 style="color: var(--danger); margin-bottom: 20px;"><svg class="icon icon-lg" style="stroke:var(--danger)"><use href="#i-warning"/></svg> <span data-i18n="adm.modal.confirmDelete">確認刪除</span></h3>
+            <p id="deleteConfirmMessage" style="margin-bottom: 30px;" data-i18n="adm.modal.deleteUserConfirm">确定要刪除这个用戶吗？</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button data-action="closeDeleteConfirm" style="padding: 10px 30px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                <button data-action="confirmDelete" style="padding: 10px 30px; background: var(--danger); color: white; border: none; border-radius: 5px; cursor: pointer;">刪除</button>
+                <button data-action="closeDeleteConfirm" style="padding: 10px 30px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.cancel">取消</button>
+                <button data-action="confirmDelete" style="padding: 10px 30px; background: var(--danger); color: white; border: none; border-radius: 5px; cursor: pointer;" data-i18n="adm.common.delete">刪除</button>
             </div>
         </div>
     </div>
 
     <!-- External Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-    <script src="/static/js/shared/utils.js"></script>
-    <script src="/static/js/shared/auth.js"></script>
-    <script src="/static/js/shared/ui.js"></script>
-    <script src="/static/js/shared/api.js"></script>
-    <script src="/static/js/admin_dashboard.js"></script>
+    <script src="/static/vendor/marked/marked.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
+    <script src="/static/js/shared/utils.js?v=20260414"></script>
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/js/shared/ui.js?v=20260414"></script>
+    <script src="/static/js/shared/api.js?v=20260414"></script>
+    <script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+    <script src="/static/js/admin_dashboard.js?v=20260414"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+            i18n.applyDOM();
+            document.title = i18n.t('adm.page.title');
+        }
+    });
+    </script>
 </body>
 </html>

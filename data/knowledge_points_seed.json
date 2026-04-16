@@ -8,7 +8,14 @@
       "point_code": "chi_reading",
       "point_name": "閱讀理解",
       "description": "中文閱讀理解能力",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 1
@@ -19,7 +26,11 @@
       "point_code": "chi_reading_narrative",
       "point_name": "記敘文理解",
       "description": "理解記敘文的人物、事件、情節發展",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "chi_reading",
       "difficulty_level": 2,
       "display_order": 1
@@ -30,7 +41,12 @@
       "point_code": "chi_reading_expository",
       "point_name": "說明文理解",
       "description": "理解說明文的結構、說明方法和主旨",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "chi_reading",
       "difficulty_level": 2,
       "display_order": 2
@@ -41,7 +57,12 @@
       "point_code": "chi_reading_argumentative",
       "point_name": "議論文理解",
       "description": "辨識議論文的論點、論據和論證方法",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_reading",
       "difficulty_level": 3,
       "display_order": 3
@@ -52,7 +73,13 @@
       "point_code": "chi_reading_classical",
       "point_name": "文言文閱讀",
       "description": "文言文字詞解釋、句式分析、內容理解",
-      "grade_levels": ["S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_reading",
       "difficulty_level": 4,
       "display_order": 4
@@ -63,7 +90,12 @@
       "point_code": "chi_reading_poetry",
       "point_name": "詩詞鑑賞",
       "description": "古詩詞的意境、修辭、主題分析",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_reading",
       "difficulty_level": 4,
       "display_order": 5
@@ -74,7 +106,14 @@
       "point_code": "chi_writing",
       "point_name": "寫作",
       "description": "中文寫作能力",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 2
@@ -85,7 +124,11 @@
       "point_code": "chi_writing_narrative",
       "point_name": "記敘文寫作",
       "description": "記敘文的結構、人物描寫、敘述技巧",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "chi_writing",
       "difficulty_level": 2,
       "display_order": 1
@@ -96,7 +139,11 @@
       "point_code": "chi_writing_argumentative",
       "point_name": "議論文寫作",
       "description": "議論文的立論、論證、反駁技巧",
-      "grade_levels": ["S4","S5","S6"],
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_writing",
       "difficulty_level": 4,
       "display_order": 2
@@ -107,7 +154,12 @@
       "point_code": "chi_writing_description",
       "point_name": "描寫技巧",
       "description": "人物描寫、景物描寫、細節描寫",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "chi_writing",
       "difficulty_level": 2,
       "display_order": 3
@@ -118,7 +170,14 @@
       "point_code": "chi_writing_rhetoric",
       "point_name": "修辭手法",
       "description": "比喻、擬人、排比、誇張等修辭運用",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_writing",
       "difficulty_level": 3,
       "display_order": 4
@@ -129,7 +188,13 @@
       "point_code": "chi_writing_structure",
       "point_name": "文章結構",
       "description": "開頭結尾、段落安排、過渡銜接",
-      "grade_levels": ["S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_writing",
       "difficulty_level": 3,
       "display_order": 5
@@ -140,7 +205,14 @@
       "point_code": "chi_foundation",
       "point_name": "語文基礎",
       "description": "語文基礎知識",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 3
@@ -151,7 +223,11 @@
       "point_code": "chi_vocab",
       "point_name": "字詞運用",
       "description": "詞語辨析、近義詞反義詞、詞語搭配",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "chi_foundation",
       "difficulty_level": 2,
       "display_order": 1
@@ -162,7 +238,12 @@
       "point_code": "chi_grammar",
       "point_name": "語法知識",
       "description": "句子成分、語病修改、句式轉換",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "chi_foundation",
       "difficulty_level": 2,
       "display_order": 2
@@ -173,7 +254,10 @@
       "point_code": "chi_punctuation",
       "point_name": "標點符號",
       "description": "標點符號的正確使用",
-      "grade_levels": ["S1","S2"],
+      "grade_levels": [
+        "S1",
+        "S2"
+      ],
       "parent_code": "chi_foundation",
       "difficulty_level": 1,
       "display_order": 3
@@ -184,19 +268,31 @@
       "point_code": "chi_idiom",
       "point_name": "成語運用",
       "description": "成語的理解和正確運用",
-      "grade_levels": ["S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "chi_foundation",
       "difficulty_level": 3,
       "display_order": 4
     },
-
     {
       "subject": "math",
       "category": "數與代數",
       "point_code": "math_algebra",
       "point_name": "數與代數",
       "description": "代數相關知識",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 1
@@ -207,7 +303,10 @@
       "point_code": "math_rational",
       "point_name": "有理數運算",
       "description": "正負數、分數、小數的四則運算",
-      "grade_levels": ["S1","S2"],
+      "grade_levels": [
+        "S1",
+        "S2"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 1,
       "display_order": 1
@@ -218,7 +317,11 @@
       "point_code": "math_expression",
       "point_name": "代數式",
       "description": "代數式的化簡、因式分解、展開",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 2,
       "display_order": 2
@@ -229,7 +332,11 @@
       "point_code": "math_linear_eq",
       "point_name": "一元方程",
       "description": "一元一次方程、一元二次方程的解法與應用",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 2,
       "display_order": 3
@@ -240,7 +347,10 @@
       "point_code": "math_quadratic",
       "point_name": "二次方程",
       "description": "二次方程的解法、判別式、根與係數的關係",
-      "grade_levels": ["S3","S4"],
+      "grade_levels": [
+        "S3",
+        "S4"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 3,
       "display_order": 4
@@ -251,7 +361,11 @@
       "point_code": "math_inequality",
       "point_name": "不等式",
       "description": "一元一次不等式、二次不等式",
-      "grade_levels": ["S2","S3","S4"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 3,
       "display_order": 5
@@ -262,7 +376,12 @@
       "point_code": "math_function",
       "point_name": "函數",
       "description": "函數概念、一次函數、二次函數、指數對數函數",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 4,
       "display_order": 6
@@ -273,7 +392,11 @@
       "point_code": "math_sequence",
       "point_name": "數列",
       "description": "等差數列、等比數列、求和",
-      "grade_levels": ["S4","S5","S6"],
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "math_algebra",
       "difficulty_level": 4,
       "display_order": 7
@@ -284,7 +407,14 @@
       "point_code": "math_geometry",
       "point_name": "幾何",
       "description": "幾何相關知識",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 2
@@ -295,7 +425,12 @@
       "point_code": "math_plane_geo",
       "point_name": "平面幾何",
       "description": "三角形、四邊形、圓的性質與定理",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "math_geometry",
       "difficulty_level": 3,
       "display_order": 1
@@ -306,7 +441,11 @@
       "point_code": "math_coord_geo",
       "point_name": "坐標幾何",
       "description": "直線方程、斜率、距離公式、圓的方程",
-      "grade_levels": ["S3","S4","S5"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5"
+      ],
       "parent_code": "math_geometry",
       "difficulty_level": 3,
       "display_order": 2
@@ -317,7 +456,12 @@
       "point_code": "math_trigonometry",
       "point_name": "三角學",
       "description": "三角比、三角恆等式、解三角形",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "math_geometry",
       "difficulty_level": 4,
       "display_order": 3
@@ -328,7 +472,11 @@
       "point_code": "math_solid_geo",
       "point_name": "立體幾何",
       "description": "立體的體積、表面積、截面",
-      "grade_levels": ["S2","S3","S4"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "math_geometry",
       "difficulty_level": 3,
       "display_order": 4
@@ -339,7 +487,14 @@
       "point_code": "math_stats",
       "point_name": "統計與概率",
       "description": "統計與概率知識",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 3
@@ -350,7 +505,11 @@
       "point_code": "math_data",
       "point_name": "數據處理",
       "description": "平均數、中位數、眾數、標準差",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "math_stats",
       "difficulty_level": 2,
       "display_order": 1
@@ -361,7 +520,11 @@
       "point_code": "math_charts",
       "point_name": "統計圖表",
       "description": "柱形圖、折線圖、圓形圖、莖葉圖的閱讀與繪製",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "math_stats",
       "difficulty_level": 2,
       "display_order": 2
@@ -372,19 +535,30 @@
       "point_code": "math_probability",
       "point_name": "概率",
       "description": "概率基本概念、條件概率、排列組合",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "math_stats",
       "difficulty_level": 3,
       "display_order": 3
     },
-
     {
       "subject": "english",
       "category": "Grammar",
       "point_code": "eng_grammar",
       "point_name": "Grammar",
       "description": "English grammar knowledge",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 1
@@ -395,7 +569,12 @@
       "point_code": "eng_tenses",
       "point_name": "Tenses 時態",
       "description": "Present/Past/Future tenses, Perfect tenses, Continuous tenses",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 2,
       "display_order": 1
@@ -406,7 +585,11 @@
       "point_code": "eng_parts_of_speech",
       "point_name": "Parts of Speech 詞性",
       "description": "Nouns, Verbs, Adjectives, Adverbs, Prepositions, Conjunctions",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 2,
       "display_order": 2
@@ -417,7 +600,12 @@
       "point_code": "eng_sentence_structure",
       "point_name": "Sentence Structure 句子結構",
       "description": "Simple, Compound, Complex sentences; Active/Passive voice",
-      "grade_levels": ["S2","S3","S4","S5"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 3,
       "display_order": 3
@@ -428,7 +616,11 @@
       "point_code": "eng_agreement",
       "point_name": "Subject-Verb Agreement 主謂一致",
       "description": "Subject-verb agreement rules and exceptions",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 2,
       "display_order": 4
@@ -439,7 +631,12 @@
       "point_code": "eng_conditionals",
       "point_name": "Conditionals 條件句",
       "description": "Zero, First, Second, Third conditionals; Mixed conditionals",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 4,
       "display_order": 5
@@ -450,7 +647,12 @@
       "point_code": "eng_modals",
       "point_name": "Modal Verbs 情態動詞",
       "description": "Can, Could, May, Might, Must, Should, Would usage",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "eng_grammar",
       "difficulty_level": 2,
       "display_order": 6
@@ -461,7 +663,14 @@
       "point_code": "eng_reading",
       "point_name": "Reading 閱讀",
       "description": "English reading skills",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 2
@@ -472,7 +681,14 @@
       "point_code": "eng_comprehension",
       "point_name": "Reading Comprehension 閱讀理解",
       "description": "Main idea, supporting details, author's purpose",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_reading",
       "difficulty_level": 3,
       "display_order": 1
@@ -483,7 +699,14 @@
       "point_code": "eng_vocab_context",
       "point_name": "Vocabulary in Context 語境詞彙",
       "description": "Understanding word meaning from context clues",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_reading",
       "difficulty_level": 3,
       "display_order": 2
@@ -494,7 +717,12 @@
       "point_code": "eng_inference",
       "point_name": "Inference 推斷",
       "description": "Making inferences and drawing conclusions from text",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_reading",
       "difficulty_level": 4,
       "display_order": 3
@@ -505,7 +733,14 @@
       "point_code": "eng_writing",
       "point_name": "Writing 寫作",
       "description": "English writing skills",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 3
@@ -516,7 +751,13 @@
       "point_code": "eng_essay_structure",
       "point_name": "Essay Structure 文章結構",
       "description": "Introduction, Body paragraphs, Conclusion; Topic sentences",
-      "grade_levels": ["S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_writing",
       "difficulty_level": 3,
       "display_order": 1
@@ -527,7 +768,12 @@
       "point_code": "eng_register",
       "point_name": "Formal/Informal Register 語域",
       "description": "Formal and informal language; Appropriate register for context",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_writing",
       "difficulty_level": 3,
       "display_order": 2
@@ -538,7 +784,12 @@
       "point_code": "eng_cohesion",
       "point_name": "Cohesion & Coherence 連貫性",
       "description": "Linking words, transitions, paragraph coherence",
-      "grade_levels": ["S3","S4","S5","S6"],
+      "grade_levels": [
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_writing",
       "difficulty_level": 3,
       "display_order": 3
@@ -549,7 +800,12 @@
       "point_code": "eng_dictation",
       "point_name": "Dictation 默書",
       "description": "Spelling and dictation skills",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": null,
       "difficulty_level": 1,
       "display_order": 4
@@ -560,7 +816,12 @@
       "point_code": "eng_spelling",
       "point_name": "Spelling 拼寫",
       "description": "Correct spelling of vocabulary words",
-      "grade_levels": ["S1","S2","S3","S4"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
       "parent_code": "eng_dictation",
       "difficulty_level": 2,
       "display_order": 1
@@ -571,7 +832,14 @@
       "point_code": "eng_vocabulary",
       "point_name": "Vocabulary 詞彙",
       "description": "Vocabulary building and word usage",
-      "grade_levels": ["S1","S2","S3","S4","S5","S6"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
       "parent_code": "eng_dictation",
       "difficulty_level": 2,
       "display_order": 2
@@ -582,71 +850,763 @@
       "point_code": "eng_homophones",
       "point_name": "Homophones 同音詞",
       "description": "Distinguishing words that sound alike but differ in meaning/spelling",
-      "grade_levels": ["S1","S2","S3"],
+      "grade_levels": [
+        "S1",
+        "S2",
+        "S3"
+      ],
       "parent_code": "eng_dictation",
       "difficulty_level": 2,
       "display_order": 3
     },
-
-    {"subject":"physics","category":"熱與氣體","point_code":"phys_heat_gases","point_name":"熱與氣體","description":"[compulsory:core] 熱與氣體總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":1},
-    {"subject":"physics","category":"熱與氣體","point_code":"phys_temp_heat_internal","point_name":"溫度、熱和內能","description":"[compulsory:core] 溫度概念、熱容量、比熱容、內能與分子運動","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":1},
-    {"subject":"physics","category":"熱與氣體","point_code":"phys_heat_transfer","point_name":"熱的傳遞","description":"[compulsory:core] 傳導、對流、輻射的機制與應用","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":2},
-    {"subject":"physics","category":"熱與氣體","point_code":"phys_change_of_state","point_name":"物態變化","description":"[compulsory:core] 熔化、凝固、蒸發、沸騰、凝結；比潛熱","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":3},
-    {"subject":"physics","category":"熱與氣體","point_code":"phys_gases","point_name":"氣體定律","description":"[compulsory:core] 波義耳定律、查理定律、理想氣體方程 pV=nRT","grade_levels":["S4","S5","S6"],"parent_code":"phys_heat_gases","difficulty_level":3,"display_order":4},
-
-    {"subject":"physics","category":"力和運動","point_code":"phys_force_motion","point_name":"力和運動","description":"[compulsory:core] 力和運動總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":2},
-    {"subject":"physics","category":"力和運動","point_code":"phys_position_movement","point_name":"位置和移動","description":"[compulsory:core] 距離、位移、速率、速度、加速度；v-t 圖和 s-t 圖","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":2,"display_order":1},
-    {"subject":"physics","category":"力和運動","point_code":"phys_force_motion_laws","point_name":"力和運動定律","description":"[compulsory:core] 牛頓三大運動定律、自由落體、摩擦力","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":2},
-    {"subject":"physics","category":"力和運動","point_code":"phys_projectile","point_name":"拋體運動","description":"[compulsory:extension] 水平拋射與斜拋運動的分析","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":3},
-    {"subject":"physics","category":"力和運動","point_code":"phys_work_energy_power","point_name":"功、能量和功率","description":"[compulsory:core] 功的定義、動能、勢能、機械能守恆、功率","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":4},
-    {"subject":"physics","category":"力和運動","point_code":"phys_momentum","point_name":"動量","description":"[compulsory:core] 動量定義、動量守恆、衝量、碰撞","grade_levels":["S4","S5","S6"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":5},
-    {"subject":"physics","category":"力和運動","point_code":"phys_circular_motion","point_name":"圓周運動","description":"[compulsory:extension] 向心力、向心加速度、角速度、圓周運動應用","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":6},
-    {"subject":"physics","category":"力和運動","point_code":"phys_gravitation","point_name":"萬有引力","description":"[compulsory:extension] 萬有引力定律、重力場、衛星運動","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":7},
-
-    {"subject":"physics","category":"波動","point_code":"phys_wave_motion","point_name":"波動","description":"[compulsory:core] 波動總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":3},
-    {"subject":"physics","category":"波動","point_code":"phys_wave_nature","point_name":"波的性質","description":"[compulsory:core] 波的基本概念、橫波與縱波、波速公式 v=fλ、反射、折射、繞射、干涉","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":3,"display_order":1},
-    {"subject":"physics","category":"波動","point_code":"phys_light","point_name":"光","description":"[compulsory:core] 光的性質總覽","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":2,"display_order":2},
-    {"subject":"physics","category":"波動","point_code":"phys_reflection_refraction","point_name":"反射和折射","description":"[compulsory:core] 反射定律、折射定律（Snell's law）、全內反射、臨界角","grade_levels":["S4","S5"],"parent_code":"phys_light","difficulty_level":3,"display_order":1},
-    {"subject":"physics","category":"波動","point_code":"phys_lenses","point_name":"透鏡","description":"[compulsory:core] 凸透鏡與凹透鏡、成像規律、透鏡方程 1/f=1/u+1/v","grade_levels":["S4","S5"],"parent_code":"phys_light","difficulty_level":3,"display_order":2},
-    {"subject":"physics","category":"波動","point_code":"phys_light_wave","point_name":"光的波動性","description":"[compulsory:extension] 光的干涉、繞射、光柵、雙縫實驗","grade_levels":["S5","S6"],"parent_code":"phys_wave_motion","difficulty_level":4,"display_order":3},
-    {"subject":"physics","category":"波動","point_code":"phys_sound","point_name":"聲音","description":"[compulsory:core] 聲波的傳播、回聲、共鳴、樂器中的駐波","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":2,"display_order":4},
-
-    {"subject":"physics","category":"電和磁","point_code":"phys_electricity_magnetism","point_name":"電和磁","description":"[compulsory:core] 電和磁總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":4},
-    {"subject":"physics","category":"電和磁","point_code":"phys_electrostatics","point_name":"靜電學","description":"[compulsory:core] 電荷守恆、庫侖定律、電場、電位","grade_levels":["S4","S5"],"parent_code":"phys_electricity_magnetism","difficulty_level":3,"display_order":1},
-    {"subject":"physics","category":"電和磁","point_code":"phys_circuits","point_name":"電路","description":"[compulsory:core] 串聯並聯電路分析","grade_levels":["S4","S5"],"parent_code":"phys_electricity_magnetism","difficulty_level":2,"display_order":2},
-    {"subject":"physics","category":"電和磁","point_code":"phys_ohm_law","point_name":"歐姆定律","description":"[compulsory:core] V=IR、電阻與溫度、伏安特性曲線","grade_levels":["S4","S5"],"parent_code":"phys_circuits","difficulty_level":2,"display_order":1},
-    {"subject":"physics","category":"電和磁","point_code":"phys_electrical_power","point_name":"電功率和電能","description":"[compulsory:core] P=IV、E=Pt、家居電路安全、保險絲、接地","grade_levels":["S4","S5"],"parent_code":"phys_circuits","difficulty_level":2,"display_order":2},
-    {"subject":"physics","category":"電和磁","point_code":"phys_electromagnetism","point_name":"電磁學","description":"[compulsory:core] 磁場、電流的磁效應、電磁感應總覽","grade_levels":["S4","S5","S6"],"parent_code":"phys_electricity_magnetism","difficulty_level":3,"display_order":3},
-    {"subject":"physics","category":"電和磁","point_code":"phys_magnetic_field","point_name":"磁場","description":"[compulsory:core] 磁場線、載流導線的磁場、安培力、電動機原理","grade_levels":["S4","S5"],"parent_code":"phys_electromagnetism","difficulty_level":3,"display_order":1},
-    {"subject":"physics","category":"電和磁","point_code":"phys_em_induction","point_name":"電磁感應","description":"[compulsory:extension] 法拉第定律、楞次定律、感應電動勢","grade_levels":["S5","S6"],"parent_code":"phys_electromagnetism","difficulty_level":4,"display_order":2},
-    {"subject":"physics","category":"電和磁","point_code":"phys_ac","point_name":"交流電","description":"[compulsory:extension] 交流電的產生、rms 值、變壓器","grade_levels":["S5","S6"],"parent_code":"phys_electromagnetism","difficulty_level":4,"display_order":3},
-
-    {"subject":"physics","category":"放射現象與核能","point_code":"phys_radioactivity_nuclear","point_name":"放射現象與核能","description":"[compulsory:core] 放射現象與核能總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":5},
-    {"subject":"physics","category":"放射現象與核能","point_code":"phys_radiation","point_name":"放射性","description":"[compulsory:core] α/β/γ 射線、半衰期、放射性衰變","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":1},
-    {"subject":"physics","category":"放射現象與核能","point_code":"phys_rn_atomic_model","point_name":"原子模型（放射現象）","description":"[compulsory:core] Rutherford 散射實驗、原子核結構、核子","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":2},
-    {"subject":"physics","category":"放射現象與核能","point_code":"phys_nuclear_energy","point_name":"核能","description":"[compulsory:core] 核裂變、核聚變、質能關係 E=mc²、核電站","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":3},
-
-    {"subject":"physics","category":"天文與航天科學","point_code":"phys_astronomy","point_name":"天文與航天科學","description":"[elective] 天文與航天科學選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":6},
-    {"subject":"physics","category":"天文與航天科學","point_code":"phys_celestial_motion","point_name":"天體運動","description":"[elective] 克卜勒定律、行星運動、人造衛星軌道","grade_levels":["S5","S6"],"parent_code":"phys_astronomy","difficulty_level":4,"display_order":1},
-    {"subject":"physics","category":"天文與航天科學","point_code":"phys_stellar_evolution","point_name":"恆星演化","description":"[elective] 恆星的生命週期、赫羅圖、白矮星/中子星/黑洞","grade_levels":["S5","S6"],"parent_code":"phys_astronomy","difficulty_level":4,"display_order":2},
-
-    {"subject":"physics","category":"原子世界","point_code":"phys_atomic_world","point_name":"原子世界","description":"[elective] 原子世界選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":7},
-    {"subject":"physics","category":"原子世界","point_code":"phys_photoelectric","point_name":"光電效應","description":"[elective] 光電效應實驗、愛因斯坦方程 E=hf-φ、功函數","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":4,"display_order":1},
-    {"subject":"physics","category":"原子世界","point_code":"phys_aw_bohr_model","point_name":"玻爾原子模型","description":"[elective] Bohr 模型、能級跳遷、光譜線","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":4,"display_order":2},
-    {"subject":"physics","category":"原子世界","point_code":"phys_aw_wave_particle","point_name":"波粒二象性","description":"[elective] de Broglie 波長、物質波、不確定性原理","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":5,"display_order":3},
-
-    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_use","point_name":"能源和能源的使用","description":"[elective] 能源選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":8},
-    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_types","point_name":"能源類型","description":"[elective] 可再生與不可再生能源、化石燃料、太陽能、風能、核能","grade_levels":["S5","S6"],"parent_code":"phys_energy_use","difficulty_level":2,"display_order":1},
-    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_efficiency","point_name":"能源效率","description":"[elective] 能量轉換效率、熱機效率、能量審計","grade_levels":["S5","S6"],"parent_code":"phys_energy_use","difficulty_level":3,"display_order":2},
-
-    {"subject":"physics","category":"醫學物理","point_code":"phys_medical","point_name":"醫學物理","description":"[elective] 醫學物理選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":9},
-    {"subject":"physics","category":"醫學物理","point_code":"phys_medical_imaging","point_name":"醫學影像","description":"[elective] X 射線、超聲波、MRI、CT 掃描原理與應用","grade_levels":["S5","S6"],"parent_code":"phys_medical","difficulty_level":4,"display_order":1},
-    {"subject":"physics","category":"醫學物理","point_code":"phys_radiotherapy","point_name":"放射治療","description":"[elective] 放射治療原理、劑量計算、防護措施","grade_levels":["S5","S6"],"parent_code":"phys_medical","difficulty_level":4,"display_order":2},
-
-    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_graph","point_name":"圖表繪製與分析","description":"[sba] 繪製實驗數據圖表、最佳擬合線、讀取斜率和截距","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":10},
-    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_dimensional","point_name":"量綱分析","description":"[sba] 物理量的量綱、單位換算、量綱一致性檢驗","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":3,"display_order":11},
-    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_variables","point_name":"變數控制","description":"[sba] 自變量、因變量、控制變量的識別與實驗設計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":12},
-    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_data","point_name":"數據處理","description":"[sba] 實驗數據記錄、有效數字、數據表格設計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":13},
-    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_uncertainty","point_name":"誤差與不確定度","description":"[sba] 系統誤差、隨機誤差、不確定度估計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":3,"display_order":14}
+    {
+      "subject": "physics",
+      "category": "熱和氣體",
+      "point_code": "phys_heat_gases",
+      "point_name": "熱和氣體",
+      "description": "[compulsory:core] 熱和氣體總覽 (DSE Physics Part I)",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 1
+    },
+    {
+      "subject": "physics",
+      "category": "熱和氣體",
+      "point_code": "phys_temp_heat_internal",
+      "point_name": "溫度、熱和內能",
+      "description": "[compulsory:core] 溫標、熱平衡、熱容量、比熱容、內能與分子動理論",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_heat_gases",
+      "difficulty_level": 2,
+      "display_order": 2
+    },
+    {
+      "subject": "physics",
+      "category": "熱和氣體",
+      "point_code": "phys_heat_transfer",
+      "point_name": "熱的傳遞",
+      "description": "[compulsory:core] 傳導、對流、輻射的機制、熱絕緣應用",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_heat_gases",
+      "difficulty_level": 2,
+      "display_order": 3
+    },
+    {
+      "subject": "physics",
+      "category": "熱和氣體",
+      "point_code": "phys_change_of_state",
+      "point_name": "物態變化",
+      "description": "[compulsory:core] 熔化、凝固、蒸發、沸騰、凝結、比潛熱",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_heat_gases",
+      "difficulty_level": 2,
+      "display_order": 4
+    },
+    {
+      "subject": "physics",
+      "category": "熱和氣體",
+      "point_code": "phys_gases",
+      "point_name": "氣體",
+      "description": "[compulsory:core] 波義耳/查理/壓強定律、理想氣體方程 pV=nRT、分子動理論",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_heat_gases",
+      "difficulty_level": 3,
+      "display_order": 5
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_force_motion",
+      "point_name": "力和運動",
+      "description": "[compulsory:core] 力和運動總覽 (DSE Physics Part II)",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 10
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_position_movement",
+      "point_name": "位置和移動",
+      "description": "[compulsory:core] 距離、位移、速率、速度、加速度、v-t 和 s-t 圖、運動學方程",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 2,
+      "display_order": 11
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_force_motion_laws",
+      "point_name": "力和運動定律",
+      "description": "[compulsory:core] 牛頓三大運動定律、自由落體、摩擦力、平衡",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 3,
+      "display_order": 12
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_projectile",
+      "point_name": "拋體運動",
+      "description": "[compulsory:extension] 水平拋射與斜拋運動的分解與分析",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 4,
+      "display_order": 13
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_work_energy_power",
+      "point_name": "功、能量和功率",
+      "description": "[compulsory:core] 功的定義、動能、勢能、機械能守恆、功率",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 3,
+      "display_order": 14
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_momentum",
+      "point_name": "動量",
+      "description": "[compulsory:core] 動量定義、動量守恆、衝量、彈性/非彈性碰撞",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 3,
+      "display_order": 15
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_circular_motion",
+      "point_name": "圓周運動",
+      "description": "[compulsory:extension] 向心力、向心加速度、角速度、圓周運動應用",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 4,
+      "display_order": 16
+    },
+    {
+      "subject": "physics",
+      "category": "力和運動",
+      "point_code": "phys_gravitation",
+      "point_name": "萬有引力",
+      "description": "[compulsory:extension] 萬有引力定律、重力場、衛星運動",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_force_motion",
+      "difficulty_level": 4,
+      "display_order": 17
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_wave_motion",
+      "point_name": "波動",
+      "description": "[compulsory:core] 波動總覽 (DSE Physics Part III)",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 20
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_wave_nature",
+      "point_name": "波的性質",
+      "description": "[compulsory:core] 橫波/縱波、波長/頻率/波速 v=fλ、反射、折射、繞射、疊加",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_wave_motion",
+      "difficulty_level": 3,
+      "display_order": 21
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_light",
+      "point_name": "光",
+      "description": "[compulsory:core] 光的性質總覽",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_wave_motion",
+      "difficulty_level": 2,
+      "display_order": 22
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_reflection_refraction",
+      "point_name": "反射和折射",
+      "description": "[compulsory:core] 反射定律、折射定律 (Snell's law)、全內反射、臨界角",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_light",
+      "difficulty_level": 3,
+      "display_order": 23
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_lenses",
+      "point_name": "透鏡與光學儀器",
+      "description": "[compulsory:core] 凸透鏡與凹透鏡、成像規律、透鏡方程 1/f=1/u+1/v、簡單光學儀器",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_light",
+      "difficulty_level": 3,
+      "display_order": 24
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_light_wave",
+      "point_name": "光的波動性",
+      "description": "[compulsory:extension] 光的干涉、繞射、光柵、雙縫實驗、偏振",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_wave_motion",
+      "difficulty_level": 4,
+      "display_order": 25
+    },
+    {
+      "subject": "physics",
+      "category": "波動",
+      "point_code": "phys_sound",
+      "point_name": "聲音",
+      "description": "[compulsory:core] 聲波傳播、音調/響度/音色、共振、樂器中的駐波、都卜勒效應",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_wave_motion",
+      "difficulty_level": 2,
+      "display_order": 26
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_electricity_magnetism",
+      "point_name": "電和磁",
+      "description": "[compulsory:core] 電和磁總覽 (DSE Physics Part IV)",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 30
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_electrostatics",
+      "point_name": "靜電學",
+      "description": "[compulsory:core] 電荷守恆、庫侖定律、電場、電勢、平行板電容",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_electricity_magnetism",
+      "difficulty_level": 3,
+      "display_order": 31
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_circuits",
+      "point_name": "電路",
+      "description": "[compulsory:core] 電路概念、串聯並聯電路分析",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_electricity_magnetism",
+      "difficulty_level": 2,
+      "display_order": 32
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_ohm_law",
+      "point_name": "歐姆定律",
+      "description": "[compulsory:core] V=IR、電阻器、電阻與溫度、伏安特性曲線",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_circuits",
+      "difficulty_level": 2,
+      "display_order": 33
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_electrical_power",
+      "point_name": "電功率和電能",
+      "description": "[compulsory:core] P=IV、E=Pt、電器功率計算",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_circuits",
+      "difficulty_level": 2,
+      "display_order": 34
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_electromagnetism",
+      "point_name": "電磁學",
+      "description": "[compulsory:core] 磁場、電流的磁效應、電磁感應總覽",
+      "grade_levels": [
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_electricity_magnetism",
+      "difficulty_level": 3,
+      "display_order": 35
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_magnetic_field",
+      "point_name": "磁場",
+      "description": "[compulsory:core] 磁場線、載流導線的磁場、安培力、電動機原理",
+      "grade_levels": [
+        "S4",
+        "S5"
+      ],
+      "parent_code": "phys_electromagnetism",
+      "difficulty_level": 3,
+      "display_order": 36
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_em_induction",
+      "point_name": "電磁感應",
+      "description": "[compulsory:extension] 法拉第定律、楞次定律、感應電動勢、發電機",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_electromagnetism",
+      "difficulty_level": 4,
+      "display_order": 37
+    },
+    {
+      "subject": "physics",
+      "category": "電和磁",
+      "point_code": "phys_ac",
+      "point_name": "交流電",
+      "description": "[compulsory:extension] 交流電的產生、峰值與 rms 值、變壓器",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_electromagnetism",
+      "difficulty_level": 4,
+      "display_order": 38
+    },
+    {
+      "subject": "physics",
+      "category": "放射現象和核能",
+      "point_code": "phys_radioactivity_nuclear",
+      "point_name": "放射現象和核能",
+      "description": "[compulsory:core] 放射現象和核能總覽 (DSE Physics Part V)",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 40
+    },
+    {
+      "subject": "physics",
+      "category": "放射現象和核能",
+      "point_code": "phys_radiation",
+      "point_name": "放射性",
+      "description": "[compulsory:core] α/β/γ 射線、半衰期、放射性衰變、偵測器",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_radioactivity_nuclear",
+      "difficulty_level": 3,
+      "display_order": 41
+    },
+    {
+      "subject": "physics",
+      "category": "放射現象和核能",
+      "point_code": "phys_rn_atomic_model",
+      "point_name": "原子模型 (放射現象)",
+      "description": "[compulsory:core] Rutherford 散射實驗、原子核結構、核子、同位素",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_radioactivity_nuclear",
+      "difficulty_level": 3,
+      "display_order": 42
+    },
+    {
+      "subject": "physics",
+      "category": "放射現象和核能",
+      "point_code": "phys_nuclear_energy",
+      "point_name": "核能",
+      "description": "[compulsory:core] 核裂變、核聚變、質能關係 E=mc²、核電站",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_radioactivity_nuclear",
+      "difficulty_level": 3,
+      "display_order": 43
+    },
+    {
+      "subject": "physics",
+      "category": "天文和太空科學",
+      "point_code": "phys_astronomy",
+      "point_name": "天文和太空科學",
+      "description": "[elective] 天文和太空科學選修總覽 (DSE Physics Part VI)",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 50
+    },
+    {
+      "subject": "physics",
+      "category": "天文和太空科學",
+      "point_code": "phys_universe_scale",
+      "point_name": "不同尺度的宇宙",
+      "description": "[elective] 太陽系、銀河系、星系、宇宙尺度、早期宇宙觀測",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_astronomy",
+      "difficulty_level": 3,
+      "display_order": 51
+    },
+    {
+      "subject": "physics",
+      "category": "天文和太空科學",
+      "point_code": "phys_celestial_motion",
+      "point_name": "重力下的軌道運動",
+      "description": "[elective] 克卜勒定律、行星運動、人造衛星軌道、逃逸速度",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_astronomy",
+      "difficulty_level": 4,
+      "display_order": 52
+    },
+    {
+      "subject": "physics",
+      "category": "天文和太空科學",
+      "point_code": "phys_stellar_evolution",
+      "point_name": "恆星與宇宙",
+      "description": "[elective] 恆星光譜、赫羅圖 (HR diagram)、恆星生命週期、白矮星/中子星/黑洞",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_astronomy",
+      "difficulty_level": 4,
+      "display_order": 53
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_atomic_world",
+      "point_name": "原子世界",
+      "description": "[elective] 原子世界選修總覽 (DSE Physics Part VII)",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 60
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_rutherford_model",
+      "point_name": "盧瑟福原子模型",
+      "description": "[elective] Rutherford α 粒子散射實驗、原子核的發現、經典行星模型的局限",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_atomic_world",
+      "difficulty_level": 3,
+      "display_order": 61
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_photoelectric",
+      "point_name": "光電效應",
+      "description": "[elective] 光電效應實驗、愛因斯坦光電方程 E=hf-φ、功函數、截止電壓",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_atomic_world",
+      "difficulty_level": 4,
+      "display_order": 62
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_aw_bohr_model",
+      "point_name": "玻爾氫原子模型",
+      "description": "[elective] 玻爾模型、能級躍遷、氫光譜、萊曼/巴耳末系",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_atomic_world",
+      "difficulty_level": 4,
+      "display_order": 63
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_aw_wave_particle",
+      "point_name": "粒子或波 (波粒二象性)",
+      "description": "[elective] 德布羅意物質波 λ=h/p、電子雙縫實驗、不確定性原理",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_atomic_world",
+      "difficulty_level": 5,
+      "display_order": 64
+    },
+    {
+      "subject": "physics",
+      "category": "原子世界",
+      "point_code": "phys_nano_scale",
+      "point_name": "探究納米尺度",
+      "description": "[elective] 掃描穿隧顯微鏡 (STM)、納米材料、納米科技應用、奈米碳管",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_atomic_world",
+      "difficulty_level": 3,
+      "display_order": 65
+    },
+    {
+      "subject": "physics",
+      "category": "能源和能源的使用",
+      "point_code": "phys_energy_use",
+      "point_name": "能源和能源的使用",
+      "description": "[elective] 能源選修總覽 (DSE Physics Part VIII)",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 70
+    },
+    {
+      "subject": "physics",
+      "category": "能源和能源的使用",
+      "point_code": "phys_home_electricity",
+      "point_name": "家居用電",
+      "description": "[elective] 家居電路、保險絲、接地、觸電保護、家居電器功率",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_energy_use",
+      "difficulty_level": 2,
+      "display_order": 71
+    },
+    {
+      "subject": "physics",
+      "category": "能源和能源的使用",
+      "point_code": "phys_building_efficiency",
+      "point_name": "建築物的能源效率",
+      "description": "[elective] 隔熱、被動式節能設計、綠色建築、能源審計",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_energy_use",
+      "difficulty_level": 3,
+      "display_order": 72
+    },
+    {
+      "subject": "physics",
+      "category": "能源和能源的使用",
+      "point_code": "phys_transport_efficiency",
+      "point_name": "運輸的能源效率",
+      "description": "[elective] 引擎效率、熱機效率、電動車、混合動力、燃料電池",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_energy_use",
+      "difficulty_level": 3,
+      "display_order": 73
+    },
+    {
+      "subject": "physics",
+      "category": "能源和能源的使用",
+      "point_code": "phys_energy_types",
+      "point_name": "非再生與再生能源",
+      "description": "[elective] 化石燃料、核能、太陽能、風能、水力、地熱、潮汐能",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_energy_use",
+      "difficulty_level": 2,
+      "display_order": 74
+    },
+    {
+      "subject": "physics",
+      "category": "醫學物理",
+      "point_code": "phys_medical",
+      "point_name": "醫學物理",
+      "description": "[elective] 醫學物理選修總覽 (DSE Physics Part IX)",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": null,
+      "difficulty_level": 1,
+      "display_order": 80
+    },
+    {
+      "subject": "physics",
+      "category": "醫學物理",
+      "point_code": "phys_eye_ear",
+      "point_name": "眼睛與耳朵",
+      "description": "[elective] 眼睛結構與視覺、視力缺陷與矯正、耳朵結構與聽覺",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_medical",
+      "difficulty_level": 3,
+      "display_order": 81
+    },
+    {
+      "subject": "physics",
+      "category": "醫學物理",
+      "point_code": "phys_medical_imaging",
+      "point_name": "醫學影像",
+      "description": "[elective] X 射線、超聲波、MRI、CT、PET 掃描原理與應用",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_medical",
+      "difficulty_level": 4,
+      "display_order": 82
+    },
+    {
+      "subject": "physics",
+      "category": "醫學物理",
+      "point_code": "phys_non_ionising",
+      "point_name": "非游離輻射",
+      "description": "[elective] 雷射、紫外線、紅外線、微波在醫療上的應用",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_medical",
+      "difficulty_level": 3,
+      "display_order": 83
+    },
+    {
+      "subject": "physics",
+      "category": "醫學物理",
+      "point_code": "phys_radiotherapy",
+      "point_name": "游離輻射與管理",
+      "description": "[elective] 放射治療、輻射劑量、劑量學、輻射防護、個人劑量計",
+      "grade_levels": [
+        "S5",
+        "S6"
+      ],
+      "parent_code": "phys_medical",
+      "difficulty_level": 4,
+      "display_order": 84
+    }
   ]
 }

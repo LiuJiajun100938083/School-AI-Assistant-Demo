@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
+    <title data-i18n="cb.pageTitle">協作佈告板</title>
+    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/board.css?v=20260414">
+    <!-- markdown -->
+    <script src="/static/vendor/marked/marked.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
+</head>
+<body>
+    <header class="cb-header">
+        <div class="cb-header__left">
+            <a href="/boards" class="cb-header__back">← <span data-i18n="cb.back">返回</span></a>
+            <span class="cb-header__title" id="hdrTitle"><span class="emoji">📌</span><span id="hdrTitleText">…</span></span>
+        </div>
+        <div class="cb-header__right">
+            <span id="presence" class="cb-presence"><span class="dot"></span><span id="presenceCount">1</span></span>
+            <button id="btnActivity" class="cb-btn cb-btn--ghost" title="活動記錄" aria-label="activity">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            <div class="cb-menu">
+                <button id="btnMenu" class="cb-btn cb-btn--ghost" title="更多" aria-label="menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </button>
+                <div id="menuDropdown" class="cb-menu__dropdown">
+                    <button data-action="export-json" data-i18n="cb.exportJson">匯出 JSON</button>
+                    <button data-action="export-xlsx" data-i18n="cb.exportXlsx">匯出 Excel</button>
+                    <button data-action="export-pdf" data-i18n="cb.exportPdf">匯出 PDF</button>
+                    <button data-action="print" data-i18n="cb.print">列印</button>
+                    <div class="cb-menu__sep"></div>
+                    <button data-action="remake" data-i18n="cb.remake">複製此板</button>
+                    <button data-action="toggle-section-edit" data-i18n="cb.sectionEditOpenLabel">允許學生編輯分段標題</button>
+                    <button data-action="clear-all" class="danger" data-i18n="cb.clearAll">清空所有貼文</button>
+                </div>
+            </div>
+            <button id="btnNewPost" class="cb-btn cb-btn--primary" data-i18n="cb.newPost">發貼</button>
+        </div>
+    </header>
+
+    <section class="cb-workspace">
+        <div class="cb-workspace__toolbar">
+            <div id="infoBar" class="cb-workspace__info"></div>
+            <input id="searchInput" class="cb-search" type="search" data-i18n-placeholder="cb.searchPh">
+            <select id="sortSelect" class="cb-select">
+                <option value="order_index" data-i18n="cb.sortDefault">預設</option>
+                <option value="latest" data-i18n="cb.sortLatest">最新</option>
+                <option value="oldest" data-i18n="cb.sortOldest">最舊</option>
+                <option value="most_liked" data-i18n="cb.sortLiked">最多讚</option>
+                <option value="author" data-i18n="cb.sortAuthor">作者</option>
+            </select>
+            <select id="tagFilter" class="cb-select">
+                <option value="" data-i18n="cb.tagFilterAll">全部標籤</option>
+            </select>
+            <div class="spacer"></div>
+            <div id="layoutSwitch" class="cb-layout-switch">
+                <button data-layout="grid"   data-i18n="cb.layoutGrid">瀑布流</button>
+                <button data-layout="shelf"  data-i18n="cb.layoutShelf">分欄</button>
+                <button data-layout="stream" data-i18n="cb.layoutStream">時間軸</button>
+                <button data-layout="canvas" data-i18n="cb.layoutCanvas">畫布</button>
+            </div>
+            <button id="btnAddSection" class="cb-btn" style="display:none" data-i18n="cb.addSection">新增分段</button>
+            <button id="btnManageGroups" class="cb-btn" data-i18n="cb.manageGroups">管理分組</button>
+            <button id="btnManageCollabs" class="cb-btn" style="display:none" data-i18n="cb.manageCollaborators">管理協作者</button>
+        </div>
+        <div id="boardBody" class="cb-workspace__body">
+            <div class="cb-empty"><div class="cb-empty__icon">⏳</div></div>
+        </div>
+    </section>
+
+    <!-- Post editor modal -->
+    <div id="postModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.newPost">發貼</span>
+                <button class="cb-modal__close" onclick="closePostModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div class="cb-type-tabs" id="typeTabs">
+                    <button class="cb-type-tab active" data-kind="text" data-i18n="cb.postTypeText">文字</button>
+                    <button class="cb-type-tab" data-kind="image" data-i18n="cb.postTypeImage">圖片</button>
+                    <button class="cb-type-tab" data-kind="link" data-i18n="cb.postTypeLink">連結</button>
+                    <button class="cb-type-tab" data-kind="file" data-i18n="cb.postTypeFile">檔案</button>
+                </div>
+                <div class="cb-field">
+                    <input type="text" id="pTitle" data-i18n-placeholder="cb.postTitlePh">
+                </div>
+                <div class="cb-field" id="pBodyWrap">
+                    <textarea id="pBody" data-i18n-placeholder="cb.postBodyPh"></textarea>
+                </div>
+                <div class="cb-field" id="pLinkWrap" style="display:none">
+                    <input type="text" id="pLink" data-i18n-placeholder="cb.postLinkPh">
+                </div>
+                <div class="cb-field" id="pFileWrap" style="display:none">
+                    <input type="file" id="pFile">
+                    <div id="pFileStatus" style="font-size:12px;color:var(--cb-text-2)"></div>
+                </div>
+                <div class="cb-field" id="pSectionWrap" style="display:none">
+                    <label class="cb-field__label">分欄</label>
+                    <select id="pSection"></select>
+                </div>
+                <div class="cb-field">
+                    <label class="cb-field__label">標籤</label>
+                    <div id="pTagsWrap" class="cb-tags-input">
+                        <input type="text" id="pTagInput" data-i18n-placeholder="cb.tagsPh">
+                    </div>
+                </div>
+                <div class="cb-field">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cb-text-2)">
+                        <input type="checkbox" id="pAnonymous">
+                        <span data-i18n="cb.isAnonymous">匿名發表</span>
+                    </label>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closePostModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="pSubmit" data-i18n="cb.publish">發布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section editor modal -->
+    <div id="sectionModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.addSection">新增分欄</span>
+                <button class="cb-modal__close" onclick="closeSectionModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div class="cb-field">
+                    <input type="text" id="sName" data-i18n-placeholder="cb.sectionNamePh">
+                </div>
+                <div class="cb-field">
+                    <select id="sKind">
+                        <option value="column" data-i18n="cb.sectionKindColumn">一般分欄</option>
+                        <option value="group" data-i18n="cb.sectionKindGroup">分組</option>
+                    </select>
+                </div>
+                <div class="cb-field" id="sGroupWrap" style="display:none">
+                    <label style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.clickToSelect">點擊選擇組員</label>
+                    <div id="sGroupMembers" class="cb-member-picker"></div>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeSectionModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="sSubmit" data-i18n="cb.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Groups modal -->
+    <div id="groupsModal" class="cb-modal">
+        <div class="cb-modal__card cb-modal__card--xl">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.manageGroups">管理分組</span>
+                <button class="cb-modal__close" onclick="closeGroupsModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.dragHint">拖動學生到組別</div>
+                <div id="groupsBoard" class="cb-groups-board"></div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <input type="text" id="newGroupName" class="cb-search" data-i18n-placeholder="cb.groupName" style="flex:1">
+                    <button id="btnAddGroup" class="cb-btn" data-i18n="cb.addGroup">新增組</button>
+                </div>
+                <div class="cb-random-group-bar">
+                    <span data-i18n="cb.randomGroupLabel">隨機分組：每組</span>
+                    <input type="number" id="randomPerGroup" min="2" max="20" value="4">
+                    <span data-i18n="cb.randomGroupUnit">人</span>
+                    <button id="btnRandomGroup" class="cb-btn" data-i18n="cb.randomGroup">隨機分配</button>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeGroupsModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="btnSaveGroups" data-i18n="cb.saveGroups">儲存分組</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collaborators modal -->
+    <div id="collabModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.manageCollaborators">管理協作者</span>
+                <button class="cb-modal__close" onclick="closeCollabModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.collabHint">點擊添加或移除協作教師</div>
+                <div id="collabList" class="cb-member-picker" style="margin-top:8px"></div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeCollabModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="btnSaveCollabs" data-i18n="cb.saveCollaborators">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity drawer -->
+    <aside id="activityDrawer" class="cb-drawer">
+        <div class="cb-drawer__head">
+            <span data-i18n="cb.activity">活動記錄</span>
+            <button class="cb-modal__close" onclick="closeActivity()">×</button>
+        </div>
+        <div id="activityList" class="cb-drawer__body"></div>
+    </aside>
+
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/board.js?v=20260414"></script>
+    <script src="/static/js/board.js?v=20260414"></script>
+</body>
+</html>

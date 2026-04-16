@@ -30,7 +30,7 @@ SUPPORTED_FORMATS = {".pdf", ".docx", ".txt", ".md"}
 # 文档大小上限（字节）
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 # 知识库根目录名
-KNOWLEDGE_BASE_DIR = "knowledge_base"
+KNOWLEDGE_BASE_DIR = "Knowledge_base"
 # 回收站目录名
 TRASH_DIR = ".trash"
 
@@ -148,7 +148,7 @@ class SubjectService:
             ConflictError: 学科代码已存在
         """
         if self._repo.subject_exists(subject_code):
-            raise ConflictError("学科", subject_code)
+            raise ConflictError(f"学科 '{subject_code}' 已存在")
 
         config = {
             "icon": icon,
@@ -350,6 +350,14 @@ class SubjectService:
             filename, subject_code, uploaded_by,
         )
 
+        # ── 宠物金币：教师上传知识库文档 +8 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            if uploaded_by and uploaded_by != "system":
+                try_award_coins_by_username(uploaded_by, "upload_knowledge_doc", f"doc_{subject_code}_{filename}", "teacher")
+        except Exception:
+            pass
+
         return {
             "filename": filename,
             "subject": subject_code,
@@ -369,10 +377,12 @@ class SubjectService:
                 continue
             filepath = os.path.join(kb_dir, filename)
             stat = os.stat(filepath)
+            ext = os.path.splitext(filename)[1].lstrip(".").lower()
             documents.append({
-                "filename": filename,
-                "file_size": stat.st_size,
-                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "name": filename,
+                "size": stat.st_size,
+                "type": ext,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
             })
         return documents
 

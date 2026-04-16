@@ -26,6 +26,8 @@ sentence-transformers==3.4.1
 chromadb==0.6.3
 transformers==4.48.3
 torch>=2.1.2
+# 默書 forensic OCR (TrOCR + OpenCV line detection)
+opencv-python-headless>=4.8,<5
 openai==1.61.0
 
 # HTTP requests
@@ -43,6 +45,7 @@ python-pptx==1.0.2
 PyPDF2==3.0.1
 PyMuPDF==1.25.5
 openpyxl==3.1.2
+reportlab==4.2.5
 
 # Qt GUI (desktop app)
 PyQt6==6.10.2

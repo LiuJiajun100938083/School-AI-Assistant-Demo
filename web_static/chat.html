@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 學習對話 - 校園AI助手</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/chat.css">
-    <link rel="stylesheet" href="/static/css/learning_modes.css">
-    <link rel="stylesheet" href="/static/css/learning_summary.css">
+    <title>AI 學習對話 - 培僑中學</title>
+    <link rel="stylesheet" href="/static/css/chat.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/learning_modes.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/learning_summary.css?v=20260414">
     <!-- PrismJS 代码高亮 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="/static/vendor/prism/prism.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-markup.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-css.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-python.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-javascript.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-typescript.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-java.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-c.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-cpp.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-bash.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-json.min.js"></script>
+    <script src="/static/vendor/prism/components/prism-sql.min.js"></script>
     <!-- MathJax -->
     <script>
         window.MathJax = {
@@ -38,9 +37,9 @@
             }
         };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script"></script>
+    <script src="/static/vendor/mathjax/tex-chtml.js" id="MathJax-script"></script>
     <!-- GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="/static/vendor/gsap/gsap.min.js"></script>
 </head>
 <body>
 
@@ -50,8 +49,8 @@
         <div class="modal-title" data-i18n="password.title">修改密碼</div>
         <form id="changePasswordForm" class="modal-form">
             <input type="password" id="oldPasswordInput" class="modal-input" data-i18n-placeholder="password.current" placeholder="當前密碼" required>
-            <input type="password" id="newPasswordInput" class="modal-input" data-i18n-placeholder="password.new" placeholder="新密碼（至少4位）"
-                   minlength="4" required>
+            <input type="password" id="newPasswordInput" class="modal-input" data-i18n-placeholder="password.new" placeholder="新密碼（至少8位）"
+                   minlength="8" required>
             <input type="password" id="confirmPasswordInput" class="modal-input" data-i18n-placeholder="password.confirmNew" placeholder="確認新密碼" required>
             <div id="passwordError" class="modal-error"></div>
             <div class="modal-buttons">
@@ -201,19 +200,19 @@
     </div>
 </div>
 
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/chat.js"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/chat.js?v=20260414"></script>
 <script>
     document.title = i18n.t('chat.pageTitle');
     i18n.applyDOM();
 </script>
-<script src="/static/js/learning_modes_frontend.js"></script>
-<script src="/static/js/learning_summary.js"></script>
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/chat.js"></script>
+<script src="/static/js/learning_modes_frontend.js?v=20260414"></script>
+<script src="/static/js/learning_summary.js?v=20260414"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/chat.js?v=20260414"></script>
 </body>
 </html>

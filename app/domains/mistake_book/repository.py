@@ -68,15 +68,98 @@ class KnowledgePointRepository(BaseRepository):
         return [r["category"] for r in rows]
 
     def bulk_insert(self, points: List[Dict]) -> int:
-        """批量插入知識點（種子數據用）"""
+        """批量插入知識點（種子數據用,純 upsert）。
+
+        注意:這個方法不會把「DB 裡有但 seed JSON 裡沒有」的 point 標記為
+        inactive。若需要完整 reconciliation,請改用 `reconcile_subject`。
+        """
         count = 0
         for p in points:
             try:
-                self.upsert(p, update_fields=["point_name", "description", "grade_levels", "parent_code", "difficulty_level", "display_order"])
+                self.upsert(
+                    p,
+                    update_fields=[
+                        "point_name", "description", "grade_levels",
+                        "parent_code", "difficulty_level", "display_order",
+                        "category", "is_active",
+                    ],
+                )
                 count += 1
             except Exception as e:
                 logger.warning("知識點插入失敗 %s: %s", p.get("point_code"), e)
         return count
+
+    def find_all_point_codes_for_subject(
+        self, subject: str, *, only_active: bool = False
+    ) -> List[str]:
+        """列出某科目在 DB 中所有 point_code (可選只列 active 的)"""
+        sql = "SELECT point_code FROM knowledge_points WHERE subject = %s"
+        if only_active:
+            sql += " AND is_active = TRUE"
+        rows = self.raw_query(sql, (subject,))
+        return [r["point_code"] for r in rows]
+
+    def deactivate_by_codes(self, point_codes: List[str]) -> int:
+        """把指定 point_code 的 is_active 設為 FALSE(不刪除,保留歷史引用)"""
+        if not point_codes:
+            return 0
+        placeholders = ",".join(["%s"] * len(point_codes))
+        return self.raw_execute(
+            f"UPDATE knowledge_points SET is_active = FALSE "
+            f"WHERE point_code IN ({placeholders})",
+            tuple(point_codes),
+        )
+
+    def reconcile_subject(
+        self, subject: str, desired_points: List[Dict]
+    ) -> Dict[str, int]:
+        """
+        對某科目做完整 reconciliation:
+          1. upsert desired_points (新的 INSERT,已存在的 UPDATE 並 is_active=TRUE)
+          2. DB 裡有但 desired 沒有的 → is_active=FALSE (保留 row 不刪)
+
+        Args:
+            subject: 要處理的科目 (e.g. 'physics')
+            desired_points: 該科目完整的 seed points (已準備好,含所有必要欄位)
+
+        Returns:
+            {inserted: int (upserted), deactivated: int, kept: int}
+
+        注意:這個 method 只負責資料層的 diff + 寫入,不讀 JSON,不關心 HTTP。
+        """
+        # 1. 先記錄 DB 現有該科目的全部 point_code (含 inactive)
+        existing_all = set(
+            self.find_all_point_codes_for_subject(subject, only_active=False)
+        )
+        desired_codes = {p["point_code"] for p in desired_points}
+
+        # 2. 舊的但不在新 seed 裡 → deactivate
+        to_deactivate = sorted(existing_all - desired_codes)
+        deactivated = self.deactivate_by_codes(to_deactivate)
+
+        # 3. desired 全部 upsert (force is_active=TRUE)
+        upserted = 0
+        for p in desired_points:
+            p_with_active = dict(p)
+            p_with_active["is_active"] = True
+            try:
+                self.upsert(
+                    p_with_active,
+                    update_fields=[
+                        "point_name", "description", "grade_levels",
+                        "parent_code", "difficulty_level", "display_order",
+                        "category", "is_active",
+                    ],
+                )
+                upserted += 1
+            except Exception as e:
+                logger.warning("知識點 reconcile 失敗 %s: %s", p.get("point_code"), e)
+
+        return {
+            "inserted": upserted,
+            "deactivated": deactivated,
+            "kept": len(existing_all & desired_codes),
+        }
 
 
 class MistakeRepository(BaseRepository):
@@ -327,8 +410,8 @@ class MistakeKnowledgeLinkRepository(BaseRepository):
         sql = (
             "SELECT kp.point_code, kp.point_name, kp.category, kp.subject, "
             "COUNT(DISTINCT mkl.mistake_id) as mistake_count, "
-            "COALESCE(skm.mastery_level, 30) as mastery_level, "
-            "COALESCE(skm.trend, 'unknown') as trend "
+            "MIN(COALESCE(skm.mastery_level, 30)) as mastery_level, "
+            "MIN(COALESCE(skm.trend, 'unknown')) as trend "
             "FROM mistake_knowledge_links mkl "
             "JOIN student_mistakes sm ON mkl.mistake_id = sm.mistake_id "
             "JOIN knowledge_points kp ON mkl.point_code = kp.point_code "
@@ -343,7 +426,7 @@ class MistakeKnowledgeLinkRepository(BaseRepository):
             params.append(subject)
 
         sql += (
-            "GROUP BY kp.point_code, kp.point_name, kp.category, kp.subject, skm.mastery_level, skm.trend "
+            "GROUP BY kp.point_code, kp.point_name, kp.category, kp.subject "
             "ORDER BY mastery_level ASC, mistake_count DESC "
             f"LIMIT {limit}"
         )

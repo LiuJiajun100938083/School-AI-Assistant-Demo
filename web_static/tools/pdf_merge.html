@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.pdft.title">PDF 多功能工具</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link rel="stylesheet" href="/static/css/tools_pdf.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back">← <span data-i18n="tools.back">返回</span></a>
+        <span class="tools-header__title" data-i18n="tools.pdft.title">PDF 多功能工具</span>
+    </header>
+
+    <main class="tools-page pdft-page">
+        <h1 class="tools-page__title" data-i18n="tools.pdft.title">PDF 多功能工具</h1>
+        <p class="tools-page__subtitle" data-i18n="tools.pdft.subtitle">合併 / 提取頁面 / 壓縮 / 加浮水印,完全在本機處理,檔案不會離開學校</p>
+
+        <!-- ── Tab bar ── -->
+        <div class="pdft-tabs" role="tablist">
+            <button class="pdft-tab active" data-mode="images" role="tab" aria-selected="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span data-i18n="tools.pdft.tabImages">圖片 → PDF</span>
+            </button>
+            <button class="pdft-tab" data-mode="merge" role="tab" aria-selected="false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <span data-i18n="tools.pdft.tabMerge">合併 PDF</span>
+            </button>
+            <button class="pdft-tab" data-mode="extract" role="tab" aria-selected="false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="10" x2="12" y2="16"/></svg>
+                <span data-i18n="tools.pdft.tabExtract">提取頁面</span>
+            </button>
+            <button class="pdft-tab" data-mode="compress" role="tab" aria-selected="false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                <span data-i18n="tools.pdft.tabCompress">壓縮</span>
+            </button>
+            <button class="pdft-tab" data-mode="watermark" role="tab" aria-selected="false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="10"/></svg>
+                <span data-i18n="tools.pdft.tabWatermark">加浮水印</span>
+            </button>
+        </div>
+
+        <!-- ══════════ 1. 圖片 → PDF ══════════ -->
+        <section class="pdft-pane" data-pane="images">
+            <div class="tools-card">
+                <label class="tools-drop" id="imgDrop">
+                    <input type="file" id="imgInput" accept="image/*" multiple>
+                    <div class="pdft-drop-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                    <div data-i18n="tools.pdft.imgDrop">把圖片拖到這裡,或點擊選擇(最多 30 張)</div>
+                </label>
+                <div id="imgCount" class="pdft-status"><span data-i18n="tools.pdft.imgEmpty">尚未選擇圖片</span></div>
+                <div id="imgThumbs" class="pdft-thumb-grid"></div>
+                <div class="pdft-actions">
+                    <button id="imgClear" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                    <button id="imgSubmit" class="tools-btn tools-btn--primary" disabled>
+                        <span data-i18n="tools.pdft.imgSubmit">合併並下載</span>
+                    </button>
+                </div>
+                <div id="imgStatus" class="pdft-error" role="status"></div>
+            </div>
+        </section>
+
+        <!-- ══════════ 2. 合併 PDF ══════════ -->
+        <section class="pdft-pane" data-pane="merge" hidden>
+            <div class="tools-card">
+                <label class="tools-drop" id="mergeDrop">
+                    <input type="file" id="mergeInput" accept="application/pdf" multiple>
+                    <div class="pdft-drop-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    </div>
+                    <div data-i18n="tools.pdft.mergeDrop">把多份 PDF 拖到這裡依序合併(最多 20 份)</div>
+                </label>
+                <div id="mergeCount" class="pdft-status"><span data-i18n="tools.pdft.mergeEmpty">尚未選擇 PDF</span></div>
+                <ul id="mergeList" class="pdft-file-list"></ul>
+                <div class="pdft-actions">
+                    <button id="mergeClear" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                    <button id="mergeSubmit" class="tools-btn tools-btn--primary" disabled>
+                        <span data-i18n="tools.pdft.mergeSubmit">合併並下載</span>
+                    </button>
+                </div>
+                <div id="mergeStatus" class="pdft-error" role="status"></div>
+            </div>
+        </section>
+
+        <!-- ══════════ 3. 提取頁面 ══════════ -->
+        <section class="pdft-pane" data-pane="extract" hidden>
+            <div class="tools-card">
+                <label class="tools-drop pdft-drop--single" id="extractDrop">
+                    <input type="file" id="extractInput" accept="application/pdf">
+                    <div class="pdft-drop-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="10" x2="12" y2="16"/></svg>
+                    </div>
+                    <div data-i18n="tools.pdft.extractDrop">選擇一份 PDF</div>
+                </label>
+                <div id="extractInfo" class="pdft-status"></div>
+                <div class="pdft-field">
+                    <label for="extractRanges" class="pdft-field__label" data-i18n="tools.pdft.extractLabel">要提取的頁面範圍</label>
+                    <input type="text" id="extractRanges" class="pdft-input" placeholder="1-3,5,7-10" autocomplete="off">
+                    <div class="pdft-field__hint" data-i18n="tools.pdft.extractHint">格式:單頁用逗號分隔(1,3,5),範圍用連字號(1-3),可混用(1-3,5,7-10)</div>
+                </div>
+                <div class="pdft-actions">
+                    <button id="extractClear" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                    <button id="extractSubmit" class="tools-btn tools-btn--primary" disabled>
+                        <span data-i18n="tools.pdft.extractSubmit">提取並下載</span>
+                    </button>
+                </div>
+                <div id="extractStatus" class="pdft-error" role="status"></div>
+            </div>
+        </section>
+
+        <!-- ══════════ 4. 壓縮 ══════════ -->
+        <section class="pdft-pane" data-pane="compress" hidden>
+            <div class="tools-card">
+                <label class="tools-drop pdft-drop--single" id="compressDrop">
+                    <input type="file" id="compressInput" accept="application/pdf">
+                    <div class="pdft-drop-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    </div>
+                    <div data-i18n="tools.pdft.compressDrop">選擇一份 PDF 來壓縮</div>
+                </label>
+                <div id="compressInfo" class="pdft-status"></div>
+                <div class="pdft-field">
+                    <label class="pdft-field__label" data-i18n="tools.pdft.compressLevel">壓縮等級</label>
+                    <div class="pdft-segmented" id="compressLevelSeg" role="radiogroup">
+                        <button data-level="high" role="radio" aria-checked="false">
+                            <strong data-i18n="tools.pdft.compressHigh">高品質</strong>
+                            <small data-i18n="tools.pdft.compressHighDesc">200 dpi · 接近原檔</small>
+                        </button>
+                        <button data-level="medium" class="active" role="radio" aria-checked="true">
+                            <strong data-i18n="tools.pdft.compressMedium">平衡</strong>
+                            <small data-i18n="tools.pdft.compressMediumDesc">120 dpi · 縮小約 50%</small>
+                        </button>
+                        <button data-level="low" role="radio" aria-checked="false">
+                            <strong data-i18n="tools.pdft.compressLow">最小檔</strong>
+                            <small data-i18n="tools.pdft.compressLowDesc">72 dpi · 縮小約 70%+</small>
+                        </button>
+                    </div>
+                </div>
+                <div class="pdft-actions">
+                    <button id="compressClear" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                    <button id="compressSubmit" class="tools-btn tools-btn--primary" disabled>
+                        <span data-i18n="tools.pdft.compressSubmit">壓縮並下載</span>
+                    </button>
+                </div>
+                <div id="compressStatus" class="pdft-error" role="status"></div>
+            </div>
+        </section>
+
+        <!-- ══════════ 5. 浮水印 ══════════ -->
+        <section class="pdft-pane" data-pane="watermark" hidden>
+            <div class="tools-card">
+                <label class="tools-drop pdft-drop--single" id="wmDrop">
+                    <input type="file" id="wmInput" accept="application/pdf">
+                    <div class="pdft-drop-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="5" y1="5" x2="19" y2="19"/></svg>
+                    </div>
+                    <div data-i18n="tools.pdft.wmDrop">選擇一份 PDF 來加浮水印</div>
+                </label>
+                <div id="wmInfo" class="pdft-status"></div>
+                <div class="pdft-field">
+                    <label for="wmText" class="pdft-field__label" data-i18n="tools.pdft.wmText">浮水印文字</label>
+                    <input type="text" id="wmText" class="pdft-input" maxlength="80" placeholder="機密文件">
+                </div>
+                <div class="pdft-field-row">
+                    <div class="pdft-field pdft-field--third">
+                        <label class="pdft-field__label" data-i18n="tools.pdft.wmOpacity">透明度</label>
+                        <input type="range" id="wmOpacity" class="pdft-range" min="10" max="80" step="5" value="30">
+                        <div class="pdft-field__hint"><span id="wmOpacityVal">30</span>%</div>
+                    </div>
+                    <div class="pdft-field pdft-field--third">
+                        <label class="pdft-field__label" data-i18n="tools.pdft.wmAngle">旋轉角度</label>
+                        <div class="pdft-segmented pdft-segmented--compact" id="wmAngleSeg" role="radiogroup">
+                            <button data-angle="0" role="radio" aria-checked="false">0°</button>
+                            <button data-angle="45" class="active" role="radio" aria-checked="true">45°</button>
+                            <button data-angle="-45" role="radio" aria-checked="false">-45°</button>
+                            <button data-angle="90" role="radio" aria-checked="false">90°</button>
+                        </div>
+                    </div>
+                    <div class="pdft-field pdft-field--third">
+                        <label class="pdft-field__label" data-i18n="tools.pdft.wmFontSize">字級</label>
+                        <input type="range" id="wmFontSize" class="pdft-range" min="20" max="120" step="4" value="48">
+                        <div class="pdft-field__hint"><span id="wmFontSizeVal">48</span> pt</div>
+                    </div>
+                </div>
+                <div class="pdft-actions">
+                    <button id="wmClear" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                    <button id="wmSubmit" class="tools-btn tools-btn--primary" disabled>
+                        <span data-i18n="tools.pdft.wmSubmit">加浮水印並下載</span>
+                    </button>
+                </div>
+                <div id="wmStatus" class="pdft-error" role="status"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+    <script src="/static/js/tools_pdf.js"></script>
+</body>
+</html>

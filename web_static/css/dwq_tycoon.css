@@ -1,0 +1,182 @@
+/**
+ * 大灣區大亨 — 樣式表
+ *
+ * 設計 token (顏色、字體、陰影) 集中於此,UI 組件僅引用 class。
+ * 像素風格,參考原始單機遊戲的 pixel-box / pixel-btn / pixel-panel 設計。
+ */
+
+:root {
+    --bg-color: #f4ecd8;
+    --primary-color: #1e40af;
+    --accent-color: #fbbf24;
+    --danger-color: #dc2626;
+    --success-color: #16a34a;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    font-family: 'DotGothic16', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    color: #1a1a1a;
+    touch-action: manipulation;
+    min-height: 100vh;
+}
+
+/* ─── Pixel UI 組件 ───────────────────────────────── */
+
+.pixel-box {
+    background: white;
+    border: 4px solid #1a1a1a;
+    box-shadow: 6px 6px 0px 0px rgba(26, 26, 26, 1);
+    border-radius: 2px;
+}
+
+.pixel-panel {
+    background: #e5e7eb;
+    border: 4px solid #1a1a1a;
+    box-shadow:
+        inset -4px -4px 0px 0px rgba(0, 0, 0, 0.1),
+        inset 4px 4px 0px 0px rgba(255, 255, 255, 0.5);
+}
+
+.pixel-btn {
+    background: #fbbf24;
+    border: 4px solid #1a1a1a;
+    box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 1);
+    text-transform: uppercase;
+    transition: all 0.1s;
+    cursor: pointer;
+    font-weight: bold;
+    color: #1a1a1a;
+    padding: 0.5rem 1rem;
+}
+
+.pixel-btn:hover:not(:disabled) {
+    background: #f59e0b;
+}
+
+.pixel-btn:active:not(:disabled) {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px 0px rgba(26, 26, 26, 1);
+}
+
+.pixel-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 0.5);
+    color: #4b5563;
+}
+
+/* ─── 地圖容器 ───────────────────────────────────── */
+
+.map-container {
+    position: relative;
+    background-color: #93c5fd;
+    background-image: radial-gradient(#60a5fa 2px, transparent 2px);
+    background-size: 20px 20px;
+}
+
+/* ─── 動畫 ───────────────────────────────────────── */
+
+@keyframes highlight-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+        border-color: #f59e0b;
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+        border-color: #fff;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+        border-color: #f59e0b;
+    }
+}
+
+.highlight-city {
+    animation: highlight-pulse 1.5s infinite;
+    z-index: 20;
+    cursor: pointer;
+}
+
+/* ─── 自己棋子強調 ─────────────────────────────── */
+.pawn-me {
+    position: relative;
+    z-index: 40;
+    animation: pawn-bob 1.4s ease-in-out infinite;
+}
+@keyframes pawn-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+}
+.pawn-me::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 3px dashed #fde047;
+    animation: pawn-ring 2.5s linear infinite;
+    pointer-events: none;
+}
+@keyframes pawn-ring {
+    to { transform: rotate(360deg); }
+}
+
+/* ─── 可移動城市背景發光 ────────────────────────── */
+.movable-city {
+    box-shadow:
+        0 0 0 3px #fde047,
+        0 0 14px 4px rgba(253, 224, 71, 0.6) !important;
+}
+
+/* ─── 可移動連接線動畫 ──────────────────────────── */
+.movable-edge {
+    animation: edge-flow 1.2s linear infinite;
+}
+@keyframes edge-flow {
+    to { stroke-dashoffset: -28; }
+}
+
+/* ─── 可建廠城市 (當前位置) ─────────────────────── */
+.buildable-here {
+    position: relative;
+    box-shadow:
+        0 0 0 4px #16a34a,
+        0 0 18px 6px rgba(34, 197, 94, 0.75) !important;
+    animation: buildable-pulse 1.4s ease-in-out infinite;
+}
+@keyframes buildable-pulse {
+    0%, 100% { box-shadow: 0 0 0 4px #16a34a, 0 0 12px 4px rgba(34, 197, 94, 0.6); }
+    50%      { box-shadow: 0 0 0 4px #16a34a, 0 0 24px 10px rgba(34, 197, 94, 0.9); }
+}
+
+/* ─── 可建廠城市 (遠方,需移動過去) ──────────────── */
+.buildable-target {
+    box-shadow: 0 0 0 3px #38bdf8 !important;
+    outline: 2px dashed #38bdf8;
+    outline-offset: 3px;
+}
+
+@keyframes popup-in {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-popup {
+    animation: popup-in 0.2s ease-out forwards;
+}
+
+/* ─── Scrollbar ──────────────────────────────────── */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-left: 2px solid #000; }
+::-webkit-scrollbar-thumb { background: #888; border: 2px solid #000; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ─── 響應式 helpers ─────────────────────────────── */
+
+@media (max-width: 768px) {
+    .pixel-box { box-shadow: 4px 4px 0px 0px rgba(26, 26, 26, 1); }
+    .pixel-btn { box-shadow: 3px 3px 0px 0px rgba(26, 26, 26, 1); }
+}

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.rc.title">課堂點名</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link rel="stylesheet" href="/static/css/tools_roll_call.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back" aria-label="返回">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span data-i18n="tools.back">返回</span>
+        </a>
+        <span class="tools-header__title" data-i18n="tools.rc.title">課堂點名</span>
+    </header>
+
+    <main class="tools-page rc-page">
+        <!-- ── Hero ── -->
+        <section class="rc-hero">
+            <div class="rc-hero__text">
+                <h1 class="rc-hero__title" data-i18n="tools.rc.title">課堂點名</h1>
+                <p class="rc-hero__subtitle" data-i18n="tools.rc.subtitle">隨機抽人或分組,支援放回重抽</p>
+            </div>
+            <div class="rc-hero__badge" aria-hidden="true">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+            </div>
+        </section>
+
+        <!-- ── Class picker + Tab switcher ── -->
+        <div class="rc-topbar">
+            <div class="rc-classpick">
+                <label for="rcClass" class="rc-classpick__label" data-i18n="tools.rc.class">班級</label>
+                <div class="rc-select-wrap">
+                    <select id="rcClass" class="rc-classpick__select">
+                        <option value="" data-i18n="tools.rc.classPh">選擇班級</option>
+                    </select>
+                    <svg class="rc-select-wrap__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <span id="rcCount" class="rc-classpick__count" aria-live="polite"></span>
+            </div>
+            <div class="rc-tabs" role="tablist" aria-label="模式切換">
+                <button class="rc-tab active" data-mode="pick" role="tab" aria-selected="true" aria-controls="rcPanePick">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                    <span data-i18n="tools.rc.tabPick">隨機抽人</span>
+                </button>
+                <button class="rc-tab" data-mode="group" role="tab" aria-selected="false" aria-controls="rcPaneGroup">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    <span data-i18n="tools.rc.tabGroup">隨機分組</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ── 抽人 Pane ── -->
+        <section class="rc-pane" id="rcPanePick" role="tabpanel" aria-labelledby="tab-pick">
+            <div class="rc-pick-layout">
+                <!-- 左:控制區 -->
+                <aside class="rc-controls" aria-label="抽籤設定">
+                    <div class="rc-field">
+                        <label class="rc-field__label" for="rcPickN" data-i18n="tools.rc.pickCount">每次抽</label>
+                        <div class="rc-numwrap">
+                            <button type="button" class="rc-step" data-step="-1" aria-label="減少">−</button>
+                            <input type="number" id="rcPickN" class="rc-num" min="1" max="200" value="1" inputmode="numeric">
+                            <button type="button" class="rc-step" data-step="1" aria-label="增加">+</button>
+                        </div>
+                        <span class="rc-field__unit" data-i18n="tools.rc.pickUnit">人</span>
+                    </div>
+
+                    <label class="rc-toggle">
+                        <input type="checkbox" id="rcAllowRepeat">
+                        <span class="rc-toggle__track"><span class="rc-toggle__thumb"></span></span>
+                        <span class="rc-toggle__label" data-i18n="tools.rc.allowRepeat">允許重複抽</span>
+                    </label>
+
+                    <button id="rcPickBtn" class="rc-cta" disabled>
+                        <span class="rc-cta__icon" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </span>
+                        <span class="rc-cta__text" data-i18n="tools.rc.pickBtn">開始抽籤</span>
+                        <span class="rc-cta__kbd" aria-hidden="true">Space</span>
+                    </button>
+                    <div id="rcPickStatus" class="rc-status" role="status" aria-live="polite"></div>
+                </aside>
+
+                <!-- 中間:舞台 -->
+                <div class="rc-stage" aria-live="polite" aria-atomic="true">
+                    <div class="rc-stage__backdrop" aria-hidden="true"></div>
+                    <div class="rc-stage__empty" id="rcStageEmpty">
+                        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                        <span data-i18n="tools.rc.noPicked">尚未抽籤</span>
+                    </div>
+                    <div class="rc-stage__cards" id="rcStageCards"></div>
+                </div>
+
+                <!-- 右:已抽過 -->
+                <aside class="rc-sidepanel" aria-label="已抽過列表">
+                    <header class="rc-sidepanel__head">
+                        <span class="rc-sidepanel__title" data-i18n="tools.rc.pickedListTitle">已抽過</span>
+                        <span class="rc-sidepanel__count" id="rcPickedCount" aria-live="polite">0</span>
+                        <button id="rcClearPicked" class="rc-linkbtn" data-i18n="tools.rc.clearPicked" style="display:none">全部放回</button>
+                    </header>
+                    <div class="rc-sidepanel__body" id="rcPickedList">
+                        <div class="rc-sidepanel__empty">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                            <span data-i18n="tools.rc.pickedListEmpty">尚未抽過任何人</span>
+                        </div>
+                    </div>
+                    <footer class="rc-sidepanel__hint" data-i18n="tools.rc.pickedListHint">點擊卡片上的 × 可放回抽籤池</footer>
+                </aside>
+            </div>
+        </section>
+
+        <!-- ── 分組 Pane ── -->
+        <section class="rc-pane" id="rcPaneGroup" role="tabpanel" aria-labelledby="tab-group" hidden>
+            <div class="rc-group-layout">
+                <!-- 頂部控制 -->
+                <div class="rc-groupctrl">
+                    <div class="rc-segmented" id="rcGroupMode" role="radiogroup" aria-label="分組方式">
+                        <button data-mode="by_size" class="active" role="radio" aria-checked="true" data-i18n="tools.rc.modeBySize">每組 N 人</button>
+                        <button data-mode="by_count" role="radio" aria-checked="false" data-i18n="tools.rc.modeByCount">分 K 組</button>
+                    </div>
+                    <div class="rc-field rc-field--inline">
+                        <label id="rcGroupValueLabel" class="rc-field__label" for="rcGroupValue" data-i18n="tools.rc.sizeLabel">每組人數</label>
+                        <div class="rc-numwrap">
+                            <button type="button" class="rc-step" data-target="rcGroupValue" data-step="-1" aria-label="減少">−</button>
+                            <input type="number" id="rcGroupValue" class="rc-num" min="1" max="200" value="4" inputmode="numeric">
+                            <button type="button" class="rc-step" data-target="rcGroupValue" data-step="1" aria-label="增加">+</button>
+                        </div>
+                    </div>
+                    <button id="rcGroupBtn" class="rc-cta rc-cta--inline" disabled>
+                        <span class="rc-cta__icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+                        </span>
+                        <span class="rc-cta__text" data-i18n="tools.rc.groupBtn">重新分組</span>
+                    </button>
+                    <div id="rcGroupStatus" class="rc-status" role="status" aria-live="polite"></div>
+                </div>
+
+                <!-- 結果 -->
+                <div class="rc-groups" id="rcGroups">
+                    <div class="rc-groups__empty">
+                        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        <span data-i18n="tools.rc.noGroups">選擇班級並按「重新分組」</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+    <script src="/static/js/tools_roll_call.js"></script>
+</body>
+</html>

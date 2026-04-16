@@ -164,10 +164,27 @@ body {
     padding: 4px 0; font-size: 13px;
 }
 .point-item input[type="checkbox"] { accent-color: var(--ec-brand); }
+.point-item .point-name { flex: 1; }
 .point-category {
     font-size: 12px; font-weight: 600; color: var(--ec-brand);
     padding: 6px 0 2px; border-bottom: 1px solid #e2e8f0; margin-bottom: 4px;
 }
+
+/* 知識點分類 badge — parse 自 description 前綴 [compulsory:core] 等 */
+.point-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    flex-shrink: 0;
+}
+.point-badge--core { background: #DBEAFE; color: #1E40AF; }   /* 藍 — 必修核心 */
+.point-badge--ext  { background: #EDE9FE; color: #5B21B6; }   /* 紫 — 必修延伸 */
+.point-badge--elec { background: #FEF3C7; color: #92400E; }   /* 金 — 選修 */
+.point-badge--sba  { background: #FEE2E2; color: #991B1B; }   /* 紅 — SBA (保留備用) */
 .loading-text { color: #94a3b8; font-size: 13px; text-align: center; padding: 12px; }
 
 /* Range Slider */

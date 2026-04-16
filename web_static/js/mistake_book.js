@@ -396,7 +396,18 @@ const API = {
         });  // 異步模式：快速返回 session_id
     },
     async getPracticeStatus(sessionId) {
-        return this._fetch(`/api/mistakes/practice/${sessionId}/status`);
+        // 特殊處理：404 返回 not_found 信號，讓輪詢立即停止而非反覆重試
+        try {
+            const res = await fetch(`/api/mistakes/practice/${sessionId}/status`, {
+                headers: this._headers(),
+            });
+            if (res.status === 404) return { data: { status: 'not_found' } };
+            const data = await res.json();
+            if (!res.ok) return null;
+            return data;
+        } catch {
+            return null;
+        }
     },
     async submitPractice(sessionId, answers) {
         return this._fetch(`/api/mistakes/practice/${sessionId}/submit`, {
@@ -2325,12 +2336,31 @@ const Views = {
     async _startPendingCardPolling(sessionId, subject, container) {
         this._stopPendingCardPolling();
 
+        let pollInterval = 4000;   // 初始 4 秒
+        let retryCount = 0;
+        const MAX_RETRIES = 40;    // 最多 ~3 分鐘
+
         const poll = async () => {
-            const res = await API.getPracticeStatus(sessionId);
-            if (!res || !res.data) {
-                this._pendingCardPollingTimer = setTimeout(poll, 5000);
+            if (retryCount >= MAX_RETRIES) {
+                this._stopPendingCardPolling();
+                const card = document.getElementById('pendingPracticeCard');
+                if (card) {
+                    card.innerHTML = `<div style="font-size:14px;color:var(--mb-error)">${i18n.t('mb.requestTimeout')}</div>`;
+                    card.style.border = '1px dashed var(--mb-error)';
+                }
                 return;
             }
+            retryCount++;
+
+            const res = await API.getPracticeStatus(sessionId);
+            if (!res || !res.data) {
+                // 429 或網路錯誤 → 指數退避 (4s → 8s → 16s, 上限 30s)
+                pollInterval = Math.min(pollInterval * 2, 30000);
+                this._pendingCardPollingTimer = setTimeout(poll, pollInterval);
+                return;
+            }
+            // 成功響應 → 恢復正常間隔
+            pollInterval = 4000;
 
             const { status } = res.data;
 
@@ -2362,16 +2392,18 @@ const Views = {
                 return;
             }
 
-            if (status === 'generation_failed') {
+            if (status === 'not_found' || status === 'generation_failed') {
                 this._stopPendingCardPolling();
                 this._clearPendingSession();
                 const card = document.getElementById('pendingPracticeCard');
                 if (card) {
+                    const msg = status === 'not_found'
+                        ? i18n.t('mb.generationFailed')
+                        : (res.data.retryable ? i18n.t('mb.generationFailedRetry') : i18n.t('mb.generationFailed'));
+                    const detail = status === 'not_found' ? '' : (res.data.error_message || '');
                     card.innerHTML = `
-                        <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">
-                            ${res.data.retryable ? i18n.t('mb.generationFailedRetry') : i18n.t('mb.generationFailed')}
-                        </div>
-                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.error_message || ''}</div>
+                        <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">${msg}</div>
+                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${detail}</div>
                     `;
                     card.style.border = '1px dashed var(--mb-error)';
                     setTimeout(() => { card.style.display = 'none'; }, 5000);
@@ -2379,8 +2411,8 @@ const Views = {
                 return;
             }
 
-            // 繼續輪詢
-            this._pendingCardPollingTimer = setTimeout(poll, 5000);
+            // 繼續輪詢（使用當前 pollInterval，成功後會恢復 4s）
+            this._pendingCardPollingTimer = setTimeout(poll, pollInterval);
         };
 
         this._pendingCardPollingTimer = setTimeout(poll, 3000);

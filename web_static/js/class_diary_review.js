@@ -32,6 +32,16 @@ const reviewState = {
 /** 儀表板全量 entries（供彈窗使用） */
 let dashboardEntries = [];
 
+/** 節次標籤（i18n） */
+function getPeriodLabels() {
+    return [
+        i18n.t('cdv.periodMorning'),
+        i18n.t('cdv.period1'), i18n.t('cdv.period2'), i18n.t('cdv.period3'),
+        i18n.t('cdv.period4'), i18n.t('cdv.period5'), i18n.t('cdv.period6'),
+        i18n.t('cdv.period7'), i18n.t('cdv.period8'), i18n.t('cdv.period9'),
+    ];
+}
+
 /* ============================================================
    初始化
    ============================================================ */
@@ -138,7 +148,7 @@ function applyPermissionVisibility() {
         const select = document.getElementById('filterClass');
         select.innerHTML = '';
         if (reviewState.ownClasses.length > 1) {
-            select.innerHTML = '<option value="">全部班級</option>';
+            select.innerHTML = `<option value="">${i18n.t('cdv.allClasses')}</option>`;
         }
         reviewState.ownClasses.forEach(cc => {
             const opt = document.createElement('option');
@@ -206,11 +216,11 @@ function cleanupRangeState() {
 function applyDateRange() {
     const start = document.getElementById('rangeStart').value;
     const end = document.getElementById('rangeEnd').value;
-    if (!start || !end) { alert('請選擇開始和結束日期'); return; }
-    if (start > end) { alert('開始日期不能晚於結束日期'); return; }
+    if (!start || !end) { alert(i18n.t('cdv.selectStartEnd')); return; }
+    if (start > end) { alert(i18n.t('cdv.startAfterEnd')); return; }
 
     const days = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
-    if (days > 62 && !confirm(`選擇了 ${days} 天，範圍較大可能載入較慢，確定繼續？`)) return;
+    if (days > 62 && !confirm(i18n.t('cdv.confirmLargeRange', { days }))) return;
 
     reviewState.rangeStart = start;
     reviewState.rangeEnd = end;
@@ -262,7 +272,7 @@ function renderSummaryCards(classes) {
         grid.innerHTML = `
             <div class="summary-empty">
                 <div class="icon">📭</div>
-                <p>該日期暫無任何班級評級記錄</p>
+                <p>${i18n.t('cdv.noClassRecords')}</p>
             </div>`;
         return;
     }
@@ -272,9 +282,9 @@ function renderSummaryCards(classes) {
              onclick="selectClass('${escapeHtml(c.class_code)}')">
             <div class="summary-class">${escapeHtml(c.class_code)}</div>
             <div class="summary-meta">
-                <span>${c.entry_count} 條記錄</span>
-                <span class="rating">紀律 ${c.avg_discipline || '-'}</span>
-                <span class="rating">整潔 ${c.avg_cleanliness || '-'}</span>
+                <span>${i18n.t('cdv.entryCount', { count: c.entry_count })}</span>
+                <span class="rating">${i18n.t('cdv.ratingDisc', { val: c.avg_discipline || '-' })}</span>
+                <span class="rating">${i18n.t('cdv.ratingClean', { val: c.avg_cleanliness || '-' })}</span>
             </div>
         </div>
     `).join('');
@@ -284,7 +294,7 @@ function updateClassFilter(classes) {
     if (reviewState.permissionTier === 'class_teacher') return; // 班主任的下拉已固定
     const select = document.getElementById('filterClass');
     const currentVal = select.value;
-    select.innerHTML = '<option value="">全部班級</option>';
+    select.innerHTML = `<option value="">${i18n.t('cdv.allClasses')}</option>`;
     (classes || []).forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.class_code;
@@ -342,11 +352,13 @@ function renderEntries(entries, classCode) {
     section.style.display = '';
     document.getElementById('emptyState').style.display = 'none';
 
-    title.textContent = classCode ? `${classCode} 班 — 課堂記錄` : '全部課堂記錄';
-    count.textContent = `${entries.length} 條`;
+    title.textContent = classCode
+        ? i18n.t('cdv.classRecordsTitle', { classCode })
+        : i18n.t('cdv.allRecordsTitle');
+    count.textContent = i18n.t('cdv.nEntries', { count: entries.length });
 
-    const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
-    const isAdmin = reviewState.userRole === 'admin';
+    const periodLabels = getPeriodLabels();
+    const isAdminOrTeacher = ['admin', 'teacher'].includes(reviewState.userRole);
 
     body.innerHTML = entries.map(e => {
         const periodText = e.period_start === e.period_end
@@ -356,8 +368,8 @@ function renderEntries(entries, classCode) {
         const discStars = renderMiniStars(e.discipline_rating);
         const cleanStars = renderMiniStars(e.cleanliness_rating);
 
-        const deleteBtn = isAdmin
-            ? `<td><button class="btn-delete-entry" onclick="deleteEntryFromReview(${e.id})">刪除</button></td>`
+        const deleteBtn = isAdminOrTeacher
+            ? `<td><button class="btn-delete-entry" onclick="deleteEntryFromReview(${e.id})">${i18n.t('cdv.delete')}</button></td>`
             : '';
 
         return `
@@ -378,12 +390,12 @@ function renderEntries(entries, classCode) {
 
     const thead = document.querySelector('.entries-table thead tr');
     const existingActionTh = thead.querySelector('.th-action');
-    if (isAdmin && !existingActionTh) {
+    if (isAdminOrTeacher && !existingActionTh) {
         const th = document.createElement('th');
         th.className = 'th-action';
-        th.textContent = '操作';
+        th.textContent = i18n.t('cdv.action');
         thead.appendChild(th);
-    } else if (!isAdmin && existingActionTh) {
+    } else if (!isAdminOrTeacher && existingActionTh) {
         existingActionTh.remove();
     }
 }
@@ -401,7 +413,7 @@ function showEmptyEntries() {
     section.style.display = '';
     document.getElementById('entriesBody').innerHTML = '';
     document.getElementById('emptyState').style.display = '';
-    document.getElementById('entriesCount').textContent = '0 條';
+    document.getElementById('entriesCount').textContent = i18n.t('cdv.zeroEntries');
 }
 
 
@@ -457,7 +469,7 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
 
     if (status === 'none') {
         block.style.display = '';
-        statusEl.innerHTML = '<p class="ai-report-status muted">該日期尚未生成 AI 報告。</p>';
+        statusEl.innerHTML = `<p class="ai-report-status muted">${i18n.t('cdv.reportNotGenerated')}</p>`;
         contentEl.innerHTML = '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
         findingsEl.innerHTML = '';
@@ -465,7 +477,7 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
     }
     if (status === 'generating') {
         block.style.display = '';
-        statusEl.innerHTML = '<p class="ai-report-status generating">報告生成中，請稍候刷新...</p>';
+        statusEl.innerHTML = `<p class="ai-report-status generating">${i18n.t('cdv.reportGenerating')}</p>`;
         contentEl.innerHTML = '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
         findingsEl.innerHTML = '';
@@ -473,7 +485,7 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
     }
     if (status === 'failed') {
         block.style.display = '';
-        statusEl.innerHTML = '<p class="ai-report-status failed">報告生成失敗</p>';
+        statusEl.innerHTML = `<p class="ai-report-status failed">${i18n.t('cdv.reportFailed')}</p>`;
         contentEl.innerHTML = reportText ? `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(reportText)}</p>` : '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
         findingsEl.innerHTML = '';
@@ -488,10 +500,10 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
     contentEl.innerHTML = `<div class="report-text">${escapeHtml(cleanText).replace(/\n/g, '<br>')}</div>`;
 
     if (anomaliesEl && showAnomalies && anomalies && anomalies.length > 0) {
-        const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
+        const periodLabels = getPeriodLabels();
         anomaliesEl.innerHTML = `
             <div class="anomalies-section">
-                <h4 class="anomalies-title">異常記錄 (${anomalies.length} 條)</h4>
+                <h4 class="anomalies-title">${i18n.t('cdv.anomalyCount', { count: anomalies.length })}</h4>
                 ${anomalies.map(a => {
                     const ps = a.period_start != null ? (periodLabels[a.period_start] || a.period_start) : '?';
                     return `
@@ -518,8 +530,16 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
 /** 渲染 AI findings 證據鏈卡片 */
 function renderFindings(findings) {
     const severityColors = { high: '#FF3B30', medium: '#FF9500', low: '#34C759' };
-    const severityLabels = { high: '高', medium: '中', low: '低' };
-    const typeLabels = { anomaly: '異常', trend: '趨勢', praise: '表揚' };
+    const severityLabels = {
+        high: i18n.t('cdv.severityHigh'),
+        medium: i18n.t('cdv.severityMedium'),
+        low: i18n.t('cdv.severityLow'),
+    };
+    const typeLabels = {
+        anomaly: i18n.t('cdv.typeAnomaly'),
+        trend: i18n.t('cdv.typeTrend'),
+        praise: i18n.t('cdv.typePraise'),
+    };
     const typeIcons = { anomaly: '⚠️', trend: '📈', praise: '🌟' };
 
     const cards = findings.map((f, i) => {
@@ -549,7 +569,7 @@ function renderFindings(findings) {
 
     return `
         <div class="findings-section">
-            <h4 class="findings-title">AI 分析發現 (${findings.length} 項)</h4>
+            <h4 class="findings-title">${i18n.t('cdv.findingsCount', { count: findings.length })}</h4>
             <div class="findings-grid">${cards}</div>
         </div>`;
 }
@@ -558,21 +578,24 @@ function renderFindings(findings) {
 function showEvidenceEntry(entryId) {
     const entry = (dashboardEntries || []).find(e => e.id === entryId);
     if (!entry) {
-        alert(`記錄 #${entryId} 不在當前數據中。`);
+        alert(i18n.t('cdv.evidenceEntryNotFound', { id: entryId }));
         return;
     }
     // 復用現有的 detail modal
-    const title = `${entry.class_code} 節${entry.period_start}-${entry.period_end} ${entry.subject}`;
+    const periodLabels = getPeriodLabels();
+    const psLabel = periodLabels[entry.period_start] || entry.period_start;
+    const peLabel = periodLabels[entry.period_end] || entry.period_end;
+    const title = `${entry.class_code} ${psLabel}-${peLabel} ${entry.subject}`;
     const body = document.getElementById('detailModalBody');
     body.innerHTML = `
         <table class="entries-table" style="width:100%;">
-            <tr><th>紀律</th><td>${'★'.repeat(entry.discipline_rating || 0)}${'☆'.repeat(5-(entry.discipline_rating||0))}</td></tr>
-            <tr><th>整潔</th><td>${'★'.repeat(entry.cleanliness_rating || 0)}${'☆'.repeat(5-(entry.cleanliness_rating||0))}</td></tr>
-            <tr><th>缺席</th><td>${escapeHtml(entry.absent_students || '-')}</td></tr>
-            <tr><th>遲到</th><td>${escapeHtml(entry.late_students || '-')}</td></tr>
-            <tr><th>嘉許</th><td>${escapeHtml(entry.commended_students || '-')}</td></tr>
-            <tr><th>違規</th><td>${escapeHtml(entry.rule_violations || '-')}</td></tr>
-            <tr><th>醫務室</th><td>${escapeHtml(entry.medical_room_students || '-')}</td></tr>
+            <tr><th>${i18n.t('cdv.thDiscipline')}</th><td>${'★'.repeat(entry.discipline_rating || 0)}${'☆'.repeat(5-(entry.discipline_rating||0))}</td></tr>
+            <tr><th>${i18n.t('cdv.thCleanliness')}</th><td>${'★'.repeat(entry.cleanliness_rating || 0)}${'☆'.repeat(5-(entry.cleanliness_rating||0))}</td></tr>
+            <tr><th>${i18n.t('cdv.thAbsent')}</th><td>${escapeHtml(entry.absent_students || '-')}</td></tr>
+            <tr><th>${i18n.t('cdv.thLate')}</th><td>${escapeHtml(entry.late_students || '-')}</td></tr>
+            <tr><th>${i18n.t('cdv.thPraise')}</th><td>${escapeHtml(entry.commended_students || '-')}</td></tr>
+            <tr><th>${i18n.t('cdv.thViolation')}</th><td>${escapeHtml(entry.rule_violations || '-')}</td></tr>
+            <tr><th>${i18n.t('cdv.thMedical')}</th><td>${escapeHtml(entry.medical_room_students || '-')}</td></tr>
         </table>`;
     document.getElementById('detailModalTitle').textContent = title;
     document.getElementById('detailModal').classList.add('show');
@@ -603,7 +626,7 @@ function _downloadBlob(url, filename) {
     const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     return fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(resp => {
-            if (!resp.ok) throw new Error('匯出失敗');
+            if (!resp.ok) throw new Error(i18n.t('cdv.exportFail'));
             return resp.blob();
         })
         .then(blob => {
@@ -623,8 +646,8 @@ function exportSingleDay() {
     const dateVal = document.getElementById('filterDate').value;
     _downloadBlob(
         `/api/class-diary/review/export?entry_date=${dateVal}`,
-        `課室日誌_${dateVal}.xlsx`
-    ).catch(err => alert('匯出失敗: ' + err.message));
+        `${i18n.t('cdv.diaryExportPrefix')}_${dateVal}.xlsx`
+    ).catch(err => alert(i18n.t('cdv.exportFail') + ': ' + err.message));
 }
 
 function showRangeExportModal() {
@@ -644,20 +667,20 @@ function closeRangeModal() {
 function exportDateRange() {
     const startDate = document.getElementById('rangeStartDate').value;
     const endDate = document.getElementById('rangeEndDate').value;
-    if (!startDate || !endDate) { alert('請選擇開始和結束日期'); return; }
-    if (startDate > endDate) { alert('開始日期不能晚於結束日期'); return; }
+    if (!startDate || !endDate) { alert(i18n.t('cdv.selectStartEnd')); return; }
+    if (startDate > endDate) { alert(i18n.t('cdv.startAfterEnd')); return; }
 
     const btn = document.getElementById('rangeConfirmBtn');
-    btn.textContent = '匯出中...';
+    btn.textContent = i18n.t('cdv.exporting');
     btn.disabled = true;
 
     _downloadBlob(
         `/api/class-diary/review/export-range?start_date=${startDate}&end_date=${endDate}`,
-        `課室日誌_${startDate}_至_${endDate}.xlsx`
+        `${i18n.t('cdv.diaryExportPrefix')}_${startDate}_${i18n.t('cdv.diaryExportRangeSuffix')}_${endDate}.xlsx`
     )
         .then(() => closeRangeModal())
-        .catch(err => alert('匯出失敗: ' + err.message))
-        .finally(() => { btn.textContent = '匯出'; btn.disabled = false; });
+        .catch(err => alert(i18n.t('cdv.exportFail') + ': ' + err.message))
+        .finally(() => { btn.textContent = i18n.t('cdv.export'); btn.disabled = false; });
 }
 
 
@@ -709,10 +732,10 @@ function renderSubmissionGaps(data) {
         : 0;
     const pctColor = pct >= 80 ? 'var(--brand)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
     cardsEl.innerHTML = `
-        <div class="dash-card"><div class="dash-card-value" style="color:${pctColor}">${pct}%</div><div class="dash-card-label">完成率</div></div>
-        <div class="dash-card"><div class="dash-card-value">${data.fully_submitted}</div><div class="dash-card-label">全部提交</div></div>
-        <div class="dash-card"><div class="dash-card-value" style="color:${data.partially_submitted > 0 ? 'var(--warning)' : ''}">${data.partially_submitted}</div><div class="dash-card-label">部分提交</div></div>
-        <div class="dash-card"><div class="dash-card-value" style="color:${data.not_submitted > 0 ? 'var(--danger)' : ''}">${data.not_submitted}</div><div class="dash-card-label">未提交</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${pctColor}">${pct}%</div><div class="dash-card-label">${i18n.t('cdv.completionRate')}</div></div>
+        <div class="dash-card"><div class="dash-card-value">${data.fully_submitted}</div><div class="dash-card-label">${i18n.t('cdv.fullySubmitted')}</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${data.partially_submitted > 0 ? 'var(--warning)' : ''}">${data.partially_submitted}</div><div class="dash-card-label">${i18n.t('cdv.partiallySubmitted')}</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${data.not_submitted > 0 ? 'var(--danger)' : ''}">${data.not_submitted}</div><div class="dash-card-label">${i18n.t('cdv.notSubmitted')}</div></div>
     `;
 
     // 班級×節次網格
@@ -722,9 +745,9 @@ function renderSubmissionGaps(data) {
     }
 
     const periodLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-    let html = '<table class="gaps-table"><thead><tr><th>班級</th>';
+    let html = `<table class="gaps-table"><thead><tr><th>${i18n.t('cdv.gapsClass')}</th>`;
     periodLabels.forEach((p, i) => { html += `<th>${p}</th>`; });
-    html += '<th>已交</th></tr></thead><tbody>';
+    html += `<th>${i18n.t('cdv.gapsSubmitted')}</th></tr></thead><tbody>`;
 
     data.gaps.forEach(g => {
         const submitted = new Set(g.submitted_periods);
@@ -836,7 +859,7 @@ function toggleCellExpand(cellId) {
    Admin 刪除記錄
    ============================================================ */
 async function deleteEntryFromReview(entryId) {
-    if (!confirm('確定要刪除此記錄嗎？此操作無法撤銷。')) return;
+    if (!confirm(i18n.t('cdv.confirmDelete'))) return;
     try {
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
         const resp = await fetch(`/api/class-diary/entries/${entryId}`, {
@@ -847,10 +870,10 @@ async function deleteEntryFromReview(entryId) {
         if (data.success) {
             onFilterChange();
         } else {
-            alert('刪除失敗：' + (data.error?.message || data.detail || '未知錯誤'));
+            alert(i18n.t('cdv.deleteFail') + (data.error?.message || data.detail || i18n.t('cdv.unknownError')));
         }
     } catch (err) {
-        alert('刪除失敗：' + err.message);
+        alert(i18n.t('cdv.deleteFail') + err.message);
     }
 }
 
@@ -910,27 +933,27 @@ function renderDashCards(entries) {
     container.innerHTML = `
         <div class="dash-card">
             <div class="dash-card-value">${totalEntries} / ${totalClasses}</div>
-            <div class="dash-card-label">記錄 / 班級</div>
+            <div class="dash-card-label">${i18n.t('cdv.recordsSlashClasses')}</div>
         </div>
         <div class="dash-card">
             <div class="dash-card-value" style="color:${ratingColor(avgDisc)}">${avgDisc}</div>
-            <div class="dash-card-label">平均紀律</div>
+            <div class="dash-card-label">${i18n.t('cdv.avgDiscipline')}</div>
         </div>
         <div class="dash-card">
             <div class="dash-card-value" style="color:${ratingColor(avgClean)}">${avgClean}</div>
-            <div class="dash-card-label">平均整潔</div>
+            <div class="dash-card-label">${i18n.t('cdv.avgCleanliness')}</div>
         </div>
         <div class="dash-card clickable" onclick="showStudentDetail('attendance')">
             <div class="dash-card-value">${absentCount} / ${lateCount}</div>
-            <div class="dash-card-label">缺席 / 遲到</div>
+            <div class="dash-card-label">${i18n.t('cdv.absentSlashLate')}</div>
         </div>
         <div class="dash-card clickable" onclick="showStudentDetail('violation')">
             <div class="dash-card-value" style="color:${violationCount > 0 ? 'var(--warning)' : ''}">${violationCount}</div>
-            <div class="dash-card-label">違規事件</div>
+            <div class="dash-card-label">${i18n.t('cdv.violationEvents')}</div>
         </div>
         <div class="dash-card clickable" onclick="showStudentDetail('medical')">
             <div class="dash-card-value" style="color:${medicalCount > 0 ? 'var(--info)' : ''}">${medicalCount}</div>
-            <div class="dash-card-label">醫務室</div>
+            <div class="dash-card-label">${i18n.t('cdv.medicalRoom')}</div>
         </div>
     `;
 }
@@ -956,7 +979,7 @@ function renderClassComparison(entries) {
 
     if (classStats.length === 0) { container.innerHTML = ''; return; }
 
-    let html = '<div class="dash-chart-title">班級紀律 / 整潔排名</div>';
+    let html = `<div class="dash-chart-title">${i18n.t('cdv.classRanking')}</div>`;
     classStats.forEach(c => {
         const discWidth = (c.avgDisc / 5 * 100).toFixed(0);
         const cleanWidth = (c.avgClean / 5 * 100).toFixed(0);
@@ -971,7 +994,7 @@ function renderClassComparison(entries) {
             </div>
         `;
     });
-    html += `<div class="dash-bar-legend"><span><span class="legend-dot discipline"></span>紀律</span><span><span class="legend-dot cleanliness"></span>整潔</span></div>`;
+    html += `<div class="dash-bar-legend"><span><span class="legend-dot discipline"></span>${i18n.t('cdv.legendDiscipline')}</span><span><span class="legend-dot cleanliness"></span>${i18n.t('cdv.legendCleanliness')}</span></div>`;
     container.innerHTML = html;
 }
 
@@ -996,9 +1019,9 @@ function renderBehaviorBreakdown(entries) {
     }
 
     let html = '';
-    if (violationTop.length > 0) html += renderBehaviorGroup('違規原因', violationTop, 'violation');
-    if (praiseTop.length > 0) html += renderBehaviorGroup('嘉許原因', praiseTop, 'praise');
-    if (medicalTop.length > 0) html += renderBehaviorGroup('醫務室原因', medicalTop, 'medical');
+    if (violationTop.length > 0) html += renderBehaviorGroup(i18n.t('cdv.violationReasons'), violationTop, 'violation');
+    if (praiseTop.length > 0) html += renderBehaviorGroup(i18n.t('cdv.praiseReasons'), praiseTop, 'praise');
+    if (medicalTop.length > 0) html += renderBehaviorGroup(i18n.t('cdv.medicalReasons'), medicalTop, 'medical');
     container.innerHTML = html;
 }
 
@@ -1012,7 +1035,7 @@ function renderBehaviorGroup(title, items, cssClass) {
                 return `<div class="dash-behavior-item">
                     <span class="dash-behavior-name">${escapeHtml(item.reason)}</span>
                     <div class="dash-mini-bar-track"><div class="dash-mini-bar ${cssClass}" style="width:${pct}%"></div></div>
-                    <span class="dash-behavior-count">${item.count}人</span>
+                    <span class="dash-behavior-count">${i18n.t('cdv.personCount', { count: item.count })}</span>
                 </div>`;
             }).join('')}
         </div>
@@ -1109,8 +1132,9 @@ function groupBehaviorByClass(entries, fields) {
                     return;
                 }
             } catch (_) { /* not JSON */ }
-            if (!map[code]['其他']) map[code]['其他'] = new Set();
-            map[code]['其他'].add(val.trim());
+            const otherKey = i18n.t('cdv.other');
+            if (!map[code][otherKey]) map[code][otherKey] = new Set();
+            map[code][otherKey].add(val.trim());
         });
     });
     return map;
@@ -1124,18 +1148,18 @@ function showStudentDetail(type) {
     let html = '';
 
     if (type === 'attendance') {
-        titleEl.textContent = '缺席 / 遲到學生';
-        html += renderAttendanceSection('缺席學生', groupAttendanceByClass(dashboardEntries, 'absent_students'));
-        html += renderAttendanceSection('遲到學生', groupAttendanceByClass(dashboardEntries, 'late_students'));
+        titleEl.textContent = i18n.t('cdv.attendanceTitle');
+        html += renderAttendanceSection(i18n.t('cdv.absentStudents'), groupAttendanceByClass(dashboardEntries, 'absent_students'));
+        html += renderAttendanceSection(i18n.t('cdv.lateStudents'), groupAttendanceByClass(dashboardEntries, 'late_students'));
     } else if (type === 'violation') {
-        titleEl.textContent = '違規事件';
+        titleEl.textContent = i18n.t('cdv.violationTitle');
         html = renderBehaviorDetail(groupBehaviorByClass(dashboardEntries, ['rule_violations', 'appearance_issues']));
     } else if (type === 'medical') {
-        titleEl.textContent = '醫務室';
+        titleEl.textContent = i18n.t('cdv.medicalTitle');
         html = renderBehaviorDetail(groupBehaviorByClass(dashboardEntries, 'medical_room_students'));
     }
 
-    bodyEl.innerHTML = html.trim() || '<p class="detail-empty">無記錄</p>';
+    bodyEl.innerHTML = html.trim() || `<p class="detail-empty">${i18n.t('cdv.noDetail')}</p>`;
     modal.classList.add('show');
 }
 
@@ -1143,7 +1167,7 @@ function renderAttendanceSection(title, map) {
     const classes = Object.keys(map).sort();
     if (classes.length === 0) return '';
     const total = classes.reduce((s, c) => s + map[c].length, 0);
-    let html = `<div class="detail-section"><div class="detail-section-title">${escapeHtml(title)} (${total}人)</div>`;
+    let html = `<div class="detail-section"><div class="detail-section-title">${escapeHtml(title)} (${i18n.t('cdv.personTotal', { count: total })})</div>`;
     classes.forEach(code => {
         html += `<div class="detail-class-row"><span class="detail-class-label">${escapeHtml(code)}</span><span class="detail-student-names">${map[code].map(n => escapeHtml(n)).join('、')}</span></div>`;
     });
@@ -1177,14 +1201,14 @@ async function loadDateRangeView(startDate, endDate) {
     cleanupRangeState();
 
     // loading 狀態
-    document.getElementById('rangeCards').innerHTML = '<div class="loading-text">載入中...</div>';
+    document.getElementById('rangeCards').innerHTML = `<div class="loading-text">${i18n.t('cdv.loading')}</div>`;
 
     try {
         const data = await APIClient.get(
             `/api/class-diary/review/dashboard-data?mode=date_range&start_date=${startDate}&end_date=${endDate}`
         );
         if (!data.success || !data.data) {
-            document.getElementById('rangeCards').innerHTML = '<div class="chart-empty">載入失敗</div>';
+            document.getElementById('rangeCards').innerHTML = `<div class="chart-empty">${i18n.t('cdv.loadFail')}</div>`;
             return;
         }
 
@@ -1220,14 +1244,14 @@ async function loadDateRangeView(startDate, endDate) {
 
     } catch (e) {
         console.error('載入日期範圍數據失敗:', e);
-        document.getElementById('rangeCards').innerHTML = '<div class="chart-empty">載入失敗</div>';
+        document.getElementById('rangeCards').innerHTML = `<div class="chart-empty">${i18n.t('cdv.loadFail')}</div>`;
     }
 }
 
 function renderRangeOverviewCards(ov) {
     const container = document.getElementById('rangeCards');
     if (!ov || !ov.total_entries) {
-        container.innerHTML = '<div class="chart-empty">指定範圍內沒有記錄</div>';
+        container.innerHTML = `<div class="chart-empty">${i18n.t('cdv.noRangeData')}</div>`;
         return;
     }
 
@@ -1235,12 +1259,12 @@ function renderRangeOverviewCards(ov) {
     const avgClean = ov.avg_cleanliness || '-';
 
     container.innerHTML = `
-        <div class="dash-card"><div class="dash-card-value">${ov.total_entries}</div><div class="dash-card-label">總記錄</div></div>
-        <div class="dash-card"><div class="dash-card-value">${ov.total_dates || '-'}</div><div class="dash-card-label">天數</div></div>
-        <div class="dash-card"><div class="dash-card-value">${ov.total_classes || '-'}</div><div class="dash-card-label">班級數</div></div>
-        <div class="dash-card"><div class="dash-card-value" style="color:${ratingColor(avgDisc)}">${avgDisc}</div><div class="dash-card-label">平均紀律</div></div>
-        <div class="dash-card"><div class="dash-card-value" style="color:${ratingColor(avgClean)}">${avgClean}</div><div class="dash-card-label">平均整潔</div></div>
-        <div class="dash-card"><div class="dash-card-value">${ov.total_absent || 0} / ${ov.total_late || 0}</div><div class="dash-card-label">缺席 / 遲到</div></div>
+        <div class="dash-card"><div class="dash-card-value">${ov.total_entries}</div><div class="dash-card-label">${i18n.t('cdv.totalRecords')}</div></div>
+        <div class="dash-card"><div class="dash-card-value">${ov.total_dates || '-'}</div><div class="dash-card-label">${i18n.t('cdv.days')}</div></div>
+        <div class="dash-card"><div class="dash-card-value">${ov.total_classes || '-'}</div><div class="dash-card-label">${i18n.t('cdv.classCount')}</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${ratingColor(avgDisc)}">${avgDisc}</div><div class="dash-card-label">${i18n.t('cdv.avgDiscipline')}</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${ratingColor(avgClean)}">${avgClean}</div><div class="dash-card-label">${i18n.t('cdv.avgCleanliness')}</div></div>
+        <div class="dash-card"><div class="dash-card-value">${ov.total_absent || 0} / ${ov.total_late || 0}</div><div class="dash-card-label">${i18n.t('cdv.absentSlashLate')}</div></div>
     `;
 }
 
@@ -1291,19 +1315,19 @@ function renderDailyTrendChart(dailySummary) {
         data: {
             labels,
             datasets: [
-                { label: '紀律', data: disc, borderColor: CHART_COLORS.brand, backgroundColor: CHART_COLORS.brandLight, tension: 0.3, yAxisID: 'y' },
-                { label: '整潔', data: clean, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blueLight, tension: 0.3, yAxisID: 'y' },
-                { label: '紀律 7日MA', data: ma7disc, borderColor: CHART_COLORS.brand, borderDash: [5,5], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-                { label: '整潔 7日MA', data: ma7clean, borderColor: CHART_COLORS.blue, borderDash: [5,5], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-                { label: '違規人次', data: violations, type: 'bar', backgroundColor: CHART_COLORS.orangeLight, borderColor: CHART_COLORS.orange, yAxisID: 'y1' },
+                { label: i18n.t('cdv.labelDiscipline'), data: disc, borderColor: CHART_COLORS.brand, backgroundColor: CHART_COLORS.brandLight, tension: 0.3, yAxisID: 'y' },
+                { label: i18n.t('cdv.labelCleanliness'), data: clean, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blueLight, tension: 0.3, yAxisID: 'y' },
+                { label: i18n.t('cdv.labelDisc7MA'), data: ma7disc, borderColor: CHART_COLORS.brand, borderDash: [5,5], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+                { label: i18n.t('cdv.labelClean7MA'), data: ma7clean, borderColor: CHART_COLORS.blue, borderDash: [5,5], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+                { label: i18n.t('cdv.labelViolations'), data: violations, type: 'bar', backgroundColor: CHART_COLORS.orangeLight, borderColor: CHART_COLORS.orange, yAxisID: 'y1' },
             ],
         },
         options: {
             responsive: true,
             interaction: { mode: 'index', intersect: false },
             scales: {
-                y: { min: 0, max: 5, title: { display: true, text: '評分' } },
-                y1: { position: 'right', min: 0, grid: { drawOnChartArea: false }, title: { display: true, text: '違規人次' } },
+                y: { min: 0, max: 5, title: { display: true, text: i18n.t('cdv.chartRating') } },
+                y1: { position: 'right', min: 0, grid: { drawOnChartArea: false }, title: { display: true, text: i18n.t('cdv.chartViolations') } },
             },
             plugins: { legend: { position: 'bottom' } },
         },
@@ -1322,7 +1346,8 @@ function renderPeriodChart(periodAnalysis) {
     canvas.style.display = '';
     empty.style.display = 'none';
 
-    const labels = periodAnalysis.map(p => p.period_label || `節${p.period}`);
+    const plabels = getPeriodLabels();
+    const labels = periodAnalysis.map(p => p.period_label || plabels[p.period] || `${p.period}`);
     const disc = periodAnalysis.map(p => p.avg_discipline);
     const colors = disc.map(d => d >= 4 ? CHART_COLORS.brand : d >= 3 ? CHART_COLORS.orange : CHART_COLORS.red);
 
@@ -1330,7 +1355,7 @@ function renderPeriodChart(periodAnalysis) {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ label: '平均紀律', data: disc, backgroundColor: colors }],
+            datasets: [{ label: i18n.t('cdv.chartAvgDiscipline'), data: disc, backgroundColor: colors }],
         },
         options: {
             indexAxis: 'y',
@@ -1362,8 +1387,8 @@ function renderWeekdayChart(weekdayAnalysis) {
         data: {
             labels,
             datasets: [
-                { label: '紀律', data: disc, borderColor: CHART_COLORS.brand, backgroundColor: CHART_COLORS.brandLight },
-                { label: '整潔', data: clean, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blueLight },
+                { label: i18n.t('cdv.labelDiscipline'), data: disc, borderColor: CHART_COLORS.brand, backgroundColor: CHART_COLORS.brandLight },
+                { label: i18n.t('cdv.labelCleanliness'), data: clean, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blueLight },
             ],
         },
         options: {
@@ -1397,7 +1422,7 @@ function renderSubjectChart(subjectAnalysis) {
         type: 'bar',
         data: {
             labels,
-            datasets: [{ label: '記錄數', data: counts, backgroundColor: colors }],
+            datasets: [{ label: i18n.t('cdv.chartRecordCount'), data: counts, backgroundColor: colors }],
         },
         options: {
             indexAxis: 'y',
@@ -1406,7 +1431,7 @@ function renderSubjectChart(subjectAnalysis) {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        afterLabel: (ctx) => `平均紀律: ${disc[ctx.dataIndex]}`,
+                        afterLabel: (ctx) => i18n.t('cdv.chartAvgDisciplineTooltip', { val: disc[ctx.dataIndex] }),
                     },
                 },
             },
@@ -1421,16 +1446,16 @@ function renderSubjectChart(subjectAnalysis) {
 function renderStudentRecordsTable(records) {
     const table = document.getElementById('rangeStudentTable');
     if (!records || records.length === 0) {
-        table.innerHTML = '<tr><td colspan="10" class="chart-empty">無學生記錄</td></tr>';
+        table.innerHTML = `<tr><td colspan="10" class="chart-empty">${i18n.t('cdv.noStudentRecords')}</td></tr>`;
         return;
     }
 
     let html = `<thead><tr>
-        <th>學生</th><th>班級</th>
-        <th>缺席</th><th>缺席日期</th>
-        <th>遲到</th><th>遲到日期</th>
-        <th>違規</th><th>違規日期</th>
-        <th>醫務室</th><th>醫務室日期</th>
+        <th>${i18n.t('cdv.thStudent')}</th><th>${i18n.t('cdv.thClass')}</th>
+        <th>${i18n.t('cdv.thAbsentCount')}</th><th>${i18n.t('cdv.thAbsentDates')}</th>
+        <th>${i18n.t('cdv.thLateCount')}</th><th>${i18n.t('cdv.thLateDates')}</th>
+        <th>${i18n.t('cdv.thViolationCount')}</th><th>${i18n.t('cdv.thViolationDates')}</th>
+        <th>${i18n.t('cdv.thMedicalCount')}</th><th>${i18n.t('cdv.thMedicalDates')}</th>
     </tr></thead><tbody>`;
 
     records.forEach(s => {
@@ -1454,14 +1479,14 @@ function renderStudentRecordsTable(records) {
 function renderRiskStudentsTable(riskStudents) {
     const table = document.getElementById('rangeRiskTable');
     if (!riskStudents || riskStudents.length === 0) {
-        table.innerHTML = '<tr><td colspan="11" class="chart-empty">無高風險學生</td></tr>';
+        table.innerHTML = `<tr><td colspan="11" class="chart-empty">${i18n.t('cdv.noRiskStudents')}</td></tr>`;
         return;
     }
 
     let html = `<thead><tr>
-        <th>學生</th><th>班級</th><th>總記名</th>
-        <th>違規</th><th>缺席</th><th>遲到</th><th>醫務室</th>
-        <th>首次記錄</th><th>最近記錄</th><th>涉及天數</th><th>風險標記</th>
+        <th>${i18n.t('cdv.thStudent')}</th><th>${i18n.t('cdv.thClass')}</th><th>${i18n.t('cdv.thTotalIncidents')}</th>
+        <th>${i18n.t('cdv.thViolation')}</th><th>${i18n.t('cdv.thAbsent')}</th><th>${i18n.t('cdv.thLate')}</th><th>${i18n.t('cdv.thMedical')}</th>
+        <th>${i18n.t('cdv.thFirstRecord')}</th><th>${i18n.t('cdv.thLastRecord')}</th><th>${i18n.t('cdv.thInvolvedDays')}</th><th>${i18n.t('cdv.thRiskFlags')}</th>
     </tr></thead><tbody>`;
 
     riskStudents.forEach(s => {
@@ -1510,7 +1535,7 @@ async function generateRangeReport() {
     if (!start || !end) return;
 
     const btn = document.getElementById('generateRangeReportBtn');
-    btn.textContent = '生成中...';
+    btn.textContent = i18n.t('cdv.rangeReportGenerating');
     btn.disabled = true;
 
     try {
@@ -1527,14 +1552,14 @@ async function generateRangeReport() {
         const taskId = result?.data?.task_id;
 
         document.getElementById('rangeReportStatus').innerHTML =
-            '<p class="ai-report-status generating">報告生成中...</p>';
+            `<p class="ai-report-status generating">${i18n.t('cdv.rangeReportGenerating')}</p>`;
 
         if (taskId) {
             pollTaskAndReload(taskId, () => loadRangeReport(start, end), btn);
         }
     } catch (e) {
-        alert('生成報告失敗: ' + e.message);
-        btn.textContent = '生成 AI 報告';
+        alert(i18n.t('cdv.generateReportFail') + e.message);
+        btn.textContent = i18n.t('cdv.generateAiReport');
         btn.disabled = false;
     }
 }
@@ -1551,18 +1576,18 @@ function pollTaskAndReload(taskId, onDone, btn, interval = 3000, maxTries = 60) 
             const task = data.data;
             if (task.status === 'done') {
                 clearInterval(timer);
-                if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
+                if (btn) { btn.textContent = i18n.t('cdv.generateAiReport'); btn.disabled = false; }
                 if (onDone) onDone();
             } else if (task.status === 'failed') {
                 clearInterval(timer);
-                if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
-                alert('任務失敗: ' + (task.error || '未知錯誤'));
+                if (btn) { btn.textContent = i18n.t('cdv.generateAiReport'); btn.disabled = false; }
+                alert(i18n.t('cdv.taskFail') + (task.error || i18n.t('cdv.unknownError')));
             }
         } catch (_) { /* ignore network blip */ }
 
         if (tries >= maxTries) {
             clearInterval(timer);
-            if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
+            if (btn) { btn.textContent = i18n.t('cdv.generateAiReport'); btn.disabled = false; }
         }
     }, interval);
 }

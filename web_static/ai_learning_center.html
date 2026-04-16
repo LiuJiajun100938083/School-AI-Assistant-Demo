@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 學習中心 - 校園AI助手</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/index.css">
-    <link rel="stylesheet" href="/static/css/ai_learning_center.css">
+    <title>AI 學習中心 - 培僑中學</title>
+    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/ai_learning_center.css?v=20260414">
     <!-- D3.js for knowledge map -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="/static/vendor/d3/d3.min.js"></script>
     <!-- Marked.js for markdown rendering -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="/static/vendor/marked/marked.min.js"></script>
     <!-- DOMPurify for XSS protection -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
     <!-- PDF.js for cross-platform PDF rendering (iPad/mobile support) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="/static/vendor/pdfjs/pdf.min.js"></script>
 </head>
 <body>
 
@@ -800,16 +799,16 @@
 </div>
 
 <!-- i18n support -->
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/learning_center.js"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/learning_center.js?v=20260414"></script>
 <!-- Main entry: shared state, utilities, init -->
-<script src="/static/js/ai_learning_center.js" charset="UTF-8"></script>
+<script src="/static/js/ai_learning_center.js?v=20260414" charset="UTF-8"></script>
 <!-- Sub-modules (order: knowledge map → media → admin → ai chat) -->
-<script src="/static/js/alc_knowledge_map.js" charset="UTF-8"></script>
-<script src="/static/js/alc_media.js" charset="UTF-8"></script>
-<script src="/static/js/alc_admin.js" charset="UTF-8"></script>
-<script src="/static/js/alc_ai_chat.js" charset="UTF-8"></script>
+<script src="/static/js/alc_knowledge_map.js?v=20260414" charset="UTF-8"></script>
+<script src="/static/js/alc_media.js?v=20260414" charset="UTF-8"></script>
+<script src="/static/js/alc_admin.js?v=20260414" charset="UTF-8"></script>
+<script src="/static/js/alc_ai_chat.js?v=20260414" charset="UTF-8"></script>
 <!-- Bootstrap init after all modules are registered -->
 <script>
 if (document.readyState === 'loading') {

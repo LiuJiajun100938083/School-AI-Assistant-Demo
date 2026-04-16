@@ -73,6 +73,36 @@ LessonSlideRenderers.register('interactive', {
         const subCfg = cfg[template] || {};
         const locked = runtimeMeta?.locked || false;
 
+        // 記錄當前模板，供 WS handler 判斷是否需要刷新
+        this._state._teacherTemplate = template;
+        this._state._teacherRoomId = runtimeMeta?._roomId || '';
+        this._state._teacherSlideId = slide?.slide_id || '';
+
+        // free_canvas: 教師端顯示學生提交縮略圖網格
+        if (template === 'free_canvas') {
+            container.innerHTML = `
+                <div class="interactive-teacher-view">
+                    <div class="interactive-teacher-header">
+                        <div class="interactive-template-badge">${this._templateName(template)}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">學生作品</div>
+                    </div>
+                    <div class="interactive-instruction" style="padding:12px 0;font-size:14px;color:var(--text-secondary);">
+                        ${this._escapeHtml(subCfg.instruction || '')}
+                    </div>
+                    <div class="canvas-submissions-grid" id="canvasSubmissionsGrid">
+                        <div class="canvas-submissions-empty">等待學生提交...</div>
+                    </div>
+                    <div style="margin-top:12px;text-align:center;">
+                        <span style="font-size:12px;color:var(--text-tertiary);">
+                            ${locked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> 已鎖定' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg> 已解鎖'}
+                        </span>
+                    </div>
+                </div>
+            `;
+            this._fetchCanvasSubmissions();
+            return;
+        }
+
         // html_sandbox: 教師端也顯示 iframe 內容，方便一邊播放一邊教學
         if (template === 'html_sandbox' && subCfg.html_content) {
             // 強制容器撐滿
@@ -559,6 +589,83 @@ LessonSlideRenderers.register('interactive', {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // 教師端: 自由畫布學生提交縮略圖
+    // ═══════════════════════════════════════════════════════
+
+    async _fetchCanvasSubmissions() {
+        const roomId = this._state._teacherRoomId;
+        const slideId = this._state._teacherSlideId;
+        if (!roomId || !slideId) return;
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/slide/${slideId}/submissions`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const json = await res.json();
+            if (!json.success) return;
+            const grid = document.getElementById('canvasSubmissionsGrid');
+            if (grid) this._renderCanvasThumbnails(grid, json.data.submissions || []);
+        } catch (e) {
+            console.warn('[interactive] fetch submissions failed', e);
+        }
+    },
+
+    _renderCanvasThumbnails(grid, submissions) {
+        if (!submissions.length) {
+            grid.innerHTML = '<div class="canvas-submissions-empty">等待學生提交...</div>';
+            return;
+        }
+        // 增量更新：只新增尚未存在的卡片
+        const existing = new Set(grid.querySelectorAll('.canvas-thumb-card'));
+        const existingNames = new Set();
+        existing.forEach(el => existingNames.add(el.dataset.username));
+
+        // 移除空提示
+        const empty = grid.querySelector('.canvas-submissions-empty');
+        if (empty) empty.remove();
+
+        submissions.forEach(sub => {
+            if (existingNames.has(sub.student_username)) return;
+            const card = document.createElement('div');
+            card.className = 'canvas-thumb-card';
+            card.dataset.username = sub.student_username;
+            card.innerHTML = `
+                <img class="canvas-thumb-img" src="${sub.preview_base64}" alt="${this._escapeHtml(sub.student_username)}">
+                <div class="canvas-thumb-name">${this._escapeHtml(sub.student_username)}</div>
+            `;
+            card.addEventListener('click', () => this._showCanvasLightbox(sub));
+            grid.appendChild(card);
+        });
+    },
+
+    addLocalCanvasSubmission(submission) {
+        const grid = document.getElementById('canvasSubmissionsGrid');
+        if (!grid) return;
+        this._renderCanvasThumbnails(grid, [submission]);
+    },
+
+    _showCanvasLightbox(submission) {
+        // 移除已有的 lightbox
+        const old = document.querySelector('.canvas-lightbox-overlay');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'canvas-lightbox-overlay';
+        overlay.innerHTML = `
+            <div class="canvas-lightbox-content">
+                <button class="canvas-lightbox-close">&times;</button>
+                <img class="canvas-lightbox-img" src="${submission.preview_base64}">
+                <div class="canvas-lightbox-name">${this._escapeHtml(submission.student_username)}</div>
+            </div>
+        `;
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+        overlay.querySelector('.canvas-lightbox-close').addEventListener('click', () => overlay.remove());
+        document.body.appendChild(overlay);
     },
 
     // ═══════════════════════════════════════════════════════
@@ -1304,6 +1411,16 @@ LessonSlideRenderers.register('interactive', {
 
         return {
             getResponse() {
+                // 導出前填充白色背景，避免 JPEG 透明變黑
+                const bgRect = new fabric.Rect({
+                    left: 0, top: 0,
+                    width: canvas.width, height: canvas.height,
+                    fill: '#ffffff',
+                    selectable: false, evented: false,
+                });
+                canvas.insertAt(bgRect, 0);
+                canvas.renderAll();
+
                 const maxW = 1200;
                 let dataUrl;
                 if (canvas.width > maxW) {
@@ -1312,6 +1429,11 @@ LessonSlideRenderers.register('interactive', {
                 } else {
                     dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.5 });
                 }
+
+                // 移除臨時白色背景
+                canvas.remove(bgRect);
+                canvas.renderAll();
+
                 return { canvas_json: JSON.stringify(canvas.toJSON()), preview_base64: dataUrl };
             },
             setLocked(v) {

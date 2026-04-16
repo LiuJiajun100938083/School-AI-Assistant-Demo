@@ -319,12 +319,30 @@ async def update_user(username: str, request: Request):
         admin_user, _ = _verify_admin(request)
         body = await request.json()
 
-        user = get_services().user.update_user(
-            username=username,
-            data=body,
-            updated_by=admin_user,
-        )
-        return success_response(user, "更新成功")
+        # 如果提供了密码，单独处理密码更新
+        new_password = body.pop("password", None)
+        if new_password:
+            client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "")
+            get_services().auth.reset_password(
+                admin_username=admin_user,
+                target_username=username,
+                new_password=new_password,
+                client_ip=client_ip,
+            )
+
+        # 更新其余用户信息（过滤掉 password 后的字段）
+        remaining = {k: v for k, v in body.items() if k != "password"}
+        if remaining:
+            user = get_services().user.update_user(
+                username=username,
+                data=remaining,
+                updated_by=admin_user,
+            )
+        else:
+            user = get_services().user.get_user(username)
+
+        msg = "更新成功（含密码）" if new_password else "更新成功"
+        return success_response(user, msg)
 
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)

@@ -40,17 +40,27 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.mistake_book import router as mistake_book_router
     from app.routers.ai_learning_center import router as ai_learning_center_router
     from app.routers.teacher_class import router as teacher_class_router
+    from app.routers.dwq_game import router as dwq_game_router
     from app.routers.game_upload import game_router as game_upload_router
     from app.routers.learning_modes import router as learning_modes_router
     from app.routers.chinese_learning import router as chinese_learning_router
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
+    from app.routers.trade_game import trade_game_router
+    from app.routers.farm_game import farm_game_router
+    from app.routers.game_score import game_score_router
+    from app.routers.pet import pet_router
     from app.routers.chem2048 import chem2048_router
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
     from app.routers.image_gen import router as image_gen_router
     from app.routers.resource_library import router as resource_library_router
     from app.routers.exam_creator import router as exam_creator_router
+    from app.routers.dictation import router as dictation_router
+    from app.routers.exam_grader import router as exam_grader_router
+    from app.routers.my_exams import router as my_exams_router
+    from app.routers.collab_board import router as collab_board_router
+    from app.routers.tools import router as tools_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -66,19 +76,36 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(mistake_book_router)
     app.include_router(ai_learning_center_router)
     app.include_router(teacher_class_router)
+    app.include_router(dwq_game_router)
     app.include_router(game_upload_router)
     app.include_router(learning_modes_router)
     app.include_router(chinese_learning_router)
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
+    app.include_router(trade_game_router)
+    app.include_router(farm_game_router)
+    app.include_router(game_score_router)
+    app.include_router(pet_router)
     app.include_router(chem2048_router)
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
     app.include_router(image_gen_router)
     app.include_router(resource_library_router)
     app.include_router(exam_creator_router)
+    app.include_router(dictation_router)
+    app.include_router(exam_grader_router)
+    app.include_router(my_exams_router)
+    app.include_router(collab_board_router)
+    app.include_router(tools_router)
 
-    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, chem2048, assignment, class_diary, image_gen")
+    # 協作佈告板：啟動時初始化表
+    try:
+        from app.services.container import get_services
+        get_services().collab_board.init_system()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("collab_board init 失敗(可忽略,下次請求觸發): %s", e)
+
+    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, dwq_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
 
     # ====== 2. 数据库迁移 ====== #
     _run_schema_migrations()
@@ -560,7 +587,221 @@ def _run_schema_migrations() -> None:
             if "doesn't exist" not in str(ps_e):
                 logger.warning("practice_sessions 遷移跳過: %s", ps_e)
 
-        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表)")
+        # ─── 默書表 (中英雙語) ─────────────────────────
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictations (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                title           VARCHAR(255) NOT NULL,
+                description     TEXT,
+                reference_text  MEDIUMTEXT NOT NULL         COMMENT '默書原文',
+                language        VARCHAR(8)  DEFAULT 'en'    COMMENT 'en/zh',
+                mode            VARCHAR(16) DEFAULT 'paragraph' COMMENT 'paragraph | word_list',
+                lenient_variants TINYINT(1) DEFAULT 1        COMMENT '中文繁簡寬容 1=寬容 0=嚴格',
+                created_by      INT                         COMMENT '教師 user id',
+                created_by_name VARCHAR(100),
+                target_type     ENUM('all','class','student') DEFAULT 'all',
+                target_value    VARCHAR(255)                DEFAULT '',
+                status          ENUM('draft','published','closed') DEFAULT 'draft',
+                deadline        DATETIME                    DEFAULT NULL,
+                allow_late      TINYINT(1)                  DEFAULT 0,
+                published_at    DATETIME                    DEFAULT NULL,
+                is_deleted      TINYINT(1)                  DEFAULT 0,
+                created_at      DATETIME                    DEFAULT CURRENT_TIMESTAMP,
+                updated_at      DATETIME                    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_created_by (created_by),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        # 若既有表缺欄位 → 自動補上
+        for col, sql in [
+            ("language",
+             "ALTER TABLE dictations ADD COLUMN language VARCHAR(8) "
+             "DEFAULT 'en' COMMENT 'en/zh' AFTER reference_text"),
+            ("mode",
+             "ALTER TABLE dictations ADD COLUMN mode VARCHAR(16) "
+             "DEFAULT 'paragraph' COMMENT 'paragraph|word_list' AFTER language"),
+            ("lenient_variants",
+             "ALTER TABLE dictations ADD COLUMN lenient_variants TINYINT(1) "
+             "DEFAULT 1 COMMENT '中文繁簡寬容 1=寬容 0=嚴格' AFTER mode"),
+        ]:
+            try:
+                cols = pool.execute(f"SHOW COLUMNS FROM dictations LIKE '{col}'")
+                if not cols:
+                    pool.execute(sql, ())
+                    logger.info("数据库迁移: dictations 表已新增 %s 列", col)
+            except Exception:
+                pass
+
+        # dictation_submissions 加 OCR engine + 信心 + LLM 判分欄位
+        for col, sql in [
+            ("ocr_engine",
+             "ALTER TABLE dictation_submissions ADD COLUMN ocr_engine "
+             "VARCHAR(32) DEFAULT NULL COMMENT '哪個 OCR provider'"),
+            ("ocr_confidence",
+             "ALTER TABLE dictation_submissions ADD COLUMN ocr_confidence "
+             "DECIMAL(4,3) DEFAULT NULL COMMENT 'OCR 整體信心 0..1'"),
+            ("llm_grading",
+             "ALTER TABLE dictation_submissions ADD COLUMN llm_grading "
+             "JSON DEFAULT NULL COMMENT 'GradingResult JSON'"),
+        ]:
+            try:
+                cols = pool.execute(
+                    f"SHOW COLUMNS FROM dictation_submissions LIKE '{col}'"
+                )
+                if not cols:
+                    pool.execute(sql, ())
+                    logger.info(
+                        "数据库迁移: dictation_submissions 表已新增 %s 列", col,
+                    )
+            except Exception:
+                pass
+
+        # 把 status ENUM 擴張到包含 needs_review (Phase 5 用)
+        try:
+            pool.execute(
+                "ALTER TABLE dictation_submissions MODIFY COLUMN status "
+                "ENUM('submitted','ocr_processing','graded','ocr_failed','needs_review') "
+                "DEFAULT 'submitted'",
+                (),
+            )
+        except Exception:
+            pass
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictation_submissions (
+                id               INT AUTO_INCREMENT PRIMARY KEY,
+                dictation_id     INT NOT NULL,
+                student_id       INT NOT NULL,
+                student_name     VARCHAR(100)                DEFAULT '',
+                username         VARCHAR(100)                DEFAULT '',
+                class_name       VARCHAR(100)                DEFAULT '',
+                status           ENUM('submitted','ocr_processing','graded','ocr_failed') DEFAULT 'submitted',
+                ocr_text         MEDIUMTEXT                  DEFAULT NULL,
+                diff_result      JSON                        DEFAULT NULL,
+                score            DECIMAL(5,2)                DEFAULT NULL,
+                correct_count    INT                         DEFAULT NULL,
+                wrong_count      INT                         DEFAULT NULL,
+                missing_count    INT                         DEFAULT NULL,
+                extra_count      INT                         DEFAULT NULL,
+                teacher_feedback TEXT                        DEFAULT NULL,
+                submitted_at     DATETIME                    DEFAULT CURRENT_TIMESTAMP,
+                graded_at        DATETIME                    DEFAULT NULL,
+                UNIQUE KEY uk_dict_student (dictation_id, student_id),
+                INDEX idx_dictation (dictation_id),
+                INDEX idx_student (student_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictation_submission_files (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                submission_id INT NOT NULL,
+                original_name VARCHAR(255),
+                stored_name   VARCHAR(255),
+                file_path     VARCHAR(500),
+                file_size     INT                DEFAULT 0,
+                page_order    INT                DEFAULT 0,
+                uploaded_at   DATETIME           DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_submission (submission_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 试卷批阅表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_papers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                title             VARCHAR(255) NOT NULL,
+                subject           VARCHAR(50) NOT NULL DEFAULT 'ict',
+                class_name        VARCHAR(100) DEFAULT NULL,
+                total_marks       DECIMAL(5,1) NOT NULL DEFAULT 40,
+                pages_per_exam    INT NOT NULL DEFAULT 1,
+                grading_mode      ENUM('strict','moderate','lenient') DEFAULT 'moderate',
+                status            ENUM('draft','extracting','questions_extracted','answers_ready','grading','completed') DEFAULT 'draft',
+                clean_paper_path  VARCHAR(500) DEFAULT NULL,
+                answer_paper_path VARCHAR(500) DEFAULT NULL,
+                batch_pdf_path    VARCHAR(500) DEFAULT NULL,
+                total_students    INT DEFAULT 0,
+                graded_count      INT DEFAULT 0,
+                created_by        INT NOT NULL,
+                is_deleted        TINYINT(1) DEFAULT 0,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_teacher (created_by),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_questions (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                exam_id           INT NOT NULL,
+                section           ENUM('A','B') NOT NULL,
+                question_number   VARCHAR(20) NOT NULL,
+                question_order    INT DEFAULT 0,
+                question_type     ENUM('mc','short_answer') NOT NULL,
+                question_text     TEXT NOT NULL,
+                max_marks         DECIMAL(5,1) NOT NULL,
+                reference_answer  TEXT DEFAULT NULL,
+                answer_source     ENUM('answer_sheet','rag','manual') DEFAULT NULL,
+                mc_options        JSON DEFAULT NULL,
+                metadata          JSON DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_exam (exam_id),
+                FOREIGN KEY (exam_id) REFERENCES exam_papers(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_student_papers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                exam_id           INT NOT NULL,
+                student_index     INT NOT NULL,
+                user_id           INT DEFAULT NULL,
+                student_name      VARCHAR(100) DEFAULT NULL,
+                student_number    VARCHAR(50) DEFAULT NULL,
+                class_name        VARCHAR(50) DEFAULT NULL,
+                page_start        INT NOT NULL,
+                page_end          INT NOT NULL,
+                image_paths       JSON DEFAULT NULL,
+                total_score       DECIMAL(5,1) DEFAULT NULL,
+                status            ENUM('pending','ocr_processing','grading','graded','error') DEFAULT 'pending',
+                ocr_raw           JSON DEFAULT NULL,
+                error_message     TEXT DEFAULT NULL,
+                graded_at         DATETIME DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_exam (exam_id),
+                FOREIGN KEY (exam_id) REFERENCES exam_papers(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_student_answers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                student_paper_id  INT NOT NULL,
+                question_id       INT NOT NULL,
+                student_answer    TEXT DEFAULT NULL,
+                score             DECIMAL(5,1) DEFAULT NULL,
+                max_marks         DECIMAL(5,1) NOT NULL,
+                feedback          TEXT DEFAULT NULL,
+                graded_by         ENUM('ai','teacher') DEFAULT 'ai',
+                confidence        FLOAT DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_paper (student_paper_id),
+                UNIQUE KEY uk_paper_question (student_paper_id, question_id),
+                FOREIGN KEY (student_paper_id) REFERENCES exam_student_papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (question_id) REFERENCES exam_questions(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 试卷批阅表补丁: 确保 status 枚举包含 extracting ---
+        try:
+            pool.execute(
+                "ALTER TABLE exam_papers MODIFY COLUMN status "
+                "ENUM('draft','extracting','questions_extracted','answers_ready','grading','completed') "
+                "DEFAULT 'draft'"
+            )
+        except Exception:
+            pass  # 已经是最新枚举则忽略
+
+        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表 + 英文默書表 + 试卷批阅表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 
@@ -579,6 +820,34 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_game_upload_system()
     except Exception as e:
         logger.warning("游戏上传系统初始化失败: %s", e)
+
+    # 初始化全球貿易大亨系統
+    try:
+        from app.routers.trade_game import init_trade_game_system
+        init_trade_game_system()
+    except Exception as e:
+        logger.warning("全球貿易大亨系統初始化失敗: %s", e)
+
+    # 初始化神州菜園經營家系統
+    try:
+        from app.routers.farm_game import init_farm_game_system
+        init_farm_game_system()
+    except Exception as e:
+        logger.warning("神州菜園經營家系統初始化失敗: %s", e)
+
+    # 初始化自定義遊戲計分系統
+    try:
+        from app.routers.game_score import init_game_score_system
+        init_game_score_system()
+    except Exception as e:
+        logger.warning("自定義遊戲計分系統初始化失敗: %s", e)
+
+    # 初始化 LLM API 使用量追蹤系統
+    try:
+        from app.services.container import get_services
+        get_services().llm_usage.init_system()
+    except Exception as e:
+        logger.warning("LLM API 使用量系統初始化失敗: %s", e)
 
     # 初始化化學 2048 系統
     try:
@@ -607,6 +876,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_resource_library_system()
     except Exception as e:
         logger.warning("共享资源库系统初始化失败: %s", e)
+
+    # 初始化虚拟宠物系统
+    try:
+        from app.routers.pet import init_pet_system
+        init_pet_system()
+    except Exception as e:
+        logger.warning("虚拟宠物系统初始化失败: %s", e)
 
     # 论坛系统
     try:

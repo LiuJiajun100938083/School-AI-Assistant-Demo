@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>作業管理</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/assignment.css">
+    <title data-i18n="asg.page.title">作業管理</title>
+    <link rel="stylesheet" href="/static/css/assignment.css?v=20260414">
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/assignment.js?v=20260414"></script>
 </head>
 <body>
     <!-- App Shell -->
@@ -14,17 +16,19 @@
         <!-- Top Bar -->
         <header class="topbar">
             <div class="topbar-left">
-                <button class="sidebar-toggle" id="sidebarToggle" onclick="AssignmentApp.toggleSidebar()" aria-label="切換側邊欄">
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="AssignmentApp.toggleSidebar()" aria-label="切換側邊欄" data-i18n-aria-label="asg.page.toggleSidebar">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
-                <a href="/" class="topbar-back" title="返回首頁" onclick="event.preventDefault(); history.length > 1 ? history.back() : location.href='/';">
+                <a href="/" class="topbar-back" title="返回首頁" data-i18n-title="asg.page.backHome" onclick="event.preventDefault(); history.length > 1 ? history.back() : location.href='/';">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </a>
                 <div class="topbar-divider"></div>
-                <h1 class="topbar-title">作業管理</h1>
+                <h1 class="topbar-title" data-i18n="asg.page.title">作業管理</h1>
                 <nav class="topbar-breadcrumb breadcrumb" id="breadcrumb"></nav>
             </div>
-            <div class="topbar-actions" id="headerActions"></div>
+            <div class="topbar-actions" id="headerActions">
+                <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
+            </div>
         </header>
 
         <!-- Body: Sidebar + Workspace -->
@@ -51,7 +55,7 @@
             <main class="workspace" id="mainContent" aria-live="polite">
                 <div class="workspace-loading">
                     <div class="loading-spinner"></div>
-                    <p>載入中...</p>
+                    <p data-i18n="asg.page.loading">載入中...</p>
                 </div>
             </main>
         </div>
@@ -61,39 +65,39 @@
     <div class="modal-overlay" id="submitModal" role="dialog" aria-modal="true" aria-labelledby="submitModalTitle">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="submitModalTitle">提交作業</h2>
+                <h2 id="submitModalTitle" data-i18n="asg.submit.title">提交作業</h2>
                 <button class="modal-close" onclick="AssignmentApp.closeSubmitModal()">&times;</button>
             </div>
             <div class="form-group">
-                <label>備註說明</label>
-                <textarea id="submitContent" rows="3" placeholder="輸入你的作業說明或備註..."></textarea>
+                <label data-i18n="asg.submit.noteLabel">備註說明</label>
+                <textarea id="submitContent" rows="3" placeholder="輸入你的作業說明或備註..." data-i18n-placeholder="asg.submit.notePlaceholder"></textarea>
             </div>
             <div class="form-group">
                 <button type="button" class="btn btn-outline btn-sm code-paste-toggle" onclick="document.getElementById('codePasteSection').classList.toggle('open')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                    貼上代碼
+                    <span data-i18n="asg.submit.pasteCode">貼上代碼</span>
                 </button>
                 <div id="codePasteSection" class="code-paste-section">
                     <div style="margin-bottom:8px;">
-                        <label style="font-size:13px;color:var(--text-secondary);">文件名</label>
-                        <input type="text" id="codeFileName" class="code-filename-input" value="code.txt" placeholder="例如 main.py">
+                        <label style="font-size:13px;color:var(--text-secondary);" data-i18n="asg.submit.fileName">文件名</label>
+                        <input type="text" id="codeFileName" class="code-filename-input" value="code.txt" placeholder="例如 main.py" data-i18n-placeholder="asg.submit.fileNamePlaceholder">
                     </div>
-                    <textarea id="codeContent" class="code-input" rows="10" placeholder="在此貼上你的代碼..." spellcheck="false"></textarea>
+                    <textarea id="codeContent" class="code-input" rows="10" placeholder="在此貼上你的代碼..." data-i18n-placeholder="asg.submit.codePlaceholder" spellcheck="false"></textarea>
                 </div>
             </div>
             <div class="form-group">
-                <label>上傳文件</label>
+                <label data-i18n="asg.submit.uploadLabel">上傳文件</label>
                 <div class="upload-zone" id="uploadZone">
                     <div class="upload-zone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
-                    <div class="upload-zone-text">點擊或拖拽文件到此處</div>
-                    <div class="upload-zone-hint">支持 PDF、Word、PPT、圖片、視頻、代碼等，單文件最大 50MB</div>
+                    <div class="upload-zone-text" data-i18n="asg.submit.uploadDrag">點擊或拖拽文件到此處</div>
+                    <div class="upload-zone-hint" data-i18n="asg.submit.uploadHint">支持 PDF、Word、PPT、圖片、視頻、代碼等，單文件最大 50MB</div>
                 </div>
                 <input type="file" id="fileInput" multiple style="display:none">
                 <div class="file-list" id="selectedFiles" style="margin-top:12px;"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-outline" onclick="AssignmentApp.closeSubmitModal()">取消</button>
-                <button class="btn btn-primary" id="submitBtn" onclick="AssignmentApp.doSubmit()">提交</button>
+                <button class="btn btn-outline" onclick="AssignmentApp.closeSubmitModal()" data-i18n="asg.submit.cancel">取消</button>
+                <button class="btn btn-primary" id="submitBtn" onclick="AssignmentApp.doSubmit()" data-i18n="asg.submit.submit">提交</button>
             </div>
         </div>
     </div>
@@ -102,7 +106,7 @@
     <div class="modal-overlay" id="createModal" role="dialog" aria-modal="true" aria-labelledby="createModalTitle">
         <div class="modal-content create-panel">
             <div class="modal-header">
-                <h2 id="createModalTitle">創建作業</h2>
+                <h2 id="createModalTitle" data-i18n="asg.create.titleCreate">創建作業</h2>
                 <button class="modal-close" onclick="AssignmentApp.closeCreateModal()">&times;</button>
             </div>
 
@@ -110,50 +114,50 @@
             <div class="step-indicator" id="stepIndicator">
                 <div class="step-item active" id="stepItem1" onclick="AssignmentApp.goToStep(1)">
                     <div class="step-circle">1</div>
-                    <span>基本信息</span>
+                    <span data-i18n="asg.create.stepBasicInfo">基本信息</span>
                 </div>
                 <div class="step-line"></div>
                 <div class="step-item" id="stepItem2" onclick="AssignmentApp.goToStep(2)">
                     <div class="step-circle">2</div>
-                    <span>評分標準</span>
+                    <span data-i18n="asg.create.stepRubric">評分標準</span>
                 </div>
             </div>
 
             <!-- Step 1: Basic Info -->
             <div class="step-content" id="step1">
                 <div class="form-group">
-                    <label>作業標題 *</label>
-                    <input type="text" id="asgTitle" placeholder="輸入作業標題">
+                    <label data-i18n="asg.create.asgTitle">作業標題 *</label>
+                    <input type="text" id="asgTitle" placeholder="輸入作業標題" data-i18n-placeholder="asg.create.asgTitlePh">
                 </div>
                 <div class="form-group">
-                    <label>作業描述</label>
-                    <textarea id="asgDesc" rows="4" placeholder="描述作業要求..."></textarea>
+                    <label data-i18n="asg.create.asgDesc">作業描述</label>
+                    <textarea id="asgDesc" rows="4" placeholder="描述作業要求..." data-i18n-placeholder="asg.create.asgDescPh"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>作業類型</label>
+                    <label data-i18n="asg.create.asgType">作業類型</label>
                     <div class="assignment-type-selector" id="asgTypeSelector">
                         <div class="asg-type-option selected" data-type="file_upload" onclick="AssignmentApp.selectAssignmentType('file_upload')">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                             <div>
-                                <div class="asg-type-title">普通作業</div>
-                                <div class="asg-type-desc">學生上傳文件提交</div>
+                                <div class="asg-type-title" data-i18n="asg.create.typeNormal">普通作業</div>
+                                <div class="asg-type-desc" data-i18n="asg.create.typeNormalDesc">學生上傳文件提交</div>
                             </div>
                         </div>
                         <div class="asg-type-option" data-type="exam" onclick="AssignmentApp.selectAssignmentType('exam')">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             <div>
-                                <div class="asg-type-title">問卷 / 試卷</div>
-                                <div class="asg-type-desc">設定題目、答案與分數</div>
+                                <div class="asg-type-title" data-i18n="asg.create.typeExam">問卷 / 試卷</div>
+                                <div class="asg-type-desc" data-i18n="asg.create.typeExamDesc">設定題目、答案與分數</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- 附件上傳 -->
                 <div class="form-group" id="attachmentGroup">
-                    <label>附件 <span style="color:var(--text-tertiary);font-weight:400;">(PDF、Word、PPT、圖片等)</span></label>
+                    <label><span data-i18n="asg.create.attachLabel">附件</span> <span style="color:var(--text-tertiary);font-weight:400;" data-i18n="asg.create.attachHint">(PDF、Word、PPT、圖片等)</span></label>
                     <div class="attachment-zone" id="attachmentZone">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                        <span>點擊或拖拽文件到此處上傳</span>
+                        <span data-i18n="asg.create.attachDrag">點擊或拖拽文件到此處上傳</span>
                     </div>
                     <input type="file" id="attachmentInput" multiple style="display:none">
                     <div id="existingAttachments"></div>
@@ -161,68 +165,68 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>目標類型</label>
+                        <label data-i18n="asg.create.targetType">目標類型</label>
                         <select id="asgTargetType" onchange="AssignmentApp.onTargetTypeChange()">
-                            <option value="all">所有學生</option>
-                            <option value="class">指定班級</option>
-                            <option value="student">指定學生</option>
+                            <option value="all" data-i18n="asg.create.targetAll">所有學生</option>
+                            <option value="class" data-i18n="asg.create.targetClass">指定班級</option>
+                            <option value="student" data-i18n="asg.create.targetStudent">指定學生</option>
                         </select>
                     </div>
                     <div class="form-group" id="targetValueGroup" style="display:none;">
-                        <label id="targetValueLabel">目標值</label>
+                        <label id="targetValueLabel" data-i18n="asg.create.targetValue">目標值</label>
                         <select id="asgTargetValue"></select>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>截止日期</label>
+                        <label data-i18n="asg.create.deadline">截止日期</label>
                         <input type="datetime-local" id="asgDeadline">
                     </div>
                     <div class="form-group" id="maxFilesGroup">
-                        <label>最大文件數</label>
+                        <label data-i18n="asg.create.maxFiles">最大文件數</label>
                         <input type="number" id="asgMaxFiles" value="5" min="1" max="20">
                     </div>
                 </div>
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="asgAllowLate">
-                    <label for="asgAllowLate">允許逾期提交</label>
+                    <label for="asgAllowLate" data-i18n="asg.create.allowLate">允許逾期提交</label>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-outline" onclick="AssignmentApp.closeCreateModal()">取消</button>
-                    <button class="btn btn-primary" onclick="AssignmentApp.goToStep(2)">下一步</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.closeCreateModal()" data-i18n="asg.create.cancel">取消</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.goToStep(2)" data-i18n="asg.create.nextStep">下一步</button>
                 </div>
             </div>
 
             <!-- Step 2A: Rubric (普通作業) -->
             <div class="step-content" id="step2Rubric" style="display:none;">
                 <div class="form-group">
-                    <label>選擇評分方式</label>
+                    <label data-i18n="asg.create.selectRubric">選擇評分方式</label>
                     <div class="rubric-type-grid" id="rubricTypeGrid"></div>
                 </div>
                 <div id="rubricEditorArea"></div>
                 <div class="modal-footer">
-                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)">上一步</button>
-                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>
-                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()">發布</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)" data-i18n="asg.create.prevStep">上一步</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()" data-i18n="asg.create.saveDraft">保存草稿</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()" data-i18n="asg.create.publish">發布</button>
                 </div>
             </div>
 
             <!-- Step 2B: Exam Questions (問卷/試卷) -->
             <div class="step-content" id="step2Exam" style="display:none;">
                 <div class="questions-section-header">
-                    <label style="font-size:var(--type-body-lg);font-weight:600;">題目管理</label>
+                    <label style="font-size:var(--type-body-lg);font-weight:600;" data-i18n="asg.create.stepQuestions">題目管理</label>
                     <div class="questions-section-actions">
                         <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addPassage()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            添加資料
+                            <span data-i18n="asg.create.addPassage">添加資料</span>
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addQuestion()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            添加題目
+                            <span data-i18n="asg.create.addQuestion">添加題目</span>
                         </button>
                         <button class="btn btn-outline btn-sm" onclick="AssignmentApp.toggleExamUpload()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            上傳試卷 AI 識別
+                            <span data-i18n="asg.create.uploadExamOcr">上傳試卷 AI 識別</span>
                         </button>
                     </div>
                 </div>
@@ -231,13 +235,13 @@
                 <div id="examUploadPanel" style="display:none;">
                     <div class="exam-upload-zone" id="examUploadZone">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <p>拖拽或點擊上傳試卷照片/PDF</p>
-                        <span class="exam-upload-zone__hint">支持 JPG、PNG、HEIC、PDF，可多文件，單文件最大 10MB</span>
+                        <p data-i18n="asg.create.dragUploadExam">拖拽或點擊上傳試卷照片/PDF</p>
+                        <span class="exam-upload-zone__hint" data-i18n="asg.create.examUploadHint">支持 JPG、PNG、HEIC、PDF，可多文件，單文件最大 10MB</span>
                     </div>
                     <input type="file" id="examFileInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.pdf" style="display:none">
                     <div id="examFilePreview"></div>
                     <div style="text-align:right;margin-top:8px;">
-                        <button class="btn btn-primary btn-sm" id="startOcrBtn" onclick="AssignmentApp.startExamOcr()" disabled>開始識別</button>
+                        <button class="btn btn-primary btn-sm" id="startOcrBtn" onclick="AssignmentApp.startExamOcr()" disabled data-i18n="asg.ocr.startRecognize">開始識別</button>
                     </div>
                 </div>
 
@@ -248,25 +252,34 @@
                 <div id="examQuestionEditor"></div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)">上一步</button>
-                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>
-                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()">發布</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)" data-i18n="asg.create.prevStep">上一步</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()" data-i18n="asg.create.saveDraft">保存草稿</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()" data-i18n="asg.create.publish">發布</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Markdown 渲染 + 數學公式 (AI 問答用) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="/static/vendor/marked/marked.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
+    <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
+    <script defer src="/static/vendor/katex/katex.min.js"></script>
 
     <!-- Scripts -->
-    <script src="/static/js/shared/utils.js"></script>
-    <script src="/static/js/shared/auth.js"></script>
-    <script src="/static/js/shared/ui.js"></script>
-    <script src="/static/js/shared/api.js"></script>
-    <script src="/static/js/assignment.js"></script>
+    <script src="/static/js/shared/utils.js?v=20260414"></script>
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/js/shared/ui.js?v=20260414"></script>
+    <script src="/static/js/shared/api.js?v=20260414"></script>
+    <script src="/static/js/assignment.js?v=20260414"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+            i18n.applyDOM();
+            document.title = i18n.t('asg.page.title');
+        }
+    });
+    </script>
 </body>
 </html>

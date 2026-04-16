@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chemistry 2048 | 化學元素 2048</title>
-    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/auth.js?v=20260414"></script>
+    <script src="/static/chem2048_elements.js"></script>
     <style>
         :root {
             --bg-color: #faf8ef;
@@ -95,6 +96,129 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* --- Game wrapper: game + info panel side-by-side on wide screens --- */
+        #game-wrapper {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 820px;
+        }
+        @media (max-width: 900px) {
+            #game-wrapper {
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+        }
+
+        /* --- Element Info Panel --- */
+        #element-info-panel {
+            width: 320px;
+            background: #faf8ef;
+            border: 2px solid #cdc1b4;
+            border-radius: 12px;
+            padding: 16px 18px;
+            font-size: 13px;
+            color: #776e65;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            box-sizing: border-box;
+        }
+        @media (max-width: 900px) {
+            #element-info-panel { width: 100%; max-width: 450px; }
+        }
+        #element-info-panel h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            text-align: center;
+            color: #8f7a66;
+            border-bottom: 1px solid #e8e0d0;
+            padding-bottom: 8px;
+        }
+        .info-tile {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 90px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            color: #f9f6f2;
+            position: relative;
+        }
+        .info-tile .tile-no {
+            position: absolute; top: 6px; left: 8px;
+            font-size: 12px; opacity: 0.85;
+        }
+        .info-tile .tile-symbol {
+            font-size: 38px; font-weight: bold; line-height: 1;
+        }
+        .info-name {
+            text-align: center; font-weight: bold;
+            font-size: 17px; margin-bottom: 4px; color: #5e4d3b;
+        }
+        .info-name-en {
+            text-align: center; font-size: 13px; opacity: 0.7;
+            margin-bottom: 10px;
+        }
+        .info-category {
+            display: inline-block;
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 600; color: #fff;
+            margin: 0 auto 12px; text-align: center;
+        }
+        .info-cat-wrap { text-align: center; margin-bottom: 12px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+        .info-grid .lbl { color: #a89c8d; }
+        .info-grid .val { color: #5e4d3b; font-weight: 600; text-align: right; }
+        .info-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #e0d6c2;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .info-section .ttl {
+            font-weight: bold; color: #8f7a66; margin-bottom: 3px;
+        }
+        .info-section .body {
+            color: #5e4d3b;
+        }
+        .info-empty {
+            text-align: center; color: #a89c8d;
+            padding: 30px 10px; font-style: italic;
+        }
+
+        /* --- Difficulty selector (welcome screen) --- */
+        .difficulty-selector {
+            display: flex; gap: 10px; margin-bottom: 16px;
+            justify-content: center;
+        }
+        .diff-btn {
+            padding: 10px 24px;
+            border: 2px solid #cdc1b4;
+            border-radius: 24px;
+            background: #fff;
+            color: #776e65;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .diff-btn:hover { background: #f2e8db; }
+        .diff-btn.active {
+            background: #8f7a66; color: #fff; border-color: #8f7a66;
+        }
+        .diff-label {
+            text-align: center;
+            font-size: 13px;
+            color: #8f7a66;
+            margin: 0 0 16px;
+        }
+
         /* --- Main Game Container --- */
         #game-container {
             display: flex;
@@ -160,7 +284,7 @@
             transition: opacity 0.3s ease;
             text-align: center;
         }
-        /* 5x5 Grid */
+        /* Dynamic Grid (size set via inline style at runtime) */
         #game-board {
             width: 100%;
             aspect-ratio: 1 / 1;
@@ -168,15 +292,65 @@
             border-radius: 10px;
             padding: 8px;
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(5, 1fr);
+            grid-template-columns: repeat(var(--board-size, 5), 1fr);
+            grid-template-rows: repeat(var(--board-size, 5), 1fr);
             gap: 8px;
             box-sizing: border-box;
             position: relative;
             touch-action: none;
+            transition: gap 0.3s ease;
         }
         @media (max-width: 450px) {
             #game-board { gap: 6px; padding: 6px; }
+        }
+        /* When board grows large, shrink gap to keep cells visible */
+        #game-board[data-size="9"], #game-board[data-size="11"] { gap: 5px; padding: 6px; }
+        #game-board[data-size="13"], #game-board[data-size="15"] { gap: 3px; padding: 4px; }
+
+        /* Expansion fanfare overlay */
+        #expansion-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(143, 122, 102, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        #expansion-overlay.show { opacity: 1; }
+        #expansion-overlay .ex-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            animation: ex-pulse 1.2s ease-in-out infinite;
+        }
+        #expansion-overlay h2 {
+            font-size: 32px;
+            margin: 0 0 12px;
+            letter-spacing: 2px;
+        }
+        #expansion-overlay .ex-sub {
+            font-size: 18px;
+            opacity: 0.95;
+            margin-bottom: 6px;
+        }
+        #expansion-overlay .ex-range {
+            font-size: 16px;
+            opacity: 0.85;
+            margin-top: 14px;
+            padding: 6px 18px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+        }
+        @keyframes ex-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
         .cell {
             background-color: var(--empty-cell);
@@ -200,7 +374,7 @@
             will-change: left, top, transform;
         }
         .tile-sliding {
-            transition: left 0.13s ease-in-out, top 0.13s ease-in-out;
+            transition: left var(--slide-dur, 0.13s) ease-in-out, top var(--slide-dur, 0.13s) ease-in-out;
         }
         .tile-new {
             animation: tile-appear 0.15s ease-out;
@@ -210,15 +384,42 @@
             z-index: 2;
         }
         .tile .atomic-no { position: absolute; top: 4px; left: 6px; font-size: 0.75em; font-weight: 900; opacity: 0.8; }
-        .tile .symbol { font-size: 1.5em; margin-top: 5px; }
-        .tile .en { font-size: 0.65em; margin-top: 2px; }
-        .tile .zh { font-size: 0.7em; margin-top: 2px; }
+        .tile .symbol { font-size: 1.5em; margin-top: 5px; line-height: 1; }
+        .tile .en { font-size: 0.65em; margin-top: 2px; line-height: 1.05; padding: 0 2px; }
+        .tile .zh { font-size: 0.7em; margin-top: 2px; line-height: 1; }
         @media (max-width: 450px) {
             .tile .symbol { font-size: 1.2em; }
             .tile .en { font-size: 0.55em; }
             .tile .zh { font-size: 0.6em; }
             .tile .atomic-no { font-size: 0.6em; top: 2px; left: 4px; }
         }
+        /* ── Responsive tile text for expanded boards ────────────────
+           As boardSize grows, individual cells shrink. Hide/shrink labels
+           progressively so the element symbol stays readable.  */
+        #game-board[data-size="7"] .tile .symbol { font-size: 1.2em; }
+        #game-board[data-size="7"] .tile .en     { font-size: 0.5em; }
+        #game-board[data-size="7"] .tile .zh     { font-size: 0.55em; }
+        #game-board[data-size="7"] .tile .atomic-no { font-size: 0.55em; top: 2px; left: 3px; }
+
+        #game-board[data-size="9"] .tile .symbol { font-size: 1em; margin-top: 2px; }
+        #game-board[data-size="9"] .tile .en     { display: none; }
+        #game-board[data-size="9"] .tile .zh     { font-size: 0.6em; margin-top: 1px; }
+        #game-board[data-size="9"] .tile .atomic-no { font-size: 0.5em; top: 1px; left: 2px; }
+
+        #game-board[data-size="11"] .tile .symbol { font-size: 0.85em; margin-top: 1px; }
+        #game-board[data-size="11"] .tile .en     { display: none; }
+        #game-board[data-size="11"] .tile .zh     { font-size: 0.55em; margin-top: 0; }
+        #game-board[data-size="11"] .tile .atomic-no { font-size: 0.48em; top: 1px; left: 2px; }
+
+        #game-board[data-size="13"] .tile .symbol { font-size: 0.75em; margin-top: 0; }
+        #game-board[data-size="13"] .tile .en     { display: none; }
+        #game-board[data-size="13"] .tile .zh     { display: none; }
+        #game-board[data-size="13"] .tile .atomic-no { font-size: 0.45em; top: 0; left: 1px; }
+
+        #game-board[data-size="15"] .tile .symbol { font-size: 0.65em; margin-top: 0; }
+        #game-board[data-size="15"] .tile .en     { display: none; }
+        #game-board[data-size="15"] .tile .zh     { display: none; }
+        #game-board[data-size="15"] .tile .atomic-no { display: none; }
         @keyframes tile-appear {
             0% { transform: scale(0); opacity: 0; }
             60% { transform: scale(1.08); opacity: 1; }
@@ -335,6 +536,14 @@
             border-bottom: 1px solid #eee4da;
         }
         .lb-header h2 { margin: 0; font-size: 22px; color: #776e65; }
+        .lb-tabs { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+        .lb-tab {
+            padding: 6px 18px; border: 1px solid #cdc1b4; border-radius: 20px;
+            background: #fff; color: #776e65; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .lb-tab:hover { background: #f2e8db; }
+        .lb-tab--active { background: #776e65; color: #fff; border-color: #776e65; }
         .lb-close {
             position: absolute;
             top: 12px; right: 16px;
@@ -446,16 +655,30 @@
             挑戰達到第 20 個元素：鈣 (Ca)！為了容納巨大的數值 (1,048,576)，這是一張 5x5 的加大網格。祝你好運！
         </div>
         <div id="welcome-user" class="welcome-user hidden"></div>
+        <div class="diff-label">Choose difficulty / 選擇難度</div>
+        <div class="difficulty-selector">
+            <button class="diff-btn active" data-diff="simple" onclick="setDifficulty('simple')">Simple / 簡單<br><small style="font-weight:400;opacity:0.85">前 20 元素 H~Ca</small></button>
+            <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard')">Hard / 困難<br><small style="font-weight:400;opacity:0.85">完整週期表 118 元素</small></button>
+        </div>
         <button class="btn btn-start-big" onclick="startGame()">Start Challenge / 開始挑戰</button>
         <div id="welcome-leaderboard" class="welcome-lb">
             <h3>Ranking / 排行榜</h3>
+            <div class="lb-tabs" id="welcome-mode-tabs" style="margin-bottom:6px;">
+                <button class="lb-tab lb-tab--active" data-mode="simple" onclick="switchWelcomeMode('simple')">Simple / 簡單</button>
+                <button class="lb-tab" data-mode="hard" onclick="switchWelcomeMode('hard')">Hard / 困難</button>
+            </div>
+            <div class="lb-tabs" id="welcome-lb-tabs">
+                <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchWelcomeLbTab('form3')">Form 3 / 中三</button>
+                <button class="lb-tab" data-group="open" onclick="switchWelcomeLbTab('open')">Open / 公開組</button>
+            </div>
             <div id="welcome-lb-body" class="welcome-lb-body">
                 <div class="lb-empty">Loading...</div>
             </div>
         </div>
     </div>
 
-    <div id="game-container" class="hidden">
+    <div id="game-wrapper" class="hidden">
+    <div id="game-container">
         <div class="mode-selector">
             <button id="btn-pc" class="mode-btn active" onclick="setMode('pc')">PC / 電腦</button>
             <button id="btn-ipad" class="mode-btn" onclick="setMode('ipad')">iPad / 平板</button>
@@ -477,14 +700,8 @@
             </div>
         </header>
         <div id="tip-display">Suggested Move: UP / 向上</div>
-        <div id="game-board">
-            <script>
-                for(let r=0; r<5; r++) {
-                    for(let c=0; c<5; c++) {
-                        document.write(`<div class="cell" id="cell-${r}-${c}"></div>`);
-                    }
-                }
-            </script>
+        <div id="game-board" data-size="5" style="--board-size:5;">
+            <!-- cells generated by buildBoardCells() -->
             <div id="game-over">
                 Experiment Over! / 實驗結束
                 <div class="final-info" id="final-info"></div>
@@ -507,12 +724,36 @@
         </div>
     </div>
 
+    <aside id="element-info-panel">
+        <h3>Highest Element / 目前最高元素</h3>
+        <div id="info-panel-body">
+            <div class="info-empty">Start the game to see element info.<br>開始遊戲查看元素資訊。</div>
+        </div>
+    </aside>
+    </div><!-- /#game-wrapper -->
+
+    <!-- Expansion fanfare overlay -->
+    <div id="expansion-overlay">
+        <div class="ex-icon">🌌</div>
+        <h2 id="ex-title">Periodic Table Expanded!</h2>
+        <div class="ex-sub" id="ex-subtitle">週期表擴展！</div>
+        <div class="ex-range" id="ex-range"></div>
+    </div>
+
     <!-- Leaderboard Modal -->
     <div class="lb-overlay" id="lb-overlay" onclick="if(event.target===this)closeLeaderboard()">
         <div class="lb-modal" style="position:relative;">
             <button class="lb-close" onclick="closeLeaderboard()">&times;</button>
             <div class="lb-header">
                 <h2>Ranking / 排行榜</h2>
+                <div class="lb-tabs" id="lb-mode-tabs" style="margin-bottom:6px;">
+                    <button class="lb-tab lb-tab--active" data-mode="simple" onclick="switchLbMode('simple')">Simple / 簡單</button>
+                    <button class="lb-tab" data-mode="hard" onclick="switchLbMode('hard')">Hard / 困難</button>
+                </div>
+                <div class="lb-tabs" id="lb-tabs">
+                    <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchLeaderboardTab('form3')">Form 3 / 中三</button>
+                    <button class="lb-tab" data-group="open" onclick="switchLeaderboardTab('open')">Open / 公開組</button>
+                </div>
             </div>
             <div class="lb-body" id="lb-body">
                 <div class="lb-empty">Loading...</div>
@@ -540,6 +781,8 @@
                     }
                 }
             } catch (_) { /* not logged in */ }
+            // Retry any previously-failed score submissions
+            if (isLoggedIn) _flushPendingScores();
             // Load leaderboard on welcome screen
             loadWelcomeLeaderboard();
         }
@@ -561,42 +804,99 @@
         }
 
         // ============================================================
-        //  Elements data
+        //  Elements data — derived from window.PERIODIC_ELEMENTS
+        //  (loaded from /static/chem2048_elements.js)
         // ============================================================
-        const elements = {
-            2: { no: 1, symbol: "H", en: "Hydrogen", zh: "氫", bg: "#eee4da", color: "#776e65" },
-            4: { no: 2, symbol: "He", en: "Helium", zh: "氦", bg: "#ede0c8", color: "#776e65" },
-            8: { no: 3, symbol: "Li", en: "Lithium", zh: "鋰", bg: "#f2b179", color: "#f9f6f2" },
-            16: { no: 4, symbol: "Be", en: "Beryllium", zh: "鈹", bg: "#f59563", color: "#f9f6f2" },
-            32: { no: 5, symbol: "B", en: "Boron", zh: "硼", bg: "#f67c5f", color: "#f9f6f2" },
-            64: { no: 6, symbol: "C", en: "Carbon", zh: "碳", bg: "#f65e3b", color: "#f9f6f2" },
-            128: { no: 7, symbol: "N", en: "Nitrogen", zh: "氮", bg: "#edcf72", color: "#f9f6f2" },
-            256: { no: 8, symbol: "O", en: "Oxygen", zh: "氧", bg: "#edcc61", color: "#f9f6f2" },
-            512: { no: 9, symbol: "F", en: "Fluorine", zh: "氟", bg: "#edc850", color: "#f9f6f2" },
-            1024: { no: 10, symbol: "Ne", en: "Neon", zh: "氖", bg: "#edc53f", color: "#f9f6f2" },
-            2048: { no: 11, symbol: "Na", en: "Sodium", zh: "鈉", bg: "#edc22e", color: "#f9f6f2" },
-            4096: { no: 12, symbol: "Mg", en: "Magnesium", zh: "鎂", bg: "#3c3a32", color: "#f9f6f2" },
-            8192: { no: 13, symbol: "Al", en: "Aluminum", zh: "鋁", bg: "#5fa3cc", color: "#f9f6f2" },
-            16384: { no: 14, symbol: "Si", en: "Silicon", zh: "矽", bg: "#4a8a99", color: "#f9f6f2" },
-            32768: { no: 15, symbol: "P", en: "Phosphorus", zh: "磷", bg: "#7bb38d", color: "#f9f6f2" },
-            65536: { no: 16, symbol: "S", en: "Sulfur", zh: "硫", bg: "#a8c256", color: "#f9f6f2" },
-            131072: { no: 17, symbol: "Cl", en: "Chlorine", zh: "氯", bg: "#8a9e40", color: "#f9f6f2" },
-            262144: { no: 18, symbol: "Ar", en: "Argon", zh: "氬", bg: "#a37ebd", color: "#f9f6f2" },
-            524288: { no: 19, symbol: "K", en: "Potassium", zh: "鉀", bg: "#8f57a6", color: "#f9f6f2" },
-            1048576: { no: 20, symbol: "Ca", en: "Calcium", zh: "鈣", bg: "#5c336e", color: "#f9f6f2" }
-        };
+        // BigInt-safe helpers. The game's tile values can exceed 2^53
+        // (JS Number safe int) in hard mode, so:
+        //   - Live game uses BigInt for board values, score, bestScore
+        //   - AI internally uses Number (with cap at 2^53; never reached in practice)
+        //   - All element lookups go through getElementByTile(value)
+        if (!window.PERIODIC_ELEMENTS || !window.PERIODIC_BY_NO) {
+            console.error('[chem2048] PERIODIC_ELEMENTS not loaded — game will not work');
+        }
+
+        function _bigLog2(v) {
+            // v is a power of 2 (Number or BigInt). Returns the exponent (atomic number).
+            if (typeof v === 'bigint') {
+                if (v <= 1n) return 0;
+                return v.toString(2).length - 1;
+            }
+            return v < 2 ? 0 : Math.round(Math.log2(v));
+        }
+
+        function getElementByTile(v) {
+            // Unified element lookup. Handles BigInt and Number.
+            const no = _bigLog2(v);
+            return (window.PERIODIC_BY_NO && window.PERIODIC_BY_NO[no])
+                || (window.PERIODIC_BY_NO && window.PERIODIC_BY_NO[1])
+                || null;
+        }
+
+        function _formatBigNumber(v) {
+            // v can be BigInt | Number | numeric string. Outputs "1,234,567".
+            if (v === null || v === undefined) return '0';
+            const s = (typeof v === 'string') ? v : String(v);
+            return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        // ── Difficulty mode state ─────────────────────────────────
+        let currentDifficulty = 'simple';  // 'simple' or 'hard'
+        try {
+            const saved = localStorage.getItem('chem2048_difficulty');
+            if (saved === 'simple' || saved === 'hard') currentDifficulty = saved;
+        } catch (_) {}
+
+        function setDifficulty(diff) {
+            if (diff !== 'simple' && diff !== 'hard') return;
+            currentDifficulty = diff;
+            try { localStorage.setItem('chem2048_difficulty', diff); } catch (_) {}
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.diff === diff);
+            });
+        }
 
         // ============================================================
         //  Game state
         // ============================================================
         let isGameActive = false;
-        let board = [];
-        let score = 0;
-        let bestScore = 0;
+        let board = [];        // BigInt[][] — empty cell = 0n
+        let score = 0n;        // BigInt — supports any element value
+        let bestScore = 0n;    // BigInt
         let tipsRemaining = 1;
         let totalMoves = 0;
         let tipsUsed = 0;
-        const boardSize = 5;
+        let boardSize = 5;  // dynamic — grows in hard mode
+
+        // ── Hard-mode expansion ladder ──────────────────────────
+        // (达成元素 N → 棋盘 +2 邊長; 每一階解鎖下一段元素)
+        const EXPANSION_LADDER = [
+            { atNo: 20, newSize: 7,  unlockTo: 28 }, // Ca → 7×7, unlock Sc~Ni
+            { atNo: 28, newSize: 9,  unlockTo: 35 }, // Ni → 9×9, unlock Cu~Br
+            { atNo: 35, newSize: 11, unlockTo: 44 }, // Br → 11×11, unlock Kr~Ru
+            { atNo: 44, newSize: 13, unlockTo: 51 }, // Ru → 13×13, unlock Rh~Sb
+            { atNo: 51, newSize: 15, unlockTo: 53 }, // Sb → 15×15, unlock Te~I
+        ];
+        let _expansionsTriggered = new Set();  // atNo's already used this game
+
+        function buildBoardCells(size) {
+            const boardEl = document.getElementById('game-board');
+            boardEl.style.setProperty('--board-size', size);
+            boardEl.setAttribute('data-size', String(size));
+            // Remove old .cell elements but keep #game-over
+            const oldCells = boardEl.querySelectorAll('.cell');
+            oldCells.forEach(c => c.remove());
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${r}-${c}`;
+                    boardEl.insertBefore(cell, document.getElementById('game-over'));
+                }
+            }
+        }
+        // Initial 5×5 build (runs after DOM ready)
+        document.addEventListener('DOMContentLoaded', () => buildBoardCells(5));
 
         const scoreEl = document.getElementById('score');
         const bestScoreEl = document.getElementById('best-score');
@@ -604,16 +904,20 @@
         const tipBtn = document.getElementById('btn-tip');
         const tipDisplay = document.getElementById('tip-display');
 
-        // Load best score from localStorage
-        try { bestScore = parseInt(localStorage.getItem('chem2048_best') || '0'); } catch(_) {}
-        bestScoreEl.innerText = bestScore;
+        // Load best score from localStorage (BigInt — supports any size)
+        try {
+            const raw = localStorage.getItem('chem2048_best') || '0';
+            // Strip any non-digit just in case
+            bestScore = BigInt(raw.replace(/[^0-9-]/g, '') || '0');
+        } catch (_) { bestScore = 0n; }
+        bestScoreEl.innerText = _formatBigNumber(bestScore);
 
         // ============================================================
         //  Tile DOM Management (for smooth animation)
         // ============================================================
         let tileElements = new Map(); // "r-c" -> {el, value}
         let isAnimating = false;
-        const SLIDE_MS = 130;
+        let SLIDE_MS = 130;
         const boardEl_ref = document.getElementById('game-board');
 
         function getCellRect(row, col) {
@@ -622,7 +926,9 @@
         }
 
         function createTileEl(value, row, col) {
-            const elData = elements[value] || elements[1048576];
+            // value can be BigInt (live game) or Number (legacy / not used in game now)
+            const elData = getElementByTile(value)
+                || { no: '?', symbol: '?', en: '', zh: '', bg: '#888', color: '#fff' };
             const rect = getCellRect(row, col);
             const el = document.createElement('div');
             el.classList.add('tile');
@@ -639,6 +945,90 @@
             tileElements.clear();
         }
 
+        // ── Element Info Panel ────────────────────────────────────
+        const STATE_LABEL = { solid: '固體', liquid: '液體', gas: '氣體', unknown: '未知' };
+        const CAT_LABEL_ZH = {
+            nonmetal: '非金屬', noble_gas: '稀有氣體', alkali_metal: '鹼金屬',
+            alkaline_earth: '鹼土金屬', metalloid: '類金屬', post_transition: '後過渡金屬',
+            transition_metal: '過渡金屬', lanthanide: '鑭系元素', actinide: '錒系元素',
+            halogen: '鹵素', unknown: '未知',
+        };
+        const CAT_LABEL_EN = {
+            nonmetal: 'Nonmetal', noble_gas: 'Noble gas', alkali_metal: 'Alkali metal',
+            alkaline_earth: 'Alkaline earth', metalloid: 'Metalloid', post_transition: 'Post-transition',
+            transition_metal: 'Transition metal', lanthanide: 'Lanthanide', actinide: 'Actinide',
+            halogen: 'Halogen', unknown: 'Unknown',
+        };
+
+        function getCurrentMaxElement() {
+            let maxV = 0n;
+            for (let r = 0; r < boardSize; r++)
+                for (let c = 0; c < boardSize; c++)
+                    if (board[r][c] > maxV) maxV = board[r][c];
+            return maxV > 0n ? getElementByTile(maxV) : null;
+        }
+
+        function _fmtNum(v, suffix) {
+            if (v === null || v === undefined) return '—';
+            return v.toLocaleString() + (suffix || '');
+        }
+
+        function updateElementInfoPanel() {
+            const body = document.getElementById('info-panel-body');
+            if (!body) return;
+            const el = getCurrentMaxElement();
+            if (!el) {
+                body.innerHTML = '<div class="info-empty">Start the game to see element info.<br>開始遊戲查看元素資訊。</div>';
+                return;
+            }
+            const catColor = (window.PERIODIC_CAT_COLORS && window.PERIODIC_CAT_COLORS[el.category])
+                ? window.PERIODIC_CAT_COLORS[el.category].bg : '#8f7a66';
+            const stateZh = STATE_LABEL[el.state_at_stp] || '—';
+            const en2c = (v) => isFinite(v) ? (v - 273.15).toFixed(0) + '°C' : '—';
+            const groupStr = el.group !== null && el.group !== undefined ? el.group : '—';
+
+            const usesBlock = (el.uses_zh || el.uses_en) ? `
+                <div class="info-section">
+                    <div class="ttl">Uses / 用途</div>
+                    <div class="body">${escapeHtml(el.uses_zh || '')}${el.uses_en ? '<br><i style="opacity:0.7">' + escapeHtml(el.uses_en) + '</i>' : ''}</div>
+                </div>` : '';
+            const funBlock = el.fun_fact_zh ? `
+                <div class="info-section">
+                    <div class="ttl">Fun Fact / 冷知識</div>
+                    <div class="body">${escapeHtml(el.fun_fact_zh)}</div>
+                </div>` : '';
+            const discBlock = (el.discovery_year || el.discoverer) ? `
+                <div class="info-section">
+                    <div class="ttl">Discovery / 發現</div>
+                    <div class="body">${el.discovery_year ? el.discovery_year + (el.discoverer ? ' — ' : '') : ''}${escapeHtml(el.discoverer || '')}</div>
+                </div>` : '';
+
+            body.innerHTML = `
+                <div class="info-tile" style="background:${el.bg};color:${el.color};">
+                    <span class="tile-no">${el.no}</span>
+                    <span class="tile-symbol">${escapeHtml(el.symbol)}</span>
+                </div>
+                <div class="info-name">${escapeHtml(el.zh)} ${escapeHtml(el.symbol)}</div>
+                <div class="info-name-en">${escapeHtml(el.en)}</div>
+                <div class="info-cat-wrap">
+                    <span class="info-category" style="background:${catColor};">${CAT_LABEL_ZH[el.category] || ''} / ${CAT_LABEL_EN[el.category] || ''}</span>
+                </div>
+                <div class="info-grid">
+                    <div class="lbl">Period 週期</div><div class="val">${el.period}</div>
+                    <div class="lbl">Group 族</div><div class="val">${groupStr}</div>
+                    <div class="lbl">Atomic 原子量</div><div class="val">${_fmtNum(el.atomic_weight)}</div>
+                    <div class="lbl">EN 電負度</div><div class="val">${el.electronegativity != null ? el.electronegativity : '—'}</div>
+                    <div class="lbl">M.P. 熔點</div><div class="val">${en2c(el.melting_pt)}</div>
+                    <div class="lbl">B.P. 沸點</div><div class="val">${en2c(el.boiling_pt)}</div>
+                    <div class="lbl">State 狀態</div><div class="val">${stateZh}</div>
+                </div>
+                ${el.electron_config ? `<div class="info-section"><div class="ttl">Config 電子組態</div><div class="body" style="font-family:monospace;">${escapeHtml(el.electron_config)}</div></div>` : ''}
+                ${usesBlock}
+                ${funBlock}
+                ${discBlock}
+            `;
+        }
+
         function repositionAllTiles() {
             for (const [key, tile] of tileElements) {
                 const [r, c] = key.split('-').map(Number);
@@ -648,9 +1038,74 @@
             }
         }
 
-        /** Pure function: process move and track every tile movement */
+        // ── Hard-mode expansion machinery ─────────────────────────
+        function _showExpansionFanfare(newSize, fromNo, toNo) {
+            const overlay = document.getElementById('expansion-overlay');
+            const range = document.getElementById('ex-range');
+            const fromEl = window.PERIODIC_BY_NO && window.PERIODIC_BY_NO[fromNo + 1];
+            const toEl = window.PERIODIC_BY_NO && window.PERIODIC_BY_NO[toNo];
+            const rangeText = (fromEl && toEl)
+                ? `Unlocked: ${fromEl.symbol}~${toEl.symbol} / 解鎖: ${fromEl.zh}~${toEl.zh}`
+                : `Board: ${newSize}×${newSize}`;
+            range.textContent = `${newSize}×${newSize}  •  ${rangeText}`;
+            overlay.classList.add('show');
+            setTimeout(() => overlay.classList.remove('show'), 1800);
+        }
+
+        async function expandBoard(newSize, fromNo, toNo) {
+            const oldSize = boardSize;
+            const offset = Math.floor((newSize - oldSize) / 2);
+
+            // 1. Build new bigger board array (BigInt 0n filled), copy old tiles into the centered area
+            const newBoard = Array(newSize).fill().map(() => Array(newSize).fill(0n));
+            for (let r = 0; r < oldSize; r++)
+                for (let c = 0; c < oldSize; c++)
+                    newBoard[r + offset][c + offset] = board[r][c];
+
+            // 2. Update tileElements map keys to new positions
+            const newTileMap = new Map();
+            for (const [key, t] of tileElements) {
+                const [r, c] = key.split('-').map(Number);
+                newTileMap.set(`${r + offset}-${c + offset}`, t);
+            }
+            tileElements = newTileMap;
+
+            // 3. Show fanfare overlay
+            _showExpansionFanfare(newSize, fromNo, toNo);
+
+            // 4. Resize the grid (rebuild cells, update CSS variable)
+            boardSize = newSize;
+            board = newBoard;
+            _snakeWeights = _buildSnakeWeights(newSize);
+            buildBoardCells(newSize);
+
+            // 5. Wait one frame for layout, then reposition tiles to new cells
+            await new Promise(r => requestAnimationFrame(r));
+            repositionAllTiles();
+
+            // 6. Hold a beat for the fanfare to read
+            await new Promise(r => setTimeout(r, 600));
+            updateElementInfoPanel();
+        }
+
+        function _checkAndExpand() {
+            if (currentDifficulty !== 'hard') return null;
+            const maxEl = getCurrentMaxElement();
+            if (!maxEl) return null;
+            for (const step of EXPANSION_LADDER) {
+                if (maxEl.no >= step.atNo
+                    && !_expansionsTriggered.has(step.atNo)
+                    && step.newSize > boardSize) {
+                    _expansionsTriggered.add(step.atNo);
+                    return step;
+                }
+            }
+            return null;
+        }
+
+        /** Pure function: process move and track every tile movement (BigInt only — live game) */
         function processMoveTracked(currentBoard, direction) {
-            let scoreGain = 0, moved = false;
+            let scoreGain = 0n, moved = false;
             let newBoard = currentBoard.map(r => [...r]);
             let movements = []; // {fromR, fromC, toR, toC}
             let merges = [];    // {row, col, value}
@@ -658,9 +1113,9 @@
             function processLine(line, getRC) {
                 let nonZero = [];
                 for (let i = 0; i < line.length; i++) {
-                    if (line[i] !== 0) nonZero.push({ value: line[i], idx: i });
+                    if (line[i] !== 0n) nonZero.push({ value: line[i], idx: i });
                 }
-                let result = Array(boardSize).fill(0);
+                let result = Array(boardSize).fill(0n);
                 let w = 0, i = 0;
                 while (i < nonZero.length) {
                     const src = getRC(nonZero[i].idx);
@@ -669,9 +1124,9 @@
                         const dst = getRC(w);
                         movements.push({ fromR: src.r, fromC: src.c, toR: dst.r, toC: dst.c });
                         movements.push({ fromR: src2.r, fromC: src2.c, toR: dst.r, toC: dst.c });
-                        const mVal = nonZero[i].value * 2;
+                        const mVal = nonZero[i].value * 2n;
                         result[w] = mVal;
-                        scoreGain += mVal;
+                        scoreGain = scoreGain + mVal;
                         merges.push({ row: dst.r, col: dst.c, value: mVal });
                         if (src.r !== dst.r || src.c !== dst.c || src2.r !== dst.r || src2.c !== dst.c) moved = true;
                         i += 2;
@@ -722,8 +1177,12 @@
             const playerName = (currentUser && currentUser.display_name) || "Guest / 訪客";
             document.getElementById('display-name').innerText = `Player: ${playerName}`;
             document.getElementById('welcome-screen').classList.add('hidden');
-            document.getElementById('game-container').classList.remove('hidden');
+            document.getElementById('game-wrapper').classList.remove('hidden');
             isGameActive = true;
+            // Restore difficulty selector active state from saved value
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.diff === currentDifficulty);
+            });
 
             // Load personal best from server
             if (isLoggedIn) {
@@ -758,11 +1217,16 @@
             if (typeof stopAI === 'function') stopAI();
             clearAllTiles();
             isAnimating = false;
-            board = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
-            score = 0;
+            // Reset board to 5×5 every new game (expansions earned again per run)
+            boardSize = 5;
+            _expansionsTriggered.clear();
+            buildBoardCells(boardSize);
+            _snakeWeights = _buildSnakeWeights(boardSize);
+            board = Array(boardSize).fill().map(() => Array(boardSize).fill(0n));
+            score = 0n;
             totalMoves = 0;
             tipsUsed = 0;
-            scoreEl.innerText = score;
+            scoreEl.innerText = _formatBigNumber(score);
             gameOverEl.style.display = 'none';
             tipsRemaining = 1;
             tipBtn.innerText = `Tip / 提示 (${tipsRemaining})`;
@@ -771,18 +1235,19 @@
             addRandomTile();
             addRandomTile();
             renderBoard(true);
+            updateElementInfoPanel();
         }
 
         function addRandomTile() {
             let emptyCells = [];
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    if (board[r][c] === 0) emptyCells.push({r, c});
+                    if (board[r][c] === 0n) emptyCells.push({r, c});
                 }
             }
             if (emptyCells.length > 0) {
                 let cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-                board[cell.r][cell.c] = Math.random() < 0.9 ? 2 : 4;
+                board[cell.r][cell.c] = Math.random() < 0.9 ? 2n : 4n;
                 return cell;
             }
             return null;
@@ -792,7 +1257,7 @@
             clearAllTiles();
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    if (board[r][c] !== 0) {
+                    if (board[r][c] !== 0n) {
                         const el = createTileEl(board[r][c], r, c);
                         if (withAppear) el.classList.add('tile-new');
                         tileElements.set(`${r}-${c}`, { el, value: board[r][c] });
@@ -802,24 +1267,32 @@
         }
 
         // ============================================================
-        //  Core Movement Logic
+        //  Core Movement Logic — polymorphic (BigInt for live game, Number for AI)
         // ============================================================
         function slide(row) {
-            let filteredRow = row.filter(val => val !== 0);
-            let missing = boardSize - filteredRow.length;
-            return filteredRow.concat(Array(missing).fill(0));
+            // Detect cell type from first defined element (any non-undefined)
+            const isBig = row.length > 0 && typeof row[0] === 'bigint';
+            const ZERO = isBig ? 0n : 0;
+            const filteredRow = row.filter(val => val !== ZERO);
+            const missing = row.length - filteredRow.length;
+            for (let i = 0; i < missing; i++) filteredRow.push(ZERO);
+            return filteredRow;
         }
 
         function combine(row, modifyScore = true) {
-            let scoreGain = 0;
-            for (let i = 0; i < boardSize - 1; i++) {
-                if (row[i] !== 0 && row[i] === row[i + 1]) {
-                    row[i] *= 2;
-                    row[i + 1] = 0;
-                    scoreGain += row[i];
+            const isBig = row.length > 0 && typeof row[0] === 'bigint';
+            const ZERO = isBig ? 0n : 0;
+            let scoreGain = isBig ? 0n : 0;
+            for (let i = 0; i < row.length - 1; i++) {
+                if (row[i] !== ZERO && row[i] === row[i + 1]) {
+                    const merged = isBig ? (row[i] * 2n) : (row[i] * 2);
+                    row[i] = merged;
+                    row[i + 1] = ZERO;
+                    scoreGain = scoreGain + merged;  // same type, safe
                     if (modifyScore) {
-                        score += row[i];
-                        scoreEl.innerText = score;
+                        // Live game path: score is always BigInt
+                        score = score + (isBig ? merged : BigInt(merged));
+                        scoreEl.innerText = _formatBigNumber(score);
                     }
                 }
             }
@@ -827,36 +1300,39 @@
         }
 
         function processMove(currentBoard, direction, modifyScore = true) {
+            // Polymorphic: handles both BigInt boards (live game) and Number boards (AI)
+            const N = currentBoard.length;
+            const isBig = N > 0 && currentBoard[0].length > 0 && typeof currentBoard[0][0] === 'bigint';
             let moved = false;
-            let totalScoreGain = 0;
+            let totalScoreGain = isBig ? 0n : 0;
             let newBoard = currentBoard.map(r => [...r]);
 
             if (direction === 'Left' || direction === 'Right') {
-                for (let r = 0; r < boardSize; r++) {
+                for (let r = 0; r < N; r++) {
                     let row = newBoard[r];
                     if (direction === 'Right') row = row.slice().reverse();
                     let newRow = slide(row);
                     let combineData = combine(newRow, modifyScore);
                     newRow = slide(combineData.row);
-                    totalScoreGain += combineData.scoreGain;
+                    totalScoreGain = totalScoreGain + combineData.scoreGain;
                     if (direction === 'Right') newRow = newRow.reverse();
                     if (newBoard[r].toString() !== newRow.toString()) moved = true;
                     newBoard[r] = newRow;
                 }
             } else {
-                for (let c = 0; c < boardSize; c++) {
+                for (let c = 0; c < N; c++) {
                     let col = [];
-                    for(let r = 0; r < boardSize; r++) col.push(newBoard[r][c]);
+                    for (let r = 0; r < N; r++) col.push(newBoard[r][c]);
                     if (direction === 'Down') col = col.slice().reverse();
                     let newCol = slide(col);
                     let combineData = combine(newCol, modifyScore);
                     newCol = slide(combineData.row);
-                    totalScoreGain += combineData.scoreGain;
+                    totalScoreGain = totalScoreGain + combineData.scoreGain;
                     if (direction === 'Down') newCol = newCol.reverse();
                     let oldCol = [];
-                    for(let r = 0; r < boardSize; r++) oldCol.push(currentBoard[r][c]);
+                    for (let r = 0; r < N; r++) oldCol.push(currentBoard[r][c]);
                     if (oldCol.toString() !== newCol.toString()) moved = true;
-                    for (let r = 0; r < boardSize; r++) newBoard[r][c] = newCol[r];
+                    for (let r = 0; r < N; r++) newBoard[r][c] = newCol[r];
                 }
             }
             return { moved, newBoard, totalScoreGain };
@@ -865,7 +1341,7 @@
         function checkGameOver() {
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    if (board[r][c] === 0) return false;
+                    if (board[r][c] === 0n) return false;
                     if (r !== boardSize - 1 && board[r][c] === board[r + 1][c]) return false;
                     if (c !== boardSize - 1 && board[r][c] === board[r][c + 1]) return false;
                 }
@@ -874,7 +1350,7 @@
         }
 
         function getHighestTile() {
-            let max = 0;
+            let max = 0n;
             for (let r = 0; r < boardSize; r++)
                 for (let c = 0; c < boardSize; c++)
                     if (board[r][c] > max) max = board[r][c];
@@ -905,11 +1381,11 @@
             // Phase 2: Wait for slide animation
             await new Promise(r => setTimeout(r, SLIDE_MS));
 
-            // Phase 3: Update game state
+            // Phase 3: Update game state (BigInt arithmetic)
             board = moveResult.newBoard;
             totalMoves++;
-            score += moveResult.scoreGain;
-            scoreEl.innerText = score;
+            score = score + moveResult.scoreGain;  // BigInt + BigInt
+            scoreEl.innerText = _formatBigNumber(score);
 
             // Phase 4: Remove old tiles, rebuild final state
             for (const [, t] of tileElements) t.el.remove();
@@ -918,7 +1394,7 @@
             const mergeKeys = new Set(moveResult.merges.map(m => `${m.row}-${m.col}`));
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    if (board[r][c] !== 0) {
+                    if (board[r][c] !== 0n) {
                         const el = createTileEl(board[r][c], r, c);
                         if (mergeKeys.has(`${r}-${c}`)) el.classList.add('tile-merged');
                         tileElements.set(`${r}-${c}`, { el, value: board[r][c] });
@@ -937,12 +1413,21 @@
             // Phase 6: Update best score
             if (score > bestScore) {
                 bestScore = score;
-                bestScoreEl.innerText = bestScore;
+                bestScoreEl.innerText = _formatBigNumber(bestScore);
                 try { localStorage.setItem('chem2048_best', String(bestScore)); } catch (_) {}
             }
 
             tipDisplay.style.opacity = 0;
             isAnimating = false;
+            updateElementInfoPanel();
+
+            // Hard-mode expansion check (asynchronous; AI loop respects isAnimating)
+            const expansionStep = _checkAndExpand();
+            if (expansionStep) {
+                isAnimating = true;
+                await expandBoard(expansionStep.newSize, expansionStep.atNo, expansionStep.unlockTo);
+                isAnimating = false;
+            }
 
             if (checkGameOver()) {
                 onGameOver();
@@ -952,33 +1437,88 @@
         // ============================================================
         //  Game Over & Score Submission
         // ============================================================
+        async function _submitScorePayload(payload, tag) {
+            // Direct fetch with explicit error handling (bypass apiCall's silent null returns)
+            try {
+                if (typeof AuthModule === 'undefined') throw new Error('AuthModule missing');
+                const token = AuthModule.getToken && AuthModule.getToken();
+                if (!token) throw new Error('no token (not logged in?)');
+                const resp = await fetch('/api/chem2048/scores', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const text = await resp.text();
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+                let data;
+                try { data = JSON.parse(text); } catch { throw new Error('bad JSON: ' + text.slice(0, 200)); }
+                if (!data.success) throw new Error('server said not success: ' + JSON.stringify(data).slice(0, 200));
+                console.log(`%c[chem2048] ${tag} submitted: score=${payload.score}`, 'color:#27ae60;font-weight:bold', data.data);
+                return data;
+            } catch (err) {
+                console.error(`%c[chem2048] ${tag} FAILED: ${err.message}`, 'color:#e74c3c;font-weight:bold', payload);
+                return null;
+            }
+        }
+
+        async function _flushPendingScores() {
+            let pending = [];
+            try { pending = JSON.parse(localStorage.getItem('chem2048_pending') || '[]'); } catch (_) {}
+            if (!pending.length) return;
+            const remaining = [];
+            for (const p of pending) {
+                const r = await _submitScorePayload(p, 'retry');
+                if (!r) remaining.push(p);
+            }
+            localStorage.setItem('chem2048_pending', JSON.stringify(remaining));
+            if (pending.length > remaining.length) {
+                showToast(`Flushed ${pending.length - remaining.length} pending score(s)`, 'success');
+            }
+        }
+
         async function onGameOver() {
-            const highestTile = getHighestTile();
-            const elData = elements[highestTile] || elements[2];
+            const highestTile = getHighestTile();  // BigInt
+            const elData = getElementByTile(highestTile)
+                || { no: 1, symbol: 'H', en: 'Hydrogen', zh: '氫' };
 
             document.getElementById('final-info').innerHTML =
-                `Score: ${score} | Highest: ${elData.symbol} (${elData.zh})<br>` +
-                `Moves: ${totalMoves}`;
+                `Score: ${_formatBigNumber(score)} | Highest: ${elData.symbol} (${elData.zh})<br>` +
+                `Moves: ${totalMoves.toLocaleString()}`;
             gameOverEl.style.display = 'flex';
 
-            // Submit score
-            if (isLoggedIn) {
-                const res = await apiCall('POST', '/api/chem2048/scores', {
-                    score: score,
-                    highest_tile: highestTile,
-                    highest_element: elData.symbol,
-                    highest_element_no: elData.no,
-                    total_moves: totalMoves,
-                    tips_used: tipsUsed,
-                });
-                if (res && res.data) {
-                    const msg = res.data.is_new_best
-                        ? `New Record! / 新紀錄！ 🎉`
-                        : `Score submitted / 成績已記錄 ✓`;
-                    showToast(msg, res.data.is_new_best ? 'success' : 'info');
-                } else {
-                    showToast('Score save failed / 成績保存失敗', 'error');
-                }
+            if (!isLoggedIn) {
+                console.warn('[chem2048] game over but not logged in — score NOT submitted');
+                showToast('Not logged in — score not saved', 'error');
+                return;
+            }
+
+            // BigInt → string for JSON serialization (JSON.stringify throws on BigInt)
+            const payload = {
+                mode: currentDifficulty,
+                score: String(score),
+                highest_tile: String(highestTile),
+                highest_element: elData.symbol,
+                highest_element_no: elData.no,
+                total_moves: totalMoves,
+                tips_used: tipsUsed,
+            };
+
+            const res = await _submitScorePayload(payload, 'game-over');
+            if (res && res.data) {
+                const msg = res.data.is_new_best
+                    ? `New Record! / 新紀錄！ 🎉`
+                    : `Score submitted / 成績已記錄 ✓`;
+                showToast(msg, res.data.is_new_best ? 'success' : 'info');
+            } else {
+                // Queue for retry next page load
+                let pending = [];
+                try { pending = JSON.parse(localStorage.getItem('chem2048_pending') || '[]'); } catch (_) {}
+                pending.push(payload);
+                localStorage.setItem('chem2048_pending', JSON.stringify(pending));
+                showToast('Save failed — will retry next time', 'error');
             }
         }
 
@@ -989,12 +1529,13 @@
             if (tipsRemaining <= 0 || isAnimating || gameOverEl.style.display === 'flex') return;
             const directions = ['Up', 'Down', 'Left', 'Right'];
             let bestDir = null;
-            let maxScore = -1;
+            let maxScore = -1n;  // BigInt — same type as scoreGain from BigInt board
             let maxEmpty = -1;
             for (let dir of directions) {
                 let res = processMove(board, dir, false);
                 if (res.moved) {
-                    let emptyCount = res.newBoard.flat().filter(v => v === 0).length;
+                    // res.newBoard is BigInt[][] when input was BigInt
+                    let emptyCount = res.newBoard.flat().filter(v => v === 0n).length;
                     if (res.totalScoreGain > maxScore || (res.totalScoreGain === maxScore && emptyCount > maxEmpty)) {
                         maxScore = res.totalScoreGain;
                         maxEmpty = emptyCount;
@@ -1034,13 +1575,15 @@
             rows.forEach((r, i) => {
                 const rankClass = i === 0 ? 'lb-rank-1' : i === 1 ? 'lb-rank-2' : i === 2 ? 'lb-rank-3' : '';
                 const rankIcon = i === 0 ? '&#x1F3C6;' : i === 1 ? '&#x1F948;' : i === 2 ? '&#x1F949;' : '';
-                const elBg = elements[Math.pow(2, r.highest_element_no)] ? elements[Math.pow(2, r.highest_element_no)].bg : '#8f7a66';
+                // Look up element by atomic number directly (avoid Math.pow which loses precision past 2^53)
+                const elInfo = (window.PERIODIC_BY_NO && window.PERIODIC_BY_NO[r.highest_element_no]) || null;
+                const elBg = elInfo ? elInfo.bg : '#8f7a66';
 
                 html += `<tr class="lb-row ${rankClass}">
                     <td>${rankIcon ? '<span class="lb-rank-icon">' + rankIcon + '</span>' : '<span class="lb-rank-num">' + r.rank + '</span>'}</td>
                     <td><strong>${escapeHtml(r.student_name)}</strong></td>
                     <td>${escapeHtml(r.class_name || '-')}</td>
-                    <td><strong>${r.score.toLocaleString()}</strong></td>
+                    <td><strong>${_formatBigNumber(r.score)}</strong></td>
                     <td><span class="element-badge" style="background:${elBg}">${escapeHtml(r.highest_element)} ${escapeHtml(r.element_zh || '')}</span></td>
                 </tr>`;
             });
@@ -1049,17 +1592,45 @@
             return html;
         }
 
-        async function fetchAndRenderLeaderboard(targetEl, limit) {
+        let currentLbGroup = 'form3';      // form3 | open
+        let currentLbMode = 'simple';      // simple | hard
+        let currentWelcomeMode = 'simple'; // welcome screen mode tab
+
+        async function fetchAndRenderLeaderboard(targetEl, limit, group, mode) {
             if (!isLoggedIn) {
                 targetEl.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
                 return;
             }
-            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}`);
+            const params = [];
+            if (group) params.push('group=' + encodeURIComponent(group));
+            if (mode) params.push('mode=' + encodeURIComponent(mode));
+            const qs = params.length ? '&' + params.join('&') : '';
+            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}${qs}`);
             if (!res || !res.data || res.data.length === 0) {
                 targetEl.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
                 return;
             }
             targetEl.innerHTML = renderLeaderboardHtml(res.data);
+        }
+
+        function switchLeaderboardTab(group) {
+            currentLbGroup = group;
+            document.querySelectorAll('#lb-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === group);
+            });
+            const body = document.getElementById('lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 50, group, currentLbMode);
+        }
+
+        function switchLbMode(mode) {
+            currentLbMode = mode;
+            document.querySelectorAll('#lb-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === mode);
+            });
+            const body = document.getElementById('lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 50, currentLbGroup, mode);
         }
 
         async function showLeaderboard() {
@@ -1068,7 +1639,15 @@
             overlay.classList.add('open');
             isLeaderboardOpen = true;
             body.innerHTML = '<div class="lb-empty">Loading...</div>';
-            await fetchAndRenderLeaderboard(body, 50);
+            // 預設顯示玩家當前難度的榜
+            currentLbMode = currentDifficulty;
+            document.querySelectorAll('#lb-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === currentLbMode);
+            });
+            document.querySelectorAll('#lb-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === currentLbGroup);
+            });
+            await fetchAndRenderLeaderboard(body, 50, currentLbGroup, currentLbMode);
         }
 
         function closeLeaderboard() {
@@ -1079,7 +1658,29 @@
         async function loadWelcomeLeaderboard() {
             const body = document.getElementById('welcome-lb-body');
             if (!body) return;
-            await fetchAndRenderLeaderboard(body, 10);
+            await fetchAndRenderLeaderboard(body, 10, 'form3', currentWelcomeMode);
+        }
+
+        function switchWelcomeLbTab(group) {
+            document.querySelectorAll('#welcome-lb-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === group);
+            });
+            const body = document.getElementById('welcome-lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 10, group, currentWelcomeMode);
+        }
+
+        function switchWelcomeMode(mode) {
+            currentWelcomeMode = mode;
+            document.querySelectorAll('#welcome-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === mode);
+            });
+            // current group selection
+            const activeGroupBtn = document.querySelector('#welcome-lb-tabs .lb-tab--active');
+            const grp = activeGroupBtn ? activeGroupBtn.dataset.group : 'form3';
+            const body = document.getElementById('welcome-lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 10, grp, mode);
         }
 
         function escapeHtml(str) {
@@ -1169,54 +1770,58 @@
 
         let _aiRunning = false;
         let _aiTimer = null;
-        const _AI_DELAY = 200; // ms between moves
+        let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
-        // ── Snake weight matrices (4 rotations) for 5×5 board ──
-        const _snakeWeights = (() => {
+        // ── Snake weight matrices (4 rotations) — generated per board size ──
+        // For N×N board, walks a snake path from top-left, weighting each cell
+        // by 4^(N²-1-idx). 4 rotations let the AI pick whichever corner is best.
+        function _buildSnakeWeights(size) {
+            const total = size * size;
             const base = [];
-            for (let r = 0; r < 5; r++) {
+            for (let r = 0; r < size; r++) {
                 const row = [];
-                for (let c = 0; c < 5; c++) {
-                    const idx = r % 2 === 0 ? r * 5 + (4 - c) : r * 5 + c;
-                    row.push(Math.pow(4, 24 - idx));
+                for (let c = 0; c < size; c++) {
+                    const idx = r % 2 === 0 ? r * size + (size - 1 - c) : r * size + c;
+                    row.push(Math.pow(4, total - 1 - idx));
                 }
                 base.push(row);
             }
-            // Generate 4 rotations
             const rotate90 = m => m[0].map((_, c) => m.map(r => r[c]).reverse());
             const r1 = rotate90(base);
             const r2 = rotate90(r1);
             const r3 = rotate90(r2);
             return [base, r1, r2, r3];
-        })();
+        }
+        let _snakeWeights = _buildSnakeWeights(5);
 
         function _evalBoard(b) {
+            const N = b.length;
             let emptyCount = 0;
             let smoothness = 0;
             let mono = 0;
 
             // Empty cells + smoothness
-            for (let r = 0; r < 5; r++) {
-                for (let c = 0; c < 5; c++) {
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
                     if (b[r][c] === 0) { emptyCount++; continue; }
                     const v = Math.log2(b[r][c] || 1);
-                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
-                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
+                    if (c < N - 1 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
+                    if (r < N - 1 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
                 }
             }
 
             // Monotonicity (rows + cols, best of inc/dec)
-            for (let r = 0; r < 5; r++) {
+            for (let r = 0; r < N; r++) {
                 let inc = 0, dec = 0;
-                for (let c = 0; c < 4; c++) {
+                for (let c = 0; c < N - 1; c++) {
                     const a = Math.log2(b[r][c] || 1), n = Math.log2(b[r][c + 1] || 1);
                     if (a > n) dec += n - a; else inc += a - n;
                 }
                 mono += Math.max(inc, dec);
             }
-            for (let c = 0; c < 5; c++) {
+            for (let c = 0; c < N; c++) {
                 let inc = 0, dec = 0;
-                for (let r = 0; r < 4; r++) {
+                for (let r = 0; r < N - 1; r++) {
                     const a = Math.log2(b[r][c] || 1), n = Math.log2(b[r + 1][c] || 1);
                     if (a > n) dec += n - a; else inc += a - n;
                 }
@@ -1227,8 +1832,8 @@
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
-                for (let r = 0; r < 5; r++)
-                    for (let c = 0; c < 5; c++)
+                for (let r = 0; r < N; r++)
+                    for (let c = 0; c < N; c++)
                         s += b[r][c] * w[r][c];
                 if (s > bestSnake) bestSnake = s;
             }
@@ -1264,9 +1869,10 @@
                 return anyMoved ? best : _evalBoard(b);
             } else {
                 // Chance node
+                const N = b.length;
                 const empty = [];
-                for (let r = 0; r < 5; r++)
-                    for (let c = 0; c < 5; c++)
+                for (let r = 0; r < N; r++)
+                    for (let c = 0; c < N; c++)
                         if (b[r][c] === 0) empty.push({ r, c });
                 if (!empty.length) return _evalBoard(b);
 
@@ -1283,12 +1889,33 @@
             }
         }
 
+        // Boundary: convert BigInt board → Number board for AI search.
+        // Cap at 2^53 (JS safe int) — never reached in practice (AI peaks ~2^40 even on 15×15).
+        function _toAiBoard(bigBoard) {
+            const N = bigBoard.length;
+            const SAFE_MAX = 9007199254740992n;  // 2^53
+            const ai = Array(N).fill().map(() => Array(N).fill(0));
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    const v = bigBoard[r][c];
+                    if (v === 0n) ai[r][c] = 0;
+                    else if (v > SAFE_MAX) ai[r][c] = Number(SAFE_MAX);
+                    else ai[r][c] = Number(v);
+                }
+            }
+            return ai;
+        }
+
         function _aiBestMove() {
+            // Convert live BigInt board → Number board (AI internals stay on Number for speed)
+            const aiBoard = _toAiBoard(board);
             let bestDir = null, bestScore = -Infinity;
+            // Cap depth on larger boards (branching grows fast)
+            const depth = boardSize <= 5 ? 4 : boardSize <= 7 ? 3 : 2;
             for (const dir of ['Up', 'Down', 'Left', 'Right']) {
-                const res = processMove(board, dir, false);
+                const res = processMove(aiBoard, dir, false);  // polymorphic — Number path
                 if (!res.moved) continue;
-                const s = _expectimax(res.newBoard, 2, false);
+                const s = _expectimax(res.newBoard, depth, false);
                 if (s > bestScore) { bestScore = s; bestDir = dir; }
             }
             return bestDir;
@@ -1298,27 +1925,86 @@
             _aiRunning ? stopAI() : startAI();
         }
 
+        const _AI_SPEEDS = [
+            { label: '1x',   delay: 200, slide: 130 },
+            { label: '2x',   delay: 100, slide: 80  },
+            { label: '5x',   delay: 40,  slide: 40  },
+            { label: '10x',  delay: 15,  slide: 20  },
+            { label: 'MAX',  delay: 0,   slide: 0   },
+        ];
+        const _DEFAULT_SLIDE_MS = 130;
+        let _aiSpeedIdx = 2; // default 5x
+
+        function _applySlideMs(ms) {
+            SLIDE_MS = ms;
+            document.documentElement.style.setProperty('--slide-dur', (ms / 1000) + 's');
+        }
+
+        function _showAIPanel() {
+            let panel = document.getElementById('ai-ctrl-panel');
+            if (panel) { panel.style.display = 'flex'; return; }
+            panel = document.createElement('div');
+            panel.id = 'ai-ctrl-panel';
+            panel.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(30,30,30,0.92);padding:8px 16px;border-radius:24px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+            panel.innerHTML = `
+                <span style="color:#27ae60;font-weight:700;font-size:13px;margin-right:4px;">AI</span>
+                ${_AI_SPEEDS.map((s, i) =>
+                    `<button onclick="_setAISpeed(${i})" class="ai-spd-btn" data-idx="${i}"
+                        style="padding:4px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;
+                        background:${i === _aiSpeedIdx ? '#27ae60' : 'transparent'};
+                        color:${i === _aiSpeedIdx ? '#fff' : '#aaa'};font-size:12px;font-weight:600;
+                        cursor:pointer;transition:all 0.1s;">${s.label}</button>`
+                ).join('')}
+                <button onclick="stopAI()" style="padding:4px 12px;border:1px solid rgba(255,80,80,0.4);border-radius:12px;background:transparent;color:#ff5050;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px;">STOP</button>
+            `;
+            document.body.appendChild(panel);
+        }
+
+        function _hideAIPanel() {
+            const panel = document.getElementById('ai-ctrl-panel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function _setAISpeed(idx) {
+            _aiSpeedIdx = idx;
+            _AI_DELAY = _AI_SPEEDS[idx].delay;
+            _applySlideMs(_AI_SPEEDS[idx].slide);
+            document.querySelectorAll('.ai-spd-btn').forEach(b => {
+                const i = parseInt(b.dataset.idx);
+                b.style.background = i === idx ? '#27ae60' : 'transparent';
+                b.style.color = i === idx ? '#fff' : '#aaa';
+            });
+        }
+
         function startAI() {
             if (_aiRunning) return;
             _aiRunning = true;
-            console.log('%c[AI] 🤖 Auto-play activated', 'color:#27ae60;font-weight:bold;font-size:14px');
+            _AI_DELAY = _AI_SPEEDS[_aiSpeedIdx].delay;
+            _applySlideMs(_AI_SPEEDS[_aiSpeedIdx].slide);
+            console.log('%c[AI] Auto-play activated (speed: ' + _AI_SPEEDS[_aiSpeedIdx].label + ')', 'color:#27ae60;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
             if (bEl) bEl.style.boxShadow = '0 0 20px rgba(39,174,96,0.6)';
+            _showAIPanel();
             _aiStep();
         }
 
         function stopAI() {
             _aiRunning = false;
-            if (_aiTimer) { clearTimeout(_aiTimer); _aiTimer = null; }
-            console.log('%c[AI] ⏹ Auto-play stopped', 'color:#e74c3c;font-weight:bold;font-size:14px');
+            _applySlideMs(_DEFAULT_SLIDE_MS);
+            if (_aiTimer) { clearTimeout(_aiTimer); cancelAnimationFrame(_aiTimer); _aiTimer = null; }
+            console.log('%c[AI] Auto-play stopped', 'color:#e74c3c;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
             if (bEl) bEl.style.boxShadow = '';
+            _hideAIPanel();
         }
 
         function _aiStep() {
             if (!_aiRunning || !isGameActive) { stopAI(); return; }
             if (gameOverEl.style.display === 'flex') { stopAI(); return; }
-            if (isAnimating) { _aiTimer = setTimeout(_aiStep, 50); return; }
+            if (isAnimating) {
+                _aiTimer = setTimeout(_aiStep, _AI_DELAY === 0 ? 0 : 10);
+                return;
+            }
 
             const dir = _aiBestMove();
             if (!dir) { stopAI(); return; }

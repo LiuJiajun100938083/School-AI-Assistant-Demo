@@ -4,61 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>錯題分析 — 教師面板</title>
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/mistake_book.css">
-    <link rel="stylesheet" href="/static/css/mistake_book_teacher.css">
+    <link rel="stylesheet" href="/static/css/mistake_book.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/mistake_book_teacher.css?v=20260414">
 </head>
 <body>
 
 <div id="app" class="mbt-page">
 
     <!-- 頂部導航 -->
-    <header class="mb-header">
-        <div class="mb-header__title">
-            <span>📊</span>
-            <span data-i18n="mbt.headerTitle">錯題分析 · 教師面板</span>
+    <header class="mbt-header">
+        <div class="mbt-header__left">
+            <div class="mbt-header__icon">
+                <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-2-2-4 4"/></svg>
+            </div>
+            <div>
+                <div class="mbt-header__title" data-i18n="mbt.headerTitle">錯題分析 · 教師面板</div>
+            </div>
         </div>
-        <div class="mb-header__actions">
+        <div>
             <button class="mb-btn mb-btn--sm mb-btn--outline" onclick="location.href='/'" data-i18n="mbt.backHome">返回首頁</button>
         </div>
     </header>
 
     <!-- 篩選工具欄 -->
     <div class="mbt-toolbar" id="toolbar">
-        <div class="mbt-toolbar__group">
-            <label class="mbt-toolbar__label" data-i18n="mbt.classLabel">班級</label>
-            <select class="mb-select mbt-toolbar__select" id="classSelect">
-                <option value="" data-i18n="mbt.selectClass">選擇班級...</option>
-            </select>
-        </div>
-        <div class="mbt-toolbar__group">
-            <label class="mbt-toolbar__label" data-i18n="mbt.subjectLabel">科目</label>
-            <select class="mb-select mbt-toolbar__select" id="subjectSelect">
-                <option value="" data-i18n="mbt.loading">載入中...</option>
-            </select>
+        <div class="mbt-toolbar__filters">
+            <div class="mbt-toolbar__group">
+                <label class="mbt-toolbar__label" data-i18n="mbt.classLabel">班級</label>
+                <select class="mb-select mbt-toolbar__select" id="classSelect">
+                    <option value="" data-i18n="mbt.selectClass">選擇班級...</option>
+                </select>
+            </div>
+            <div class="mbt-toolbar__group">
+                <label class="mbt-toolbar__label" data-i18n="mbt.subjectLabel">科目</label>
+                <select class="mb-select mbt-toolbar__select" id="subjectSelect">
+                    <option value="" data-i18n="mbt.loading">載入中...</option>
+                </select>
+            </div>
         </div>
         <button class="mb-btn mb-btn--primary mbt-toolbar__btn" onclick="TeacherApp.loadClassReport()" data-i18n="mbt.viewReport">
             查看報告
         </button>
     </div>
 
-    <!-- 主內容區：標籤切換 -->
+    <!-- 標籤切換 -->
     <div class="mbt-tabs" id="tabsBar">
         <div class="mbt-tabs__item mbt-tabs__item--active" data-tab="class-report" data-i18n="mbt.tabClassReport">班級概況</div>
         <div class="mbt-tabs__item" data-tab="student-detail" data-i18n="mbt.tabStudentDetail">學生詳情</div>
     </div>
 
-    <main id="mainContent"></main>
+    <!-- 主內容 -->
+    <main class="mbt-main" id="mainContent"></main>
 </div>
 
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/mistake_book_teacher.js"></script>
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/mistake_book_teacher.js"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/mistake_book_teacher.js?v=20260414"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/mistake_book_teacher.js?v=20260414"></script>
 <script>document.addEventListener('DOMContentLoaded', () => i18n.applyDOM());</script>
 </body>
 </html>

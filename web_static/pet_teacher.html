@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>班級寵物管理</title>
+    <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
+    <style>
+        /* ── iOS Glassmorphism Pet Gallery ── */
+        .pet-header__action {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 14px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .pet-header__action:active { transform: scale(0.94); }
+
+        .pt-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 22px; padding: 32px 28px; color: white;
+            margin-bottom: 24px; position: relative; overflow: hidden;
+        }
+        .pt-hero::before {
+            content: ''; position: absolute; top: -50px; right: -50px;
+            width: 180px; height: 180px; background: rgba(255,255,255,0.07);
+            border-radius: 50%;
+        }
+        .pt-hero::after {
+            content: ''; position: absolute; bottom: -40px; left: -40px;
+            width: 140px; height: 140px; background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .pt-hero__title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; position: relative; z-index: 1; }
+        .pt-hero__sub { font-size: 14px; opacity: 0.8; margin-top: 4px; position: relative; z-index: 1; }
+
+        /* ── Tabs ── */
+        .pt-class-tabs {
+            display: flex; gap: 0; background: rgba(0,0,0,0.04);
+            border-radius: 10px; padding: 2px; margin-bottom: 20px;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .pt-class-tab {
+            flex-shrink: 0; padding: 8px 18px; border: none; border-radius: 8px;
+            background: none; font-weight: 600; font-size: 14px; cursor: pointer;
+            font-family: inherit; color: #8E8E93; transition: all 0.2s; white-space: nowrap;
+        }
+        .pt-class-tab--active { background: white; color: #1C1C1E; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+        /* ── View Toggle ── */
+        .pt-view-toggle {
+            display: flex; gap: 6px; margin-bottom: 16px;
+        }
+        .pt-view-btn {
+            padding: 6px 16px; border: none; border-radius: 16px;
+            background: rgba(0,0,0,0.04); font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit; color: #8E8E93; transition: all 0.15s;
+        }
+        .pt-view-btn--active {
+            background: linear-gradient(135deg, #667eea, #764ba2); color: white;
+        }
+
+        /* ── Summary Cards ── */
+        .pt-summary {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;
+        }
+        .pt-summary__card {
+            background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.5); border-radius: 16px;
+            padding: 16px 12px; text-align: center; transition: transform 0.2s;
+        }
+        .pt-summary__card:hover { transform: translateY(-2px); }
+        .pt-summary__icon { font-size: 22px; margin-bottom: 4px; }
+        .pt-summary__value {
+            font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .pt-summary__label {
+            font-size: 11px; color: #8E8E93; font-weight: 500; margin-top: 3px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        /* ── Pet Card Gallery (Bento Grid) ── */
+        .pt-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 14px;
+        }
+
+        .pt-pet-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 20px; padding: 16px;
+            text-align: center; cursor: default;
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            opacity: 0; transform: translateY(20px);
+            animation: ptCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        .pt-pet-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(102,126,234,0.12);
+        }
+
+        @keyframes ptCardIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pt-pet-card__canvas-wrap {
+            width: 100px; height: 100px; margin: 0 auto 10px;
+            border-radius: 24px;
+            background: linear-gradient(145deg, #EEF2FF, #F0E6FF, #FFF0E5);
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; position: relative;
+        }
+        .pt-pet-card__canvas-wrap canvas {
+            width: 90px; height: 90px; image-rendering: pixelated;
+        }
+
+        .pt-pet-card__name { font-size: 15px; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
+        .pt-pet-card__pet-name {
+            font-size: 12px; color: #667eea; font-weight: 600;
+            background: rgba(102,126,234,0.08); padding: 2px 8px;
+            border-radius: 8px; display: inline-block; margin-bottom: 8px;
+        }
+
+        .pt-pet-card__stats {
+            display: flex; justify-content: center; gap: 6px;
+            font-size: 11px; font-weight: 600; color: #64748B;
+        }
+
+        .pt-pet-card__meta {
+            display: flex; justify-content: center; gap: 8px;
+            font-size: 11px; color: #8E8E93; font-weight: 500;
+            margin-top: 6px;
+        }
+
+        .pt-pet-card__warning {
+            font-size: 10px; color: white; font-weight: 700;
+            background: #FF3B30; padding: 2px 6px; border-radius: 6px;
+            display: inline-block; margin-top: 6px;
+        }
+
+        .pt-pet-card--no-pet {
+            opacity: 0.5;
+        }
+        .pt-pet-card--no-pet .pt-pet-card__canvas-wrap {
+            background: #F1F5F9;
+        }
+        .pt-pet-card__placeholder {
+            font-size: 36px; color: #AEAEB2;
+        }
+
+        /* ── Ranking List View ── */
+        .pt-rank-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 16px; margin-bottom: 8px;
+            opacity: 0; transform: translateX(-20px);
+            animation: ptRankIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .pt-rank-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+        }
+
+        @keyframes ptRankIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .pt-rank__num { font-size: 22px; min-width: 36px; text-align: center; flex-shrink: 0; }
+        .pt-rank__canvas {
+            width: 48px; height: 48px; image-rendering: pixelated; flex-shrink: 0;
+            border-radius: 14px; background: linear-gradient(145deg, #EEF2FF, #F0E6FF);
+        }
+        .pt-rank__info { flex: 1; min-width: 0; }
+        .pt-rank__row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .pt-rank__name { font-size: 15px; font-weight: 700; }
+        .pt-rank__pet { font-size: 12px; color: #667eea; font-weight: 600; }
+        .pt-rank__bars { display: flex; gap: 10px; font-size: 12px; font-weight: 500; color: #64748B; }
+        .pt-rank__meta { display: flex; gap: 10px; font-size: 12px; color: #8E8E93; margin-top: 4px; }
+
+        .pt-empty { text-align: center; padding: 60px 20px; color: #8E8E93; }
+        .pt-empty__icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+        @media (max-width: 600px) {
+            .pt-summary { grid-template-columns: repeat(2, 1fr); }
+            .pt-gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+        }
+
+        /* reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .pt-pet-card, .pt-rank-card { animation: none; opacity: 1; transform: none; }
+        }
+
+        /* ── Coin Award Modal ── */
+        .pt-modal-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+            display: flex; align-items: flex-end; justify-content: center;
+            animation: ptFadeIn 0.2s;
+        }
+        @keyframes ptFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .pt-modal {
+            background: #fff; border-radius: 22px 22px 0 0;
+            width: 100%; max-width: 500px; padding: 24px 20px 32px;
+            animation: ptSlideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        @keyframes ptSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .pt-modal__handle {
+            width: 36px; height: 4px; background: #D1D1D6; border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+        .pt-modal__title {
+            font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 20px;
+        }
+        .pt-modal__student {
+            text-align: center; font-size: 15px; color: #8E8E93; margin-bottom: 16px;
+        }
+        .pt-modal__student strong { color: #1C1C1E; font-size: 17px; }
+        .pt-modal__presets {
+            display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px;
+        }
+        .pt-modal__preset {
+            padding: 8px 16px; border: 2px solid #E5E5EA; border-radius: 12px;
+            background: none; font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: inherit; transition: all 0.15s;
+        }
+        .pt-modal__preset:active { transform: scale(0.94); }
+        .pt-modal__preset--pos { color: #34C759; border-color: rgba(52,199,89,0.3); }
+        .pt-modal__preset--pos.active { background: #34C759; color: #fff; border-color: #34C759; }
+        .pt-modal__preset--neg { color: #FF3B30; border-color: rgba(255,59,48,0.3); }
+        .pt-modal__preset--neg.active { background: #FF3B30; color: #fff; border-color: #FF3B30; }
+        .pt-modal__custom {
+            display: flex; gap: 8px; align-items: center; margin-bottom: 16px;
+        }
+        .pt-modal__input {
+            flex: 1; padding: 10px 14px; border: 2px solid #E5E5EA; border-radius: 12px;
+            font-size: 15px; font-family: inherit; text-align: center;
+            outline: none; transition: border-color 0.15s;
+        }
+        .pt-modal__input:focus { border-color: #667eea; }
+        .pt-modal__reason {
+            width: 100%; padding: 10px 14px; border: 2px solid #E5E5EA; border-radius: 12px;
+            font-size: 15px; font-family: inherit; resize: none; outline: none;
+            margin-bottom: 16px; transition: border-color 0.15s; box-sizing: border-box;
+        }
+        .pt-modal__reason:focus { border-color: #667eea; }
+        .pt-modal__actions {
+            display: flex; gap: 10px;
+        }
+        .pt-modal__btn {
+            flex: 1; padding: 14px; border: none; border-radius: 14px;
+            font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .pt-modal__btn:active { transform: scale(0.96); }
+        .pt-modal__btn--cancel { background: #F2F2F7; color: #8E8E93; }
+        .pt-modal__btn--confirm { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .pt-modal__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
+    }
+</script>
+
+<div class="pet-page" id="petTeacherApp">
+    <header class="pet-header">
+        <button class="pet-header__back" onclick="window.location='/'">&#x276E; 返回</button>
+        <span class="pet-header__title">寵物管理</span>
+        <button class="pet-header__action" onclick="window.location='/pet/teacher/ranking'">🏅 教師排行</button>
+    </header>
+
+    <div class="pet-content">
+        <div id="ptLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">載入中...</div>
+
+        <div id="ptMain" style="display:none;">
+            <div class="pt-hero">
+                <div class="pt-hero__title" id="ptHeroTitle">班級寵物管理</div>
+                <div class="pt-hero__sub" id="ptHeroSub">查看學生寵物養成情況</div>
+            </div>
+
+            <div id="ptClassTabs" class="pt-class-tabs"></div>
+
+            <div id="ptSummary" class="pt-summary">
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">🐾</div>
+                    <div class="pt-summary__value"><span id="ptPetCount">0</span><span style="font-size:13px;-webkit-text-fill-color:#8E8E93;"> / <span id="ptStudentCount">0</span></span></div>
+                    <div class="pt-summary__label">已養寵物</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">📈</div>
+                    <div class="pt-summary__value" id="ptAvgGrowth">0</div>
+                    <div class="pt-summary__label">平均成長</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">💰</div>
+                    <div class="pt-summary__value" id="ptAvgCoins">0</div>
+                    <div class="pt-summary__label">平均金幣</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">❤️</div>
+                    <div class="pt-summary__value" id="ptAvgCare">0</div>
+                    <div class="pt-summary__label">平均照顧</div>
+                </div>
+            </div>
+
+            <!-- 视图切换 -->
+            <div class="pt-view-toggle">
+                <button class="pt-view-btn pt-view-btn--active" id="ptViewGallery" onclick="setView('gallery')">🖼️ 寵物畫廊</button>
+                <button class="pt-view-btn" id="ptViewRank" onclick="setView('rank')">🏆 排行榜</button>
+            </div>
+
+            <div id="ptStudentList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Coin Award Modal (JS 控制显示) -->
+<div id="ptCoinModal" class="pt-modal-overlay" style="display:none;">
+    <div class="pt-modal">
+        <div class="pt-modal__handle"></div>
+        <div class="pt-modal__title">💰 加减金币</div>
+        <div class="pt-modal__student" id="ptCoinTarget"></div>
+        <div class="pt-modal__presets" id="ptCoinPresets">
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="5">+5</button>
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="10">+10</button>
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="15">+15</button>
+            <button class="pt-modal__preset pt-modal__preset--neg" data-val="-5">-5</button>
+            <button class="pt-modal__preset pt-modal__preset--neg" data-val="-10">-10</button>
+        </div>
+        <div class="pt-modal__custom">
+            <span style="font-size:14px;color:#8E8E93;">自定义:</span>
+            <input type="number" class="pt-modal__input" id="ptCoinAmount" placeholder="输入金额 (正数加/负数减)">
+        </div>
+        <textarea class="pt-modal__reason" id="ptCoinReason" rows="2" placeholder="原因（必填，如：课堂表现优秀）" maxlength="200"></textarea>
+        <div class="pt-modal__actions">
+            <button class="pt-modal__btn pt-modal__btn--cancel" id="ptCoinCancel">取消</button>
+            <button class="pt-modal__btn pt-modal__btn--confirm" id="ptCoinConfirm">确认</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
+<script>i18n.applyDOM();</script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/pet_renderer.js?v=20260414"></script>
+<script src="/static/js/pet_teacher.js?v=20260414"></script>
+</body>
+</html>

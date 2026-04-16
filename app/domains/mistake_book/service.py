@@ -1145,7 +1145,7 @@ class MistakeBookService:
         return True
 
     def cancel_processing(self, mistake_id: str, username: str) -> bool:
-        """取消正在處理的錯題（將 processing → cancelled）"""
+        """取消正在處理/分析中的錯題（將 processing/analyzing → cancelled）"""
         mistake = self._mistakes.find_by_mistake_id(mistake_id)
         if not mistake or mistake["student_username"] != username:
             raise MistakeNotFoundError(mistake_id)
@@ -1153,13 +1153,14 @@ class MistakeBookService:
         status = mistake["status"]
         if status == "cancelled":
             return True  # 冪等：已取消 → 成功
-        if status != "processing":
-            raise ValueError(f"只能取消 processing 狀態的錯題，當前狀態: {status}")
+        if status not in ("processing", "analyzing"):
+            raise ValueError(f"只能取消 processing/analyzing 狀態的錯題，當前狀態: {status}")
 
         self._mistakes.update(
             {"status": "cancelled"},
             "mistake_id = %s", (mistake_id,),
         )
+        logger.info("用戶取消錯題處理: %s (原狀態: %s)", mistake_id, status)
         return True
 
     def _check_still_processing(self, mistake_id: str) -> bool:
@@ -1571,10 +1572,22 @@ class MistakeBookService:
             )
             prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
             from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
-            raw = await call_llm_json(
+            raw, usage = await call_llm_json(
                 prompt, provider=provider, temperature=0.8,
                 gate_task="practice_generation",
             )
+
+            # 非阻塞記錄 API 調用（無論是否有 token 數據都記錄）
+            import asyncio
+            from app.services.container import get_services
+            from llm.config import get_llm_config as _get_llm_cfg
+            _cfg = _get_llm_cfg()
+            _model = _cfg.api_model if provider == "deepseek" else _cfg.local_model
+            asyncio.create_task(get_services().llm_usage.record_async(
+                user_id=None, provider=provider, model=_model,
+                purpose="practice_gen", usage_dict=usage or {},
+            ))
+
             questions_data = self._parse_json_response(raw)
             questions = questions_data.get("questions", [])
 
@@ -2327,6 +2340,15 @@ class MistakeBookService:
                 review_codes, "review", mistake_id
             )
 
+        # ── 宠物金币挂钩 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            try_award_coins_by_username(username, "mistake_review", f"review_{mistake_id}_{review_count}")
+            if new_status == "mastered":
+                try_award_coins_by_username(username, "mistake_mastered", f"mastered_{mistake_id}")
+        except Exception:
+            pass
+
         return {
             "mistake_id": mistake_id,
             "new_mastery": new_mastery,
@@ -2472,17 +2494,45 @@ class MistakeBookService:
     # 知識點種子數據
     # ================================================================
 
-    def seed_knowledge_points(self, data_path: str) -> int:
-        """從 JSON 文件導入知識點種子數據"""
+    def seed_knowledge_points(self, data_path: str) -> Dict[str, Any]:
+        """從 JSON 文件導入知識點種子數據 (含完整 reconciliation)。
+
+        策略:對每個 subject 獨立做 diff,新的 INSERT、已存在的 UPDATE、
+        DB 裡有但 JSON 裡沒有的 mark is_active=FALSE (保留歷史引用)。
+
+        Returns:
+            {total: int, by_subject: {subject: {inserted, deactivated, kept}}}
+        """
         with open(data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         points = data.get("points", [])
+        # grade_levels: list → JSON string (for DB storage)
         for p in points:
             if "grade_levels" in p and isinstance(p["grade_levels"], list):
                 p["grade_levels"] = json.dumps(p["grade_levels"])
 
-        return self._knowledge.bulk_insert(points)
+        # Group by subject
+        by_subject: Dict[str, List[Dict]] = {}
+        for p in points:
+            subj = p.get("subject")
+            if not subj:
+                logger.warning("知識點 seed 缺 subject: %s", p.get("point_code"))
+                continue
+            by_subject.setdefault(subj, []).append(p)
+
+        # 對每個科目做 reconciliation
+        result = {"total": 0, "by_subject": {}}
+        for subject, desired in by_subject.items():
+            stats = self._knowledge.reconcile_subject(subject, desired)
+            result["by_subject"][subject] = stats
+            result["total"] += stats["inserted"]
+            logger.info(
+                "知識點 seed [%s]: inserted=%d, deactivated=%d, kept=%d",
+                subject, stats["inserted"], stats["deactivated"], stats["kept"],
+            )
+
+        return result
 
     # ================================================================
     # 私有方法

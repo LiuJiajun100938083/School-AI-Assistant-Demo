@@ -976,7 +976,7 @@ const ChatApp = {
             el.passwordError.textContent = i18n.t('password.emptyFields');
             return;
         }
-        if (newPassword.length < 4) {
+        if (newPassword.length < 8) {
             el.passwordError.textContent = i18n.t('password.tooShort');
             return;
         }
@@ -991,6 +991,9 @@ const ChatApp = {
             if (response.ok && result.success) {
                 alert(i18n.t('password.success'));
                 ChatUI.hideChangePasswordModal();
+                AuthModule.clearAll();
+                window.location.href = '/';
+                return;
             } else {
                 el.passwordError.textContent = result.detail || i18n.t('password.failed');
             }

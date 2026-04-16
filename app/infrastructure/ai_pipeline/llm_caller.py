@@ -54,9 +54,15 @@ async def call_llm_json(
     gate_priority=None,
     gate_weight=None,
     num_predict: int = 8192,
-) -> str:
+) -> tuple:
     """
     統一 LLM 調用入口，根據 provider 分發到不同後端。
+
+    Returns:
+        tuple[str, dict]: (content, usage)
+        - content: LLM 回應內容
+        - usage: token 用量字典（DeepSeek 提供；Ollama 為空字典）
+          {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
 
     Args:
         prompt: 用戶 prompt
@@ -69,8 +75,10 @@ async def call_llm_json(
         gate_weight: ai_gate 權重（僅 local 使用）
         num_predict: 最大生成 token 數
     """
-    if provider in ("deepseek", "qwen"):
-        content = await _call_qwen(
+    usage = {}
+
+    if provider == "deepseek":
+        content, usage = await _call_deepseek(
             prompt, model=model, temperature=temperature,
             timeout=timeout, num_predict=num_predict,
         )
@@ -84,7 +92,7 @@ async def call_llm_json(
 
     # 共用後處理
     content = _postprocess_content(content)
-    return content
+    return content, usage
 
 
 async def call_ollama_json(
@@ -97,13 +105,14 @@ async def call_ollama_json(
     gate_weight=None,
     num_predict: int = 8192,
 ) -> str:
-    """向後兼容入口，轉發到 call_llm_json(provider='qwen')。"""
-    return await call_llm_json(
-        prompt, provider="qwen", model=model,
+    """向後兼容入口，轉發到 call_llm_json(provider='local')，只返回 content。"""
+    content, _usage = await call_llm_json(
+        prompt, provider="local", model=model,
         temperature=temperature, timeout=timeout,
         gate_task=gate_task, gate_priority=gate_priority,
         gate_weight=gate_weight, num_predict=num_predict,
     )
+    return content
 
 
 # ================================================================
@@ -188,9 +197,17 @@ async def _call_qwen(
     temperature: float = 0.3,
     timeout: float = 120.0,
     num_predict: int = 8192,
-) -> str:
+) -> tuple:
     """
-    調用 Qwen API（DashScope OpenAI-compatible），返回 content 字串。
+    調用 DeepSeek API（OpenAI-compatible），返回 (content, usage)。
+
+    Returns:
+        tuple[str, dict]: (content 字串, usage 字典)
+
+    使用 deepseek-reasoner 模型啟用 thinking/reasoning 模式：
+    - 回應包含 reasoning_content（思考鏈）和 content（最終答案）
+    - 只取 content 作為結果，reasoning_content 被丟棄
+    - thinking 模式下 temperature/top_p 無效（API 會忽略）
 
     不走 ai_gate（雲端不佔本地 GPU），使用獨立 Semaphore 限流。
     """
@@ -234,29 +251,32 @@ async def _call_qwen(
                 json=payload,
                 headers=headers,
                 timeout=http_timeout,
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data_str)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {})
-                        c = delta.get("content", "")
-                        if c:
-                            content += c
-                    except json.JSONDecodeError:
-                        continue
+            )
+            response.raise_for_status()
+            data = response.json()
+
+    message = data["choices"][0]["message"]
+    content = message.get("content", "")
+    reasoning = message.get("reasoning_content", "")
+    usage = data.get("usage", {})
 
     logger.info(
-        "LLM 調用成功: provider=qwen, model=%s, content_len=%d",
-        resolved_model, len(content),
+        "LLM 調用成功: provider=deepseek, model=%s, "
+        "reasoning_len=%d, content_len=%d, tokens=%s",
+        resolved_model, len(reasoning) if reasoning else 0, len(content),
+        usage.get("total_tokens", "N/A"),
     )
 
-    return content
+    # 只返回 content（最終答案），丟棄 reasoning_content（思考鏈）
+    # 如果 content 為空但 reasoning 有內容，嘗試從 reasoning 提取 JSON
+    if not content and reasoning:
+        logger.warning(
+            "DeepSeek content 為空，嘗試從 reasoning_content 提取 (len=%d)",
+            len(reasoning),
+        )
+        content = reasoning
+
+    return content, usage
 
 
 # ================================================================

@@ -67,6 +67,22 @@ logger = logging.getLogger(__name__)
 # 上傳目錄
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "assignments"
 
+# ── Ngrok / Chrome Safe Browsing workaround ────────────────────
+# 公開網域 (ngrok / 任何 HTTPS 網址) 上傳 archive 檔案會被掃,失敗
+# 時 Chrome 回 ERR_ACCESS_DENIED,後端 log 看不到。前端會把 archive
+# 檔案每個 byte XOR 0xFF,附檔名加 .xored。後端偵測到 .xored 就用
+# bytes.translate (C-level,100MB < 100ms) 還原。
+_XOR_FF_TABLE = bytes(i ^ 0xFF for i in range(256))
+_XORED_SUFFIX = ".xored"
+
+
+def _deobfuscate_if_xored(original_name: str, content: bytes) -> tuple[str, bytes]:
+    """若檔名以 .xored 結尾,移除此尾碼並 XOR 0xFF 還原 bytes。"""
+    if original_name.lower().endswith(_XORED_SUFFIX):
+        real_name = original_name[: -len(_XORED_SUFFIX)]
+        return real_name, content.translate(_XOR_FF_TABLE)
+    return original_name, content
+
 
 class AssignmentService:
     """作業管理服務"""
@@ -216,6 +232,14 @@ class AssignmentService:
             self._question_repo.batch_insert(assignment_id, questions)
 
         logger.info("教師 %s 創建了作業 #%d: %s (類型=%s)", teacher_name, assignment_id, title, rubric_type)
+
+        # 宠物金币：教师创建作业 +5
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "create_assignment", f"asgn_create_{assignment_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_assignment_detail(assignment_id)
 
     def update_assignment(
@@ -323,6 +347,14 @@ class AssignmentService:
         )
 
         logger.info("作業 #%d 已發布", assignment_id)
+
+        # ── 宠物金币：教师发布作业 +8 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "publish_assignment", f"pub_asgn_{assignment_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_assignment_detail(assignment_id)
 
     def close_assignment(self, assignment_id: int, teacher_id: int) -> Dict[str, Any]:
@@ -585,6 +617,15 @@ class AssignmentService:
         )
 
         logger.info("提交 #%d 已批改，總分: %s (類型=%s)", submission_id, total_score, rubric_type)
+
+        # ── 宠物金币：教师批改 +2（有反馈 +5）──
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            source = "grade_with_feedback" if feedback else "grade_submission"
+            try_award_coins(teacher_id, source, f"grade_{submission_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_submission_detail(submission_id)
 
     def get_available_targets(self) -> Dict[str, Any]:
@@ -1237,15 +1278,19 @@ class AssignmentService:
     ) -> Dict[str, Any]:
         """保存上傳的文件"""
         original_name = file.filename or "unnamed"
+
+        # 讀取文件內容 (先讀再判型,因為 .xored 包裝可能藏著 archive)
+        content = await file.read()
+        # 若是前端 XOR 混淆的 archive,還原檔名和 bytes
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
         ext = Path(original_name).suffix.lower()
 
-        # 檢查文件類型
+        # 檢查文件類型 (基於還原後的真實副檔名)
         file_type = EXTENSION_TYPE_MAP.get(ext)
         if not file_type:
             raise InvalidFileTypeError(ext)
 
-        # 讀取文件內容
-        content = await file.read()
         file_size = len(content)
 
         # 檢查大小
@@ -1295,13 +1340,17 @@ class AssignmentService:
             raise ValidationError("附件功能未初始化")
 
         original_name = file.filename or "unnamed"
+
+        # 讀取 + 還原 XOR 混淆(若有)
+        content = await file.read()
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
         ext = Path(original_name).suffix.lower()
 
         file_type = EXTENSION_TYPE_MAP.get(ext)
         if not file_type:
             raise InvalidFileTypeError(ext)
 
-        content = await file.read()
         file_size = len(content)
         if file_size > MAX_FILE_SIZE:
             raise FileTooLargeError(MAX_FILE_SIZE // 1024 // 1024)
@@ -1323,6 +1372,14 @@ class AssignmentService:
         })
 
         logger.info("作業 #%d 上傳附件: %s (%d bytes)", assignment_id, original_name, file_size)
+
+        # 宠物金币：教师上传作业附件 +3
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "upload_attachment", f"attach_{file_id}", "teacher")
+        except Exception:
+            pass
+
         return {
             "id": file_id,
             "original_name": original_name,
@@ -2338,10 +2395,13 @@ class AssignmentService:
     async def _save_answer_file(self, answer_id: int, file: UploadFile) -> Dict[str, Any]:
         """保存作答附件"""
         original_name = file.filename or "unnamed"
-        ext = Path(original_name).suffix.lower()
 
-        file_type = EXTENSION_TYPE_MAP.get(ext, "")
+        # 讀取 + 還原 XOR 混淆(若有)
         content = await file.read()
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
+        ext = Path(original_name).suffix.lower()
+        file_type = EXTENSION_TYPE_MAP.get(ext, "")
         file_size = len(content)
 
         if file_size > MAX_FILE_SIZE:

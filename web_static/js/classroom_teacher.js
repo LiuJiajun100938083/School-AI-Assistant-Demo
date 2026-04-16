@@ -916,6 +916,9 @@ function handleWebSocketMessage(message) {
             }
             UIModule.toast(i18n.t('ct.studentLeft', {name: message.student_username}), 'info');
             break;
+        case 'student_tab_status':
+            updateStudentTabStatus(message.student_username, message.hidden);
+            break;
         case 'room_status_changed':
             state.roomStatus = message.status || 'draft';
             updateRoomStatusUI();
@@ -956,6 +959,13 @@ function handleWebSocketMessage(message) {
                 if (message.data.response_type === 'poll_vote' && message.data.poll_results && state.lessonSlide) {
                     state.lessonSlide.results = message.data.poll_results;
                     updateLessonUI();
+                }
+                // Live-update free_canvas teacher thumbnails
+                if (message.data.response_type === 'interactive_response') {
+                    const interactiveRenderer = LessonSlideRenderers.get('interactive');
+                    if (interactiveRenderer && interactiveRenderer._state?._teacherTemplate === 'free_canvas') {
+                        interactiveRenderer._fetchCanvasSubmissions();
+                    }
                 }
             }
             break;
@@ -1407,6 +1417,7 @@ function updateLessonUI() {
                 placeholder.style.justifyContent = 'center';
                 placeholder.style.flexDirection = 'column';
                 const runtimeMeta = sess.runtime_meta || {};
+                runtimeMeta._roomId = roomId;
                 renderer.renderTeacher(placeholder, slide, cfg, runtimeMeta);
             } else {
                 renderLessonGenericSlide(slide, cfg, lifecycle);
@@ -1681,10 +1692,12 @@ function startHeartbeat() {
 // ==================== STUDENT MANAGEMENT ====================
 function addStudent(studentData) {
     const key = studentData.student_username;
+    const existing = state.students.get(key);
     state.students.set(key, {
         student_username: key,
-        name: studentData.display_name || key,
+        name: studentData.display_name || (existing && existing.name) || key,
         online: true,
+        tabAway: false,
     });
     renderStudents();
 }
@@ -1694,10 +1707,19 @@ function removeStudent(studentUsername) {
         const existing = state.students.get(studentUsername);
         if (existing) {
             existing.online = false;
+            existing.tabAway = false;
             existing.leftAt = new Date();
         }
     }
     renderStudents();
+}
+
+function updateStudentTabStatus(studentUsername, isHidden) {
+    const existing = state.students.get(studentUsername);
+    if (existing && existing.online) {
+        existing.tabAway = isHidden;
+        renderStudents();
+    }
 }
 
 function renderStudents() {
@@ -1709,9 +1731,11 @@ function renderStudents() {
         return;
     }
 
-    // Sort: online first, then offline by leave time (recent first)
+    // Sort: online → tab-away → offline (each group by join order)
+    const sortKey = s => s.online ? (s.tabAway ? 1 : 0) : 2;
     const sorted = [...state.students.values()].sort((a, b) => {
-        if (a.online !== b.online) return a.online ? -1 : 1;
+        const ka = sortKey(a), kb = sortKey(b);
+        if (ka !== kb) return ka - kb;
         if (!a.online && !b.online) return (b.leftAt || 0) - (a.leftAt || 0);
         return 0;
     });
@@ -1732,22 +1756,115 @@ function renderStudents() {
             container.appendChild(divider);
         }
         const studentEl = document.createElement('div');
-        studentEl.className = `student-item${student.online ? '' : ' offline'}`;
+        const cssClass = !student.online ? ' offline' : student.tabAway ? ' tab-away' : '';
+        studentEl.className = `student-item${cssClass}`;
         const initials = (student.name || i18n.t('ct.studentChar')).substring(0, 1).toUpperCase();
+
+        let statusClass = 'away';
+        let statusText = i18n.t('ct.left');
+        if (student.online && !student.tabAway) {
+            statusClass = '';
+            statusText = i18n.t('ct.online');
+        } else if (student.online && student.tabAway) {
+            statusClass = 'tab-away';
+            statusText = '切屏中';
+        }
+
         studentEl.innerHTML = `
-            <div class="status-indicator ${student.online ? '' : 'away'}"></div>
+            <div class="status-indicator ${statusClass}"></div>
             <div class="student-avatar">${initials}</div>
             <div class="student-info">
                 <div class="student-name">${student.name || i18n.t('ct.unnamed')}</div>
-                <div class="student-status">${student.online ? i18n.t('ct.online') : i18n.t('ct.left')}</div>
+                <div class="student-status">${statusText}</div>
             </div>
+            <button class="student-coin-btn" data-username="${student.student_username}" data-name="${student.name || ''}" onclick="openCoinPopup(event, this)">+</button>
         `;
         container.appendChild(studentEl);
     });
 }
 
+// ==================== COIN AWARD ====================
+let _awardMode = false;
+
+function toggleAwardMode() {
+    _awardMode = !_awardMode;
+    const btn = document.getElementById('coinAwardToggle');
+    const panel = document.querySelector('.panel-students');
+    if (btn) btn.classList.toggle('active', _awardMode);
+    if (panel) panel.classList.toggle('award-mode', _awardMode);
+}
+
+function openCoinPopup(event, btn) {
+    event.stopPropagation();
+    closeCoinPopup();
+
+    const username = btn.getAttribute('data-username');
+    const name = btn.getAttribute('data-name') || username;
+    const rect = btn.getBoundingClientRect();
+
+    // Overlay to close on outside click
+    const overlay = document.createElement('div');
+    overlay.className = 'coin-popup-overlay';
+    overlay.onclick = closeCoinPopup;
+    document.body.appendChild(overlay);
+
+    // Popup
+    const popup = document.createElement('div');
+    popup.className = 'coin-popup';
+    popup.id = 'coinPopup';
+    popup.innerHTML =
+        '<div class="coin-popup__name">🪙 ' + name + '</div>' +
+        '<div class="coin-popup__presets">' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 5)">+5</button>' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 10)">+10</button>' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 15)">+15</button>' +
+            '<button class="coin-popup__preset coin-popup__preset--neg" onclick="doAwardCoin(\'' + username + '\', -5)">-5</button>' +
+        '</div>';
+
+    // Position near button
+    popup.style.top = Math.min(rect.bottom + 4, window.innerHeight - 120) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+    document.body.appendChild(popup);
+}
+
+function closeCoinPopup() {
+    const popup = document.getElementById('coinPopup');
+    const overlay = document.querySelector('.coin-popup-overlay');
+    if (popup) popup.remove();
+    if (overlay) overlay.remove();
+}
+
+async function doAwardCoin(studentUsername, amount) {
+    closeCoinPopup();
+    if (!roomId) {
+        UIModule.toast('课室未就绪', 'error');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        const res = await fetch('/api/classroom/rooms/' + roomId + '/award-coin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ student_username: studentUsername, amount: amount, reason: '课堂加分' })
+        });
+        const data = await res.json();
+        if (res.ok && data.success !== false) {
+            const name = state.students.get(studentUsername)?.name || studentUsername;
+            UIModule.toast(name + (amount > 0 ? ' +' + amount : ' ' + amount) + ' 🪙', 'success');
+        } else {
+            UIModule.toast('加分失败: ' + (data.error?.message || data.detail || ''), 'error');
+        }
+    } catch (err) {
+        UIModule.toast('请求失败', 'error');
+    }
+}
+
 // ==================== ROOM INFO ====================
+let _loadRoomInfoLock = false;
 async function loadRoomInfo() {
+    if (_loadRoomInfoLock) return;       // 防止重复请求导致 429
+    _loadRoomInfoLock = true;
+    setTimeout(() => { _loadRoomInfoLock = false; }, 3000);
     try {
         const response = await fetch(`${API_BASE}/classroom/rooms/${roomId}`, {
             headers: AuthModule.getAuthHeaders(),

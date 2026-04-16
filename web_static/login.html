@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 — 校園AI助手</title>
-    <link rel="stylesheet" href="/static/css/login.css">
-    <script src="/static/js/shared/theme.js"></script>
-    <link rel="stylesheet" href="/static/css/spinner.css">
+    <title>登入 — 培僑中學 學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/login.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/spinner.css?v=20260414">
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <!-- QR Code Generator (lightweight, ~4KB) -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="/static/vendor/qrcode-generator/qrcode.min.js"></script>
 </head>
 <body>
 <!-- 已登入用戶直接跳轉主頁（最早執行，零閃爍） -->
@@ -155,18 +154,18 @@
     }
 })();
 </script>
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
 <script>
     document.title = i18n.t('login.pageTitle');
     document.documentElement.style.setProperty('--loading-text', `'${i18n.t('login.submitting')}'`);
     i18n.applyDOM();
     document.getElementById('langLabel').textContent = i18n.isZh ? 'EN' : '中';
 </script>
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/login.js"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/login.js?v=20260414"></script>
 </body>
 </html>

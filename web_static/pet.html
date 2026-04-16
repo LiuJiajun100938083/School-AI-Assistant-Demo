@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>我的宠物</title>
+    <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
+</head>
+<body>
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
+    }
+</script>
+
+<div class="pet-page" id="petApp">
+
+    <!-- iOS 毛玻璃导航栏 -->
+    <header class="pet-header">
+        <button class="pet-header__back" onclick="window.location='/'">&#x276E; <span data-i18n="common.back">返回</span></button>
+        <span class="pet-header__title" data-i18n="pet.pageTitle">我的宠物</span>
+        <div class="pet-header__coins">
+            <svg class="pet-icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+            <span id="petCoinsDisplay">0</span>
+        </div>
+    </header>
+
+    <div class="pet-content">
+
+        <!-- Loading -->
+        <div id="petLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;" data-i18n="common.loading">
+            加載中...
+        </div>
+
+        <!-- No Pet: 蛋孵化 -->
+        <div id="petNoPet" class="pet-no-pet" style="display:none;">
+            <div class="pet-no-pet__egg-canvas">
+                <canvas id="eggCanvas" width="256" height="256"></canvas>
+            </div>
+            <div class="pet-no-pet__text" id="eggHintText">点击蛋来唤醒你的宠物！</div>
+        </div>
+
+        <!-- Pet View -->
+        <div id="petView" style="display:none;">
+
+            <!-- Hero: Pet Canvas -->
+            <div class="pet-canvas-area">
+                <div class="pet-canvas-wrapper">
+                    <canvas id="petCanvas" width="256" height="256"></canvas>
+                </div>
+                <div class="pet-name-tag" id="petNameTag"></div>
+                <span class="pet-stage-badge" id="petStageBadge"></span>
+                <div class="pet-bubble" id="petBubble" style="display:none;"></div>
+            </div>
+
+            <!-- Streak + League (grouped) -->
+            <div class="pet-grouped">
+                <div class="pet-streak-bar">
+                    <span class="pet-streak-fire"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2C9 5.5 7 7.5 7 10.5a3 3 0 006 0c0-3-2-5-3-8.5z" fill="currentColor"/></svg></span>
+                    <span class="pet-streak-count" id="petStreakCount">0</span>
+                    <span style="font-size:15px;color:#8E8E93;" data-i18n="pet.streak.days">天</span>
+                    <span class="pet-streak-mult" id="petStreakMult"></span>
+                    <span class="pet-league-badge" id="petLeagueBadge"></span>
+                </div>
+            </div>
+
+            <!-- Status Bars (grouped) -->
+            <div class="pet-grouped">
+                <div class="pet-status-bars">
+                    <div class="pet-status-item">
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M6 3v14m0-8c-1.5 0-3-1-3-3V3m6 0v3c0 2-1.5 3-3 3m8-6v14m0-14c-1.7 0-3 1.3-3 3v2h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="pet-status-item__label" data-i18n="pet.hunger">饱食度</span>
+                        <div class="pet-status-bar">
+                            <div class="pet-status-bar__fill pet-status-bar__fill--hunger" id="barHunger"></div>
+                        </div>
+                        <span class="pet-status-item__value" id="valHunger">100</span>
+                    </div>
+                    <div class="pet-status-item">
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2l4.5 5.5a6 6 0 11-9 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
+                        <span class="pet-status-item__label" data-i18n="pet.hygiene">清洁度</span>
+                        <div class="pet-status-bar">
+                            <div class="pet-status-bar__fill pet-status-bar__fill--hygiene" id="barHygiene"></div>
+                        </div>
+                        <span class="pet-status-item__value" id="valHygiene">100</span>
+                    </div>
+                    <div class="pet-status-item">
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 12s1 2 3 2 3-2 3-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="7.5" cy="8" r="1" fill="currentColor"/><circle cx="12.5" cy="8" r="1" fill="currentColor"/></svg></span>
+                        <span class="pet-status-item__label" data-i18n="pet.mood">心情</span>
+                        <div class="pet-status-bar">
+                            <div class="pet-status-bar__fill pet-status-bar__fill--mood" id="barMood"></div>
+                        </div>
+                        <span class="pet-status-item__value" id="valMood">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions (3×2 grid) -->
+            <div class="pet-actions">
+                <button class="pet-action-btn" id="btnShop">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M5 7h10l-.8 9H5.8zm2 0V5.5a3 3 0 016 0V7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <span data-i18n="pet.shop">商店</span>
+                </button>
+                <button class="pet-action-btn" id="btnLeaderboard">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M6 3h8v5a4 4 0 01-8 0zM6 3H4.5c-.5 0-1 .5-1 1 0 1.5 1 2.5 2.5 2.5M14 3h1.5c.5 0 1 .5 1 1 0 1.5-1 2.5-2.5 2.5M10 12v3M7 17h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <span data-i18n="pet.leaderboard">排行榜</span>
+                </button>
+                <button class="pet-action-btn" id="btnAchievements">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2l2.2 4.6L17 7.3l-3.5 3.4.8 4.9L10 13.3 5.7 15.6l.8-4.9L3 7.3l4.8-.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
+                    <span data-i18n="pet.achievements">成就</span>
+                </button>
+                <button class="pet-action-btn" id="btnCustomize">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><circle cx="7" cy="9" r="1.2" fill="currentColor"/><circle cx="9.5" cy="5.5" r="1.2" fill="currentColor"/><circle cx="13" cy="6.5" r="1.2" fill="currentColor"/><circle cx="14" cy="10" r="1.2" fill="currentColor"/><path d="M10 2a8 8 0 000 16c.7 0 1.2-.5 1.2-1.2 0-.3-.1-.5-.3-.7s-.3-.5-.3-.8c0-.6.5-1.1 1.1-1.1H13c2.2 0 4-1.8 4-4C17 5.4 13.9 2 10 2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+                    <span data-i18n="pet.changeLook">换装</span>
+                </button>
+                <button class="pet-action-btn" id="btnCoinGuide">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M2 4h5a3 3 0 013 3v10a2 2 0 00-2-2H2zm16 0h-5a3 3 0 00-3 3v10a2 2 0 012-2h6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <span>金币攻略</span>
+                </button>
+                <button class="pet-action-btn" id="btnPersonality">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M15 16V8m-5 8V4M5 16v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                    <span data-i18n="pet.personality">性格</span>
+                </button>
+            </div>
+
+            <!-- Dynamic sections (shop/leaderboard/achievements rendered here) -->
+            <div id="petSectionContainer"></div>
+
+            <!-- Chat FAB + Panel -->
+            <button class="pet-chat-fab" id="chatFab">
+                <svg class="pet-icon" viewBox="0 0 20 20"><path d="M16 12a1 1 0 01-1 1H6l-3 3V4a1 1 0 011-1h11a1 1 0 011 1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="pet-chat-panel" id="chatPanel" style="display:none;">
+                <div class="pet-chat-panel__header">
+                    <span data-i18n="pet.chat.title">和宠物聊天</span>
+                    <button class="pet-chat-panel__close" id="chatPanelClose">&times;</button>
+                </div>
+                <div class="pet-chat__messages" id="petChatMessages">
+                    <div class="pet-chat__welcome" id="petChatWelcome"></div>
+                </div>
+                <div class="pet-chat__input-area">
+                    <input type="text" id="petChatInput" data-i18n-placeholder="pet.chat.placeholder" placeholder="说点什么..." maxlength="500" autocomplete="off">
+                    <button class="pet-chat__send" id="petChatSend" data-i18n="pet.chat.send">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customize Overlay (捏脸) -->
+<div class="pet-customize-overlay" id="customizeOverlay" style="display:none;">
+    <div class="pet-customize-panel">
+        <button class="pet-customize-close" id="customizeClose">&times;</button>
+        <div class="pet-customize-preview">
+            <canvas id="customizeCanvas" width="256" height="256"></canvas>
+        </div>
+        <div class="pet-customize-guide" id="customizeGuide"></div>
+        <div class="pet-customize-options" id="customizeOptions"></div>
+        <div class="pet-customize-progress" id="customizeProgress"></div>
+        <div class="pet-customize-nav">
+            <button class="pet-customize-btn pet-customize-btn--secondary" id="customizePrev" data-i18n="pet.step.prev">上一步</button>
+            <button class="pet-customize-btn pet-customize-btn--secondary" id="customizeRandom" data-i18n="pet.randomize">随机</button>
+            <button class="pet-customize-btn pet-customize-btn--primary" id="customizeNext" data-i18n="pet.step.next">下一步</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
+<script>
+    document.title = i18n.t('pet.pageTitle');
+    i18n.applyDOM();
+</script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/pet_renderer.js?v=20260414"></script>
+<script src="/static/js/pet.js?v=20260414"></script>
+</body>
+</html>

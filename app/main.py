@@ -46,6 +46,63 @@ from app.infrastructure.database.pool import close_database_pool
 logger = logging.getLogger(__name__)
 
 
+# ====================================================================== #
+#  啟動安全自檢                                                           #
+# ====================================================================== #
+
+def _secure_key_files(settings) -> None:
+    """
+    檢查並修復密鑰文件權限為 600（僅所有者可讀寫）。
+
+    Phase 1 安全加固：啟動時補救措施。
+    生產環境應通過 CI/CD 或部署腳本保證密鑰權限。
+
+    - 只在 Linux/macOS 上執行（Windows chmod 語義不同）
+    - 跳過符號連結（避免意外修改目標文件）
+    - 完整日誌記錄每個文件的處理結果
+    """
+    import platform
+    import stat
+    from pathlib import Path
+
+    if platform.system() == "Windows":
+        logger.info("[安全自檢] Windows 環境，跳過密鑰權限檢查（請用 ACL 管理）")
+        return
+
+    key_files = [
+        settings.private_key_file if hasattr(settings, "private_key_file") else "private_key.pem",
+        settings.encryption_key_file if hasattr(settings, "encryption_key_file") else ".encryption_key",
+        "jwt_secret.key",
+    ]
+    base_dir = Path(settings.base_dir) if hasattr(settings, "base_dir") else Path(".")
+
+    for filename in key_files:
+        path = base_dir / filename
+        if not path.exists():
+            logger.debug("[安全自檢] 密鑰文件不存在，跳過: %s", filename)
+            continue
+
+        if path.is_symlink():
+            logger.warning("[安全自檢] 密鑰文件是符號連結，跳過自動修復: %s", filename)
+            continue
+
+        if not path.is_file():
+            logger.warning("[安全自檢] 密鑰路徑不是普通文件，跳過: %s", filename)
+            continue
+
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode != 0o600:
+            try:
+                path.chmod(0o600)
+                logger.warning(
+                    "[安全自檢] 已修復密鑰文件權限: %s (%04o → 0600)", filename, mode
+                )
+            except OSError as e:
+                logger.error("[安全自檢] 修復密鑰文件權限失敗: %s → %s", filename, e)
+        else:
+            logger.info("[安全自檢] 密鑰文件權限正常: %s (0600)", filename)
+
+
 def create_app() -> FastAPI:
     """
     应用工厂函数
@@ -76,6 +133,20 @@ def create_app() -> FastAPI:
     )
 
     # 4. 注册中间件
+    # 域名跳转（旧域名 → 新域名）
+    from app.core.middleware import DomainRedirectMiddleware
+    app.add_middleware(DomainRedirectMiddleware)
+    # 维护模式（MAINTENANCE_MODE=true 时拦截所有请求）
+    from app.core.middleware import MaintenanceModeMiddleware
+    app.add_middleware(MaintenanceModeMiddleware)
+    # 全局 API 限流（Phase 1：單進程內存版）
+    if settings.rate_limit_enabled:
+        from app.core.rate_limiter import RateLimitMiddleware
+        app.add_middleware(
+            RateLimitMiddleware,
+            rules=settings.rate_limit_rules,
+            enabled=True,
+        )
     # CORS
     app.add_middleware(
         CORSMiddleware,
@@ -104,6 +175,9 @@ def create_app() -> FastAPI:
         logger.info(f"  环境: {settings.environment}")
         logger.info(f"  端口: {settings.server_port}")
         logger.info("=" * 60)
+
+        # 密钥文件权限自检（Phase 1 安全加固）
+        _secure_key_files(settings)
 
         # 初始化数据库连接池
         try:
@@ -210,6 +284,17 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("啟動遷移失敗: %s", e)
 
+        # 恢复卡住的默書 OCR 任务
+        try:
+            from app.services import get_services as _gs
+            _svc = _gs()
+            if hasattr(_svc, 'dictation') and _svc.dictation:
+                recovered = await _svc.dictation.recover_stale_ocr_tasks(stale_minutes=10)
+                if recovered:
+                    logger.info("已恢复 %d 个卡住的默書 OCR 任务", recovered)
+        except Exception as e:
+            logger.warning("默書 OCR 任务恢复失败: %s", e)
+
         # 啟動每日課室日誌報告定時任務
         try:
             import asyncio as _aio
@@ -217,6 +302,14 @@ def create_app() -> FastAPI:
             logger.info("每日課室日誌報告定時任務已啟動 (每天 16:00)")
         except Exception as e:
             logger.warning("啟動每日報告定時任務失敗: %s", e)
+
+        # 啟動每日學生風險快取刷新（每天 03:00 + 啟動時立刻跑）
+        try:
+            import asyncio as _aio
+            _aio.create_task(_daily_risk_refresh_scheduler())
+            logger.info("學生風險快取定時刷新已啟動 (每天 03:00)")
+        except Exception as e:
+            logger.warning("啟動風險快取定時任務失敗: %s", e)
 
         # AI 看門狗：自動回收超時任務
         try:
@@ -336,6 +429,59 @@ async def _daily_report_scheduler():
         except Exception as e:
             logger.exception("每日報告定時任務異常，60 秒後重試")
             await asyncio.sleep(60)
+
+
+async def _daily_risk_refresh_scheduler():
+    """
+    每日 03:00 自動刷新所有學生的風險快取（student_risk_cache 表）。
+    啟動時也立刻跑一次，避免冷啟動時教師看到空白或舊資料。
+    """
+    import asyncio
+    from datetime import datetime, timedelta
+
+    # ① 啟動立即跑一次（在背景，不阻塞 startup）
+    try:
+        logger.info("首次刷新學生風險快取（背景執行）...")
+        await asyncio.to_thread(_run_risk_refresh)
+    except Exception as e:
+        logger.warning("首次刷新學生風險快取失敗: %s", e)
+
+    # ② 每日 03:00 循環
+    while True:
+        try:
+            now = datetime.now()
+            target = now.replace(hour=3, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target += timedelta(days=1)
+
+            wait_seconds = (target - now).total_seconds()
+            logger.info(
+                "學生風險快取下次刷新: %s (%.0f 秒後)",
+                target.strftime("%Y-%m-%d %H:%M"),
+                wait_seconds,
+            )
+            await asyncio.sleep(wait_seconds)
+
+            logger.info("定時任務觸發：刷新學生風險快取")
+            await asyncio.to_thread(_run_risk_refresh)
+
+        except asyncio.CancelledError:
+            logger.info("學生風險快取定時任務已取消")
+            break
+        except Exception:
+            logger.exception("學生風險快取定時任務異常，60 秒後重試")
+            await asyncio.sleep(60)
+
+
+def _run_risk_refresh():
+    """在線程池中執行同步的風險刷新"""
+    try:
+        from app.services import get_services
+        services = get_services()
+        result = services.risk_cache.refresh_all()
+        logger.info("學生風險快取刷新完成: %s", result)
+    except Exception as e:
+        logger.exception("學生風險快取刷新失敗: %s", e)
 
 
 def _run_daily_report(report_date: str):

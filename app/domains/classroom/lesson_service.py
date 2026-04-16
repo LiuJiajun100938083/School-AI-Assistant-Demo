@@ -487,6 +487,15 @@ class LessonService:
         })
         logger.info("课案 session %s 已结束 (room=%s)", session_id, room_id)
 
+        # ── 宠物金币：教师完成课堂 +10 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            room = self._room_repo.get_by_room_id(room_id)
+            if room and room.get("teacher_username"):
+                try_award_coins_by_username(room["teacher_username"], "complete_lesson", f"lesson_{session_id}", "teacher")
+        except Exception:
+            pass
+
     # ================================================================
     # Session — Navigate
     # ================================================================
@@ -762,6 +771,30 @@ class LessonService:
             "slide_type": slide["slide_type"],
             "total_responses": len(responses),
             "results": aggregated,
+        }
+
+    def get_slide_submissions(
+        self,
+        session_id: str,
+        slide_id: str,
+    ) -> Dict[str, Any]:
+        """获取 slide 的所有学生提交 (教师查看个别作品, 如自由画布)。"""
+        responses = self._response_repo.list_by_slide(session_id, slide_id)
+        submissions = []
+        for r in responses:
+            rd = r.get("response_data") or {}
+            preview = rd.get("preview_base64")
+            if not preview:
+                continue
+            submissions.append({
+                "student_username": r.get("student_username"),
+                "preview_base64": preview,
+                "responded_at": str(r.get("responded_at", "")),
+            })
+        return {
+            "slide_id": slide_id,
+            "total_submissions": len(submissions),
+            "submissions": submissions,
         }
 
     def get_my_response(

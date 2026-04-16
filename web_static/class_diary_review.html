@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>課室日誌 Review</title>
-    <link rel="stylesheet" href="/static/css/class_diary_review.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title data-i18n="cdv.pageTitle">課室日誌 Review</title>
+    <link rel="stylesheet" href="/static/css/class_diary_review.css?v=20260414">
+    <!-- i18n 國際化 -->
+    <script src="/static/js/shared/i18n.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+    <script src="/static/js/shared/i18n/class_diary_review.js?v=20260414"></script>
+    <script src="/static/vendor/chartjs/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -13,19 +17,20 @@
 <nav class="navbar">
     <div class="navbar-brand">
         <span>📋</span>
-        <span>課室日誌 Review</span>
+        <span data-i18n="cdv.pageTitle">課室日誌 Review</span>
     </div>
     <div class="navbar-right">
+        <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
         <span class="user-badge" id="userBadge"></span>
-        <a href="/" class="btn-back">🏠 返回主頁</a>
+        <a href="/" class="btn-back" data-i18n="cdv.backHome">🏠 返回主頁</a>
     </div>
 </nav>
 
 <!-- 無權訪問 -->
 <div class="no-access" id="noAccess" style="display:none;">
     <div class="icon">🔒</div>
-    <h2>無權訪問</h2>
-    <p>您沒有查看課室日誌的權限，請聯繫管理員。</p>
+    <h2 data-i18n="cdv.noAccessTitle">無權訪問</h2>
+    <p data-i18n="cdv.noAccessDesc">您沒有查看課室日誌的權限，請聯繫管理員。</p>
 </div>
 
 <!-- 主容器 -->
@@ -34,33 +39,33 @@
     <!-- 篩選欄 -->
     <div class="filter-bar">
         <div class="date-mode-toggle" id="dateModeToggle">
-            <button class="mode-btn active" data-mode="single" onclick="setDateMode('single')">單日</button>
-            <button class="mode-btn" data-mode="range" onclick="setDateMode('range')">日期範圍</button>
+            <button class="mode-btn active" data-mode="single" onclick="setDateMode('single')" data-i18n="cdv.single">單日</button>
+            <button class="mode-btn" data-mode="range" onclick="setDateMode('range')" data-i18n="cdv.range">日期範圍</button>
         </div>
 
         <div class="date-single-group" id="dateSingleGroup">
-            <label>📅 日期</label>
+            <label data-i18n="cdv.date">📅 日期</label>
             <input type="date" id="filterDate">
         </div>
 
         <div class="date-range-group" id="dateRangeGroup" style="display:none;">
-            <label>開始</label>
+            <label data-i18n="cdv.start">開始</label>
             <input type="date" id="rangeStart">
-            <label>結束</label>
+            <label data-i18n="cdv.end">結束</label>
             <input type="date" id="rangeEnd">
-            <button class="btn-apply-range" onclick="applyDateRange()">查詢</button>
+            <button class="btn-apply-range" onclick="applyDateRange()" data-i18n="cdv.search">查詢</button>
         </div>
 
         <div class="filter-right">
-            <label>🏫 班級</label>
+            <label data-i18n="cdv.class">🏫 班級</label>
             <select id="filterClass">
-                <option value="">全部班級</option>
+                <option value="" data-i18n="cdv.allClasses">全部班級</option>
             </select>
             <div class="export-dropdown" id="exportDropdown" style="display:none;">
-                <button class="btn-export" onclick="toggleExportMenu()">匯出 XLSX ▾</button>
+                <button class="btn-export" onclick="toggleExportMenu()" data-i18n="cdv.exportXlsx">匯出 XLSX ▾</button>
                 <div class="export-menu" id="exportMenu">
-                    <button onclick="exportSingleDay()">匯出當天</button>
-                    <button onclick="showRangeExportModal()">匯出日期範圍...</button>
+                    <button onclick="exportSingleDay()" data-i18n="cdv.exportToday">匯出當天</button>
+                    <button onclick="showRangeExportModal()" data-i18n="cdv.exportRange">匯出日期範圍...</button>
                 </div>
             </div>
         </div>
@@ -71,7 +76,7 @@
         <!-- 今日概覽（數據 + AI 報告合併） -->
         <div class="dashboard-section" id="dashboardSection" style="display:none;">
             <div class="dashboard-header" onclick="toggleDashboard()">
-                <span class="dashboard-title">今日概覽</span>
+                <span class="dashboard-title" data-i18n="cdv.overview">今日概覽</span>
                 <span class="dashboard-toggle" id="dashToggle">▼</span>
             </div>
             <div class="dashboard-body" id="dashboardBody">
@@ -90,7 +95,7 @@
         <!-- 提交狀況（reviewer/admin 可見） -->
         <div id="submissionGapsSection" style="display:none;">
             <div class="dashboard-header" onclick="document.getElementById('gapsBody').style.display = document.getElementById('gapsBody').style.display === 'none' ? '' : 'none'">
-                <span class="dashboard-title">提交狀況</span>
+                <span class="dashboard-title" data-i18n="cdv.submissionStatus">提交狀況</span>
                 <span class="dashboard-toggle">▼</span>
             </div>
             <div id="gapsBody">
@@ -105,22 +110,22 @@
         <!-- 記錄列表 -->
         <div class="entries-section" id="entriesSection" style="display:none;">
             <div class="entries-header">
-                <h3 id="entriesTitle">課堂記錄</h3>
-                <span class="entries-count" id="entriesCount">0 條</span>
+                <h3 id="entriesTitle" data-i18n="cdv.classRecords">課堂記錄</h3>
+                <span class="entries-count" id="entriesCount" data-i18n="cdv.recordCount">0 條</span>
             </div>
             <div style="overflow-x:auto;">
                 <table class="entries-table">
                     <thead>
                         <tr>
-                            <th>節數</th>
-                            <th>科目</th>
-                            <th>紀律</th>
-                            <th>整潔</th>
-                            <th>缺席</th>
-                            <th>遲到</th>
-                            <th>嘉許</th>
-                            <th>違規</th>
-                            <th>醫務室</th>
+                            <th data-i18n="cdv.thPeriod">節數</th>
+                            <th data-i18n="cdv.thSubject">科目</th>
+                            <th data-i18n="cdv.thDiscipline">紀律</th>
+                            <th data-i18n="cdv.thCleanliness">整潔</th>
+                            <th data-i18n="cdv.thAbsent">缺席</th>
+                            <th data-i18n="cdv.thLate">遲到</th>
+                            <th data-i18n="cdv.thPraise">嘉許</th>
+                            <th data-i18n="cdv.thViolation">違規</th>
+                            <th data-i18n="cdv.thMedical">醫務室</th>
                         </tr>
                     </thead>
                     <tbody id="entriesBody"></tbody>
@@ -128,7 +133,7 @@
             </div>
             <div class="empty-state" id="emptyState" style="display:none;">
                 <div class="icon">📭</div>
-                <p>該日期暫無評級記錄</p>
+                <p data-i18n="cdv.noRecords">該日期暫無評級記錄</p>
             </div>
         </div>
     </div>
@@ -144,37 +149,37 @@
         <!-- 2. 範圍圖表（charts tier 可見） -->
         <div id="rangeChartSection" style="display:none;">
             <div class="chart-container">
-                <h4>每日趨勢</h4>
+                <h4 data-i18n="cdv.dailyTrend">每日趨勢</h4>
                 <canvas id="dailyTrendChart"></canvas>
-                <div class="chart-empty" id="trendChartEmpty" style="display:none;">指定範圍內沒有記錄</div>
+                <div class="chart-empty" id="trendChartEmpty" style="display:none;" data-i18n="cdv.noRangeData">指定範圍內沒有記錄</div>
             </div>
             <div class="chart-row-2col">
                 <div class="chart-container">
-                    <h4>節數分析</h4>
+                    <h4 data-i18n="cdv.periodAnalysis">節數分析</h4>
                     <canvas id="periodChart"></canvas>
-                    <div class="chart-empty" id="periodChartEmpty" style="display:none;">無數據</div>
+                    <div class="chart-empty" id="periodChartEmpty" style="display:none;" data-i18n="cdv.noData">無數據</div>
                 </div>
                 <div class="chart-container">
-                    <h4>星期分析</h4>
+                    <h4 data-i18n="cdv.weekdayAnalysis">星期分析</h4>
                     <canvas id="weekdayChart"></canvas>
-                    <div class="chart-empty" id="weekdayChartEmpty" style="display:none;">無數據</div>
+                    <div class="chart-empty" id="weekdayChartEmpty" style="display:none;" data-i18n="cdv.noData">無數據</div>
                 </div>
             </div>
             <div class="chart-container">
-                <h4>科目分析</h4>
+                <h4 data-i18n="cdv.subjectAnalysis">科目分析</h4>
                 <canvas id="subjectChart"></canvas>
-                <div class="chart-empty" id="subjectChartEmpty" style="display:none;">無數據</div>
+                <div class="chart-empty" id="subjectChartEmpty" style="display:none;" data-i18n="cdv.noData">無數據</div>
             </div>
         </div>
 
         <!-- 3. 範圍原始數據表（raw_data tier 可見） -->
         <div id="rangeRawDataSection" style="display:none;">
             <div class="range-table-container">
-                <h4>學生記名統計</h4>
+                <h4 data-i18n="cdv.studentStats">學生記名統計</h4>
                 <div style="overflow-x:auto;"><table class="range-student-table" id="rangeStudentTable"></table></div>
             </div>
             <div class="range-table-container">
-                <h4>風險學生</h4>
+                <h4 data-i18n="cdv.riskStudents">風險學生</h4>
                 <div style="overflow-x:auto;"><table class="range-student-table" id="rangeRiskTable"></table></div>
             </div>
         </div>
@@ -182,9 +187,9 @@
         <!-- 4. 範圍 AI 報告（ai_report tier 可見） -->
         <div id="rangeAiSection" style="display:none;">
             <div class="range-ai-header">
-                <h4>AI 範圍報告</h4>
+                <h4 data-i18n="cdv.aiReport">AI 範圍報告</h4>
                 <button class="btn-generate-range-report" id="generateRangeReportBtn"
-                        style="display:none;" onclick="generateRangeReport()">生成 AI 報告</button>
+                        style="display:none;" onclick="generateRangeReport()" data-i18n="cdv.generateAiReport">生成 AI 報告</button>
             </div>
             <div id="rangeReportStatus"></div>
             <div id="rangeReportContent"></div>
@@ -198,23 +203,23 @@
 <div class="range-modal-overlay" id="rangeModal">
     <div class="range-modal">
         <div class="range-modal-header">
-            <h3>匯出日期範圍</h3>
+            <h3 data-i18n="cdv.exportRangeTitle">匯出日期範圍</h3>
             <button class="range-modal-close" onclick="closeRangeModal()">&times;</button>
         </div>
         <div class="range-modal-body">
             <div class="range-form-group">
-                <label>開始日期</label>
+                <label data-i18n="cdv.startDate">開始日期</label>
                 <input type="date" id="rangeStartDate">
             </div>
             <div class="range-form-group">
-                <label>結束日期</label>
+                <label data-i18n="cdv.endDate">結束日期</label>
                 <input type="date" id="rangeEndDate">
             </div>
-            <p class="range-hint">匯出包含學生記名統計、班級趨勢、節數/科目/星期分析等 10 個工作表。</p>
+            <p class="range-hint" data-i18n="cdv.exportHint">匯出包含學生記名統計、班級趨勢、節數/科目/星期分析等 10 個工作表。</p>
         </div>
         <div class="range-modal-footer">
-            <button class="btn-range-cancel" onclick="closeRangeModal()">取消</button>
-            <button class="btn-range-confirm" id="rangeConfirmBtn" onclick="exportDateRange()">匯出</button>
+            <button class="btn-range-cancel" onclick="closeRangeModal()" data-i18n="cdv.cancel">取消</button>
+            <button class="btn-range-confirm" id="rangeConfirmBtn" onclick="exportDateRange()" data-i18n="cdv.export">匯出</button>
         </div>
     </div>
 </div>
@@ -230,8 +235,13 @@
     </div>
 </div>
 
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/class_diary_review.js"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/class_diary_review.js?v=20260414"></script>
+<script>
+    if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+        i18n.applyDOM();
+    }
+</script>
 </body>
 </html>

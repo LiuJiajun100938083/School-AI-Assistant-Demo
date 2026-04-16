@@ -94,7 +94,7 @@
     "name": "學習任務",
     "icon": "✅",
     "description": "查看及完成學習任務",
-    "url": "/static/learning_tasks.html",
+    "url": "/learning-tasks",
     "roles": [
       "student",
       "teacher",
@@ -196,8 +196,9 @@
     "name": "任務管理",
     "icon": "📋",
     "description": "創建和管理學習任務",
-    "url": "/static/learning_task_admin.html",
+    "url": "/learning-task-admin",
     "roles": [
+      "teacher",
       "admin"
     ],
     "enabled": true,
@@ -262,6 +263,21 @@
     "category": "teaching"
   },
   {
+    "id": "collab_board",
+    "name": "協作佈告板",
+    "icon": "",
+    "description": "班級互動牆 / 分組作業協作板",
+    "url": "/boards",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 4,
+    "category": "community"
+  },
+  {
     "id": "admin_dashboard",
     "name": "管理後台",
     "icon": "⚙️",
@@ -273,5 +289,198 @@
     "enabled": true,
     "order": 16,
     "category": "admin"
+  },
+  {
+    "id": "dictation",
+    "name": "默書",
+    "icon": "",
+    "description": "中英雙語默書:老師上傳原文,學生拍照上交,AI 自動比對批改",
+    "url": "/dictation",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 14,
+    "category": "teaching"
+  },
+  {
+    "id": "tool_qrcode",
+    "name": "QR 碼生成器",
+    "icon": "",
+    "description": "輸入文字或 URL,一鍵生成 QR 碼並下載",
+    "url": "/tools/qrcode",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 16,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_image_convert",
+    "name": "圖片格式轉換",
+    "icon": "",
+    "description": "PNG / JPG / WebP / HEIC 等格式互轉",
+    "url": "/tools/image-convert",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 17,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_pdf_merge",
+    "name": "PDF 多功能工具",
+    "icon": "",
+    "description": "合併(圖片或 PDF)、提取頁面、壓縮、加浮水印 — 完全本地處理",
+    "url": "/tools/pdf-merge",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 18,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_countdown",
+    "name": "倒數計時器",
+    "icon": "",
+    "description": "課堂計時大字顯示,支援全螢幕投影",
+    "url": "/tools/countdown",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 19,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_roll_call",
+    "name": "課堂點名",
+    "icon": "",
+    "description": "選班級隨機抽人或分組,可放回重抽",
+    "url": "/tools/roll-call",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 20,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_md_reader",
+    "name": "Markdown 閱讀器",
+    "icon": "",
+    "description": "上傳或貼上 Markdown,即時預覽含數學公式的排版效果",
+    "url": "/tools/md-reader",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 21,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_handwriting_math",
+    "name": "手寫公式轉換",
+    "icon": "",
+    "description": "拍照或手寫數學公式,自動轉換為 LaTeX 並預覽",
+    "url": "/tools/handwriting-math",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 22,
+    "category": "utilities"
+  },
+  {
+    "id": "pet",
+    "name": "我的寵物",
+    "icon": "",
+    "description": "養成學習寵物，完成任務獲得經驗，解鎖進化和裝飾",
+    "url": "/pet",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 3,
+    "category": "learning"
+  },
+  {
+    "id": "pet_teacher",
+    "name": "寵物管理",
+    "icon": "",
+    "description": "按班級查看學生寵物養成情況、全校班級排行、屬性數值與連續學習天數",
+    "url": "/pet/teacher",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 15,
+    "category": "admin"
+  },
+  {
+    "id": "tool_laser_engrave",
+    "name": "雷射雕刻轉換",
+    "icon": "",
+    "description": "彩色圖片轉純黑白抖動/網點圖，用於雷射切割雕刻",
+    "url": "/tools/laser-engrave",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 23,
+    "category": "utilities"
+  },
+  {
+    "id": "exam_grader",
+    "name": "試卷批閱",
+    "icon": "",
+    "description": "掃描全班試卷、AI 自動批改、教師審閱調分",
+    "url": "/exam-grader",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 16,
+    "category": "teaching"
+  },
+  {
+    "id": "my_exams",
+    "name": "我的考試成績",
+    "icon": "",
+    "description": "查看已發放的考試批改結果和 AI 個人分析",
+    "url": "/my-exams",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 8,
+    "category": "learning"
   }
 ]

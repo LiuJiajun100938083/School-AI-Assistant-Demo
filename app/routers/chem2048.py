@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 
 chem2048_router = APIRouter(prefix="/api/chem2048", tags=["Chemistry 2048"])
 
-# 允許遊玩的班級（僅中三學生）
-ALLOWED_CLASSES = {"3A", "3B", "3C", "3D", "3S"}
+# 中三班級（排行榜分組用）
+FORM3_CLASSES = {"3A", "3B", "3C", "3D", "3S"}
 
 
 def _extract_user(current_user: Dict) -> Dict:
@@ -58,15 +58,9 @@ def _require_teacher(user: Dict) -> None:
         raise HTTPException(403, "只有老師和管理員可以執行此操作")
 
 
-def _require_allowed_class(user: Dict) -> None:
-    """檢查學生是否在允許的班級（中三），老師/管理員跳過"""
-    if user["role"] in ("teacher", "admin"):
-        return
-    if user["class_name"] not in ALLOWED_CLASSES:
-        raise HTTPException(
-            403,
-            f"只有中三學生（{', '.join(sorted(ALLOWED_CLASSES))}）可以遊玩此遊戲"
-        )
+def _is_form3(user: Dict) -> bool:
+    """判斷用戶是否屬於中三班級"""
+    return user.get("class_name", "") in FORM3_CLASSES
 
 
 # ==================================================================================
@@ -82,13 +76,13 @@ async def submit_score(
     提交遊戲成績
 
     允許多次遊玩，系統記錄每次成績，排行榜取最高分。
-    僅限中三學生（3A/3B/3C/3D/3S），老師不受限制。
+    開放給所有用戶遊玩。
     """
     user = _extract_user(current_user)
-    _require_allowed_class(user)
     loop = asyncio.get_event_loop()
 
     score_data = {
+        "mode": data.mode,
         "score": data.score,
         "highest_tile": data.highest_tile,
         "highest_element": data.highest_element,
@@ -115,7 +109,6 @@ async def check_played(
 ):
     """檢查當前學生是否已遊玩過，返回歷史最高分"""
     user = _extract_user(current_user)
-    _require_allowed_class(user)
     loop = asyncio.get_event_loop()
 
     score = await loop.run_in_executor(
@@ -139,14 +132,45 @@ async def check_played(
 @chem2048_router.get("/scores/leaderboard")
 async def get_leaderboard(
     limit: int = Query(50, ge=1, le=200, description="返回條數"),
+    group: Optional[str] = Query(None, description="分組: form3=中三, open=其他所有人"),
+    mode: Optional[str] = Query(None, description="難度: simple / hard / 不傳=全部"),
     current_user: Dict = Depends(get_current_user),
 ):
-    """獲取公開排行榜"""
+    """
+    獲取公開排行榜
+
+    group 參數：
+    - form3: 僅中三學生 (3A/3B/3C/3D/3S)
+    - open: 除中三以外的所有人
+    - 不傳: 全部混合排行
+
+    mode 參數：
+    - simple: 簡單模式（前 20 元素）
+    - hard:   困難模式（全週期表）
+    - 不傳:   全部混合
+    """
     loop = asyncio.get_event_loop()
+
+    # 根據 group 篩選班級
+    class_filter = None
+    exclude_classes = None
+    if group == "form3":
+        class_filter = sorted(FORM3_CLASSES)
+    elif group == "open":
+        exclude_classes = sorted(FORM3_CLASSES)
+
+    # 驗證 mode 值
+    if mode is not None and mode not in ("simple", "hard"):
+        mode = None
 
     data = await loop.run_in_executor(
         None,
-        lambda: _get_service().get_leaderboard(limit),
+        lambda: _get_service().get_leaderboard(
+            limit,
+            class_filter=class_filter,
+            exclude_classes=exclude_classes,
+            mode=mode,
+        ),
     )
 
     return {"success": True, "data": data}

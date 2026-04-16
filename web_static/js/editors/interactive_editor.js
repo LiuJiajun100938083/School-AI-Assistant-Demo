@@ -66,29 +66,79 @@
             };
         },
 
-        /** 渲染可增删的 item 列表 */
+        /** 渲染可增删的 item 列表（支持圖片上傳） */
         renderItemListEditor(listEl, items, opts) {
             const label = opts && opts.label || '項目';
-            listEl.innerHTML = items.map((item, i) => `
-                <div class="ds-item-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;">
+            listEl.innerHTML = items.map((item, i) => {
+                const isImg = item.content_type === 'image' && item.content;
+                return `<div class="ds-item-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;">
                     <span style="color:var(--text-tertiary);font-size:12px;min-width:20px;text-align:center;">${i + 1}</span>
-                    <input type="text" class="config-input helper-item-content" value="${escapeHtml(item.content)}"
-                           placeholder="${label}內容..." style="flex:1;margin:0;">
+                    <input type="text" class="config-input helper-item-content" value="${escapeHtml(isImg ? '' : item.content)}"
+                           placeholder="${label}內容..." style="flex:1;margin:0;${isImg ? 'display:none;' : ''}">
+                    ${isImg
+                        ? `<img src="${escapeHtml(item.content)}" style="height:40px;border-radius:4px;object-fit:cover;flex:1;max-width:120px;">
+                           <button class="helper-img-remove" data-idx="${i}" style="background:none;border:none;color:#FF3B30;cursor:pointer;font-size:14px;" title="移除圖片">&times;</button>`
+                        : `<label style="cursor:pointer;flex-shrink:0;color:var(--text-tertiary);" title="上傳圖片">
+                               <input type="file" accept="image/*" class="helper-img-input" data-idx="${i}" style="display:none;">
+                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                           </label>`
+                    }
                     <button class="helper-remove-btn" data-idx="${i}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:16px;padding:4px;">&times;</button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
 
+            const self = this;
             listEl.querySelectorAll('.helper-remove-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const idx = parseInt(btn.dataset.idx);
                     if (items.length <= (opts && opts.minItems || 2)) return alert(`至少需要 ${opts && opts.minItems || 2} 個${label}`);
                     items.splice(idx, 1);
-                    window._interactiveEditorHelpers.renderItemListEditor(listEl, items, opts);
+                    self.renderItemListEditor(listEl, items, opts);
                 });
             });
 
             listEl.querySelectorAll('.helper-item-content').forEach((inp, idx) => {
-                inp.addEventListener('input', () => { items[idx].content = inp.value; });
+                inp.addEventListener('input', () => {
+                    items[idx].content = inp.value;
+                    items[idx].content_type = 'text';
+                });
+            });
+
+            // 圖片上傳
+            listEl.querySelectorAll('.helper-img-input').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const idx = parseInt(input.dataset.idx);
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        const token = (typeof AuthModule !== 'undefined') ? AuthModule.getToken() : localStorage.getItem('auth_token');
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const res = await fetch('/api/classroom/quiz-images', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: fd,
+                        });
+                        const json = await res.json();
+                        if (json.success && json.data?.url) {
+                            items[idx].content = json.data.url;
+                            items[idx].content_type = 'image';
+                            self.renderItemListEditor(listEl, items, opts);
+                            if (typeof editorState !== 'undefined') editorState.dirty = true;
+                        }
+                    } catch (e) { console.error('圖片上傳失敗', e); }
+                });
+            });
+
+            // 移除圖片
+            listEl.querySelectorAll('.helper-img-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    items[idx].content = '';
+                    items[idx].content_type = 'text';
+                    self.renderItemListEditor(listEl, items, opts);
+                    if (typeof editorState !== 'undefined') editorState.dirty = true;
+                });
             });
         },
 

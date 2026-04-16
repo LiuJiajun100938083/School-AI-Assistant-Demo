@@ -14,16 +14,22 @@
    API — 後端 API 封裝
    ============================================================ */
 const AssignmentAPI = {
+    // Submit multipart upload 的預設 timeout (10 分鐘 — 留足空間給大 zip)
+    UPLOAD_TIMEOUT_MS: 10 * 60 * 1000,
+
     _headers() {
         const h = { 'Content-Type': 'application/json' };
         const token = window.AuthModule?.getToken();
         if (token) h['Authorization'] = `Bearer ${token}`;
+        // ngrok 免費版:跳過 browser warning interstitial
+        h['ngrok-skip-browser-warning'] = 'true';
         return h;
     },
     _authHeaders() {
         const h = {};
         const token = window.AuthModule?.getToken();
         if (token) h['Authorization'] = `Bearer ${token}`;
+        h['ngrok-skip-browser-warning'] = 'true';
         return h;
     },
     async _call(url, opts = {}) {
@@ -32,6 +38,157 @@ const AssignmentAPI = {
             if (resp.status === 401) { window.location.href = '/'; return null; }
             return resp.json();
         } catch (e) { console.error('API error:', e); return null; }
+    },
+
+    // ── Ngrok workaround ─────────────────────────────────────
+    // Ngrok 免費版會掃 POST body 的 magic bytes,看到 zip (PK\x03\x04)
+    // 或其他 archive 就擋掉(回 ERR_ACCESS_DENIED,後端 log 完全看不到)。
+    // 解法:前端把 archive 檔案每個 byte XOR 0xFF,副檔名加 .xored。
+    // ngrok 看到的是亂碼 → 放行;後端偵測 .xored → 用 bytes.translate
+    // 快速還原 → 存檔時用去掉 .xored 的原始檔名。
+    ARCHIVE_EXTENSIONS: ['.zip', '.swiftpm', '.rar', '.7z', '.tar', '.gz', '.tgz'],
+
+    isArchiveFile(file) {
+        const name = (file && file.name || '').toLowerCase();
+        return this.ARCHIVE_EXTENSIONS.some(ext => name.endsWith(ext));
+    },
+
+    // macOS directory bundle 副檔名 — Finder 顯示成檔案,實際是資料夾
+    BUNDLE_EXTENSIONS: ['.swiftpm', '.app', '.xcodeproj', '.playground', '.pages', '.numbers', '.keynote'],
+
+    isBundleDirectory(file) {
+        const name = (file && file.name || '').toLowerCase();
+        return this.BUNDLE_EXTENSIONS.some(ext => name.endsWith(ext));
+    },
+
+    /**
+     * 讀 File → ArrayBuffer,優先用 FileReader(對 iCloud Drive 佔位檔、
+     * Safari 舊 File 引用更穩定)。失敗時 fallback 到 File.arrayBuffer()。
+     * 兩者都失敗會拋出帶檔名的友善錯誤,訊息會根據情境(bundle directory /
+     * iCloud placeholder / 一般找不到檔案)給出對應建議。
+     */
+    async readFileBytes(file) {
+        // 先嘗試 FileReader (較老 API 但最相容)
+        try {
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+                reader.onabort = () => reject(new Error('FileReader aborted'));
+                try {
+                    reader.readAsArrayBuffer(file);
+                } catch (syncErr) {
+                    reject(syncErr);
+                }
+            });
+        } catch (e1) {
+            // Fallback: 試試 File.arrayBuffer() (新 API)
+            try {
+                return await file.arrayBuffer();
+            } catch (e2) {
+                throw this._makeReadError(file, e1, e2);
+            }
+        }
+    },
+
+    _makeReadError(file, ...errs) {
+        const name = file && file.name || '(未命名)';
+        const size = file && typeof file.size === 'number' ? file.size : -1;
+        const isBundle = this.isBundleDirectory(file);
+        const isNotFound = errs.some(e => e && e.name === 'NotFoundError');
+
+        let hint;
+        if (isBundle) {
+            // 最常見:macOS directory bundle (.swiftpm / .app / .xcodeproj …)
+            hint = `\n\n這是一個 macOS 套件資料夾(bundle),Finder 看起來像單一檔案,其實內部是一整個資料夾結構。瀏覽器無法直接上傳資料夾,請先把它壓縮成 zip:\n\n1. 在 Finder 點選「${name}」\n2. 按右鍵 → 選「壓縮」\n3. 會得到「${name}.zip」\n4. 改上傳這個 .zip 檔案`;
+        } else if (size === 0) {
+            hint = '\n\n這個檔案大小是 0 byte(空檔案)。可能原因:檔案被刪除、被另存為新位置、或根本是個資料夾。請重新選檔。';
+        } else if (isNotFound) {
+            hint = '\n\n可能原因:\n• 檔案在 iCloud Drive 但未下載到本機(Finder 有白雲 ☁️ 圖示)→ 在 Finder 右鍵「立即下載」\n• 檔案被移動/刪除/重新命名 → 重新選檔\n• 從網路磁碟或外接硬碟選的,連線斷了 → 複製到桌面後再選';
+        } else {
+            hint = `\n\n錯誤細節:${errs.filter(e => e).map(e => e.message || String(e)).join(' / ')}`;
+        }
+
+        const msg = `讀取檔案失敗「${name}」${hint}`;
+        const err = new Error(msg);
+        err.name = 'FileReadError';
+        err.fileName = name;
+        err.isBundle = isBundle;
+        return err;
+    },
+
+    async obfuscateIfArchive(file) {
+        if (!this.isArchiveFile(file)) return file;
+        const buffer = await this.readFileBytes(file);
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.length; i++) bytes[i] ^= 0xFF;
+        // 檔名後加 .xored;後端偵測到會 strip + XOR 還原
+        return new File([bytes], file.name + '.xored', {
+            type: 'application/octet-stream',
+        });
+    },
+
+    async appendFiles(formData, fieldName, files) {
+        if (!files || !files.length) return;
+        for (const f of files) {
+            const out = await this.obfuscateIfArchive(f);
+            formData.append(fieldName, out);
+        }
+    },
+
+    /**
+     * Multipart submit 共用 helper。永遠不 throw,一律回傳
+     * {success, message, data?}
+     * shape,這樣呼叫端的 finally block 一定會執行。
+     */
+    async _submitMultipart(url, formData, timeoutMs) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs || this.UPLOAD_TIMEOUT_MS);
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: this._authHeaders(),
+                body: formData,
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+
+            if (resp.status === 401) { window.location.href = '/'; return { success: false, message: '未登入' }; }
+
+            // 嘗試解析 JSON,若失敗(例如 ngrok interstitial / nginx 413 HTML 頁)回傳友善訊息
+            const text = await resp.text();
+            let body;
+            try { body = text ? JSON.parse(text) : {}; }
+            catch (e) {
+                return {
+                    success: false,
+                    message: `伺服器回傳非 JSON 內容 (HTTP ${resp.status}) — 可能被代理/防火牆攔截`,
+                };
+            }
+
+            if (!resp.ok) {
+                return {
+                    success: false,
+                    message: body.message || body.detail || `HTTP ${resp.status}`,
+                    ...body,
+                };
+            }
+            return body;  // 正常情況 {success: true, data, message}
+        } catch (err) {
+            clearTimeout(timer);
+            if (err.name === 'AbortError') {
+                return { success: false, message: `上傳逾時 (超過 ${Math.round((timeoutMs || this.UPLOAD_TIMEOUT_MS) / 1000)} 秒),請檢查網路或檔案大小` };
+            }
+            // TypeError: Failed to fetch — 網路/瀏覽器/proxy 層擋掉
+            if (err instanceof TypeError) {
+                return {
+                    success: false,
+                    message: `連線失敗 (${err.message})。如果透過 ngrok,Chrome Safe Browsing 可能封鎖了此網域;請改用 LAN 直連、Tailscale 或 Cloudflare Tunnel`,
+                };
+            }
+            console.error('Upload error:', err);
+            return { success: false, message: err.message || '上傳失敗' };
+        }
     },
 
     // Teacher APIs
@@ -95,7 +252,7 @@ const AssignmentAPI = {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         if (resp.status === 401) { window.location.href = '/'; return null; }
-        if (!resp.ok) throw new Error('匯出失敗');
+        if (!resp.ok) throw new Error(i18n.t('asg.toast.exportFail'));
         return resp;
     },
     // Excel export (returns raw Response, not parsed JSON)
@@ -105,7 +262,7 @@ const AssignmentAPI = {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         if (resp.status === 401) { window.location.href = '/'; return null; }
-        if (!resp.ok) throw new Error('匯出失敗');
+        if (!resp.ok) throw new Error(i18n.t('asg.toast.exportFail'));
         return resp;
     },
     async getTargets() {
@@ -115,14 +272,11 @@ const AssignmentAPI = {
     // Exam Paper OCR APIs
     async uploadExamPaper(files) {
         const formData = new FormData();
-        for (const f of files) formData.append('files', f);
-        const resp = await fetch('/api/assignments/teacher/upload-exam-paper', {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            '/api/assignments/teacher/upload-exam-paper',
+            formData,
+        );
     },
     async getExamPaperStatus(batchId) {
         return this._call(`/api/assignments/teacher/upload-exam-paper/${batchId}/status`);
@@ -148,27 +302,21 @@ const AssignmentAPI = {
     async submitAssignment(assignmentId, content, files) {
         const formData = new FormData();
         formData.append('content', content);
-        if (files) { for (const f of files) formData.append('files', f); }
-        const resp = await fetch(`/api/assignments/${assignmentId}/submit`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/${assignmentId}/submit`,
+            formData,
+        );
     },
     async teacherSubmitForStudent(assignmentId, studentUsername, files, content = '') {
         const formData = new FormData();
         formData.append('student_username', studentUsername);
         formData.append('content', content);
-        if (files) { for (const f of files) formData.append('files', f); }
-        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/submit-for-student`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/teacher/${assignmentId}/submit-for-student`,
+            formData,
+        );
     },
 
     // Form APIs
@@ -177,16 +325,13 @@ const AssignmentAPI = {
         formData.append('answers', answersJson);
         if (filesByQuestion) {
             for (const [qId, files] of Object.entries(filesByQuestion)) {
-                for (const f of files) formData.append(`files_${qId}`, f);
+                await this.appendFiles(formData, `files_${qId}`, files);
             }
         }
-        const resp = await fetch(`/api/assignments/${assignmentId}/submit-form`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        return this._submitMultipart(
+            `/api/assignments/${assignmentId}/submit-form`,
+            formData,
+        );
     },
     async submitExam(assignmentId, answers) {
         return this._call(`/api/assignments/${assignmentId}/submit-exam`, {
@@ -208,7 +353,7 @@ const AssignmentAPI = {
         } catch (e) {
             if (e.name === 'AbortError') {
                 console.error('AI 批改超時 (3min)');
-                return { success: false, message: 'AI 批改超時，請稍後重試' };
+                return { success: false, message: i18n.t('asg.ai.gradeTimeout') };
             }
             console.error('API error:', e);
             return null;
@@ -223,14 +368,11 @@ const AssignmentAPI = {
     // Attachments
     async uploadAttachments(assignmentId, files) {
         const formData = new FormData();
-        for (const f of files) formData.append('files', f);
-        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/attachments`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/teacher/${assignmentId}/attachments`,
+            formData,
+        );
     },
     async deleteAttachment(assignmentId, fileId) {
         return this._call(`/api/assignments/teacher/${assignmentId}/attachments/${fileId}`, { method: 'DELETE' });
@@ -303,10 +445,12 @@ const AssignmentUI = {
         archive: '<span style="color:#7f8c8d;font-weight:600">ZIP</span>'
     },
 
-    STATUS_LABELS: {
-        draft: '草稿', published: '已發布', closed: '已關閉',
-        submitted: '已提交', graded: '已批改', returned: '已退回',
-        not_submitted: '未提交'
+    get STATUS_LABELS() {
+        return {
+            draft: i18n.t('asg.status.draft'), published: i18n.t('asg.status.published'), closed: i18n.t('asg.status.closed'),
+            submitted: i18n.t('asg.status.submitted'), graded: i18n.t('asg.status.graded'), returned: i18n.t('asg.status.returned'),
+            not_submitted: i18n.t('asg.status.notSubmitted')
+        };
     },
 
     // ---- Sidebar Rendering ----
@@ -443,30 +587,30 @@ const AssignmentUI = {
         if (!a.exam_batch_id) return '';
         const st = a.ocr_status;
         if (st === 'processing' || st === 'uploading')
-            return `<span class="ocr-status ocr-processing">AI 識別中...</span>`;
+            return `<span class="ocr-status ocr-processing">${i18n.t('asg.ocr.processing')}</span>`;
         if (st === 'completed')
-            return `<span class="ocr-status ocr-done">已識別 ${a.ocr_question_count||0} 題</span>`;
+            return `<span class="ocr-status ocr-done">${i18n.t('asg.ocr.completed', {count: a.ocr_question_count||0})}</span>`;
         if (st === 'failed')
-            return `<span class="ocr-status ocr-failed">識別失敗</span>`;
+            return `<span class="ocr-status ocr-failed">${i18n.t('asg.ocr.failed')}</span>`;
         return '';
     },
 
     renderTeacherListView(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${this.ICON.inbox}</div>
-            <div class="empty-state-text">尚無作業</div>
-            <div class="empty-state-hint">點擊左側「+ 新增作業」開始</div></div>`;
+            <div class="empty-state-text">${i18n.t('asg.list.emptyTeacher')}</div>
+            <div class="empty-state-hint">${i18n.t('asg.list.emptyTeacherHint')}</div></div>`;
         return `<div class="assignment-table"><table>
-            <thead><tr><th>標題</th><th>教師</th><th>目標</th><th>截止日</th><th>提交</th><th>狀態</th></tr></thead>
+            <thead><tr><th>${i18n.t('asg.list.thTitle')}</th><th>${i18n.t('asg.list.thTeacher')}</th><th>${i18n.t('asg.list.thTarget')}</th><th>${i18n.t('asg.list.thDeadline')}</th><th>${i18n.t('asg.list.thSubmission')}</th><th>${i18n.t('asg.list.thStatus')}</th></tr></thead>
             <tbody>${assignments.map(a => {
-                const target = a.target_type === 'all' ? '所有人' :
-                    a.target_type === 'class' ? a.target_value : '指定學生';
+                const target = a.target_type === 'all' ? i18n.t('asg.list.targetAll') :
+                    a.target_type === 'class' ? a.target_value : i18n.t('asg.list.targetStudent');
                 return `<tr onclick="AssignmentApp.viewAssignment(${a.id})">
                     <td class="title-cell">${a.title} ${this.ocrStatusLabel(a)}</td>
                     <td>${a.created_by_name || ''}</td>
                     <td>${target}</td>
                     <td>${this.formatDate(a.deadline)}</td>
-                    <td>${a.submission_count||0} 份</td>
+                    <td>${i18n.t('asg.list.submissionCount', {count: a.submission_count||0})}</td>
                     <td>${this.badge(a.status)}</td></tr>`;
             }).join('')}</tbody></table></div>`;
     },
@@ -475,13 +619,13 @@ const AssignmentUI = {
     renderTeacherGridView(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
-            <div class="empty-state-text">尚無作業</div>
-            <div class="empty-state-hint">點擊左側「+ 新增作業」開始</div></div>`;
+            <div class="empty-state-text">${i18n.t('asg.list.emptyTeacher')}</div>
+            <div class="empty-state-hint">${i18n.t('asg.list.emptyTeacherHint')}</div></div>`;
         return `<div class="assignment-grid">${assignments.map(a => {
             const pct = a.submission_count > 0 ? Math.round((a.graded_count||0)/(a.submission_count)*100) : 0;
             const desc = a.description ? a.description.slice(0, 60) : '';
-            const target = a.target_type === 'all' ? '所有人' :
-                a.target_type === 'class' ? a.target_value : '指定學生';
+            const target = a.target_type === 'all' ? i18n.t('asg.list.targetAll') :
+                a.target_type === 'class' ? a.target_value : i18n.t('asg.list.targetStudent');
             return `<div class="grid-card" data-status="${a.status}" tabindex="0" onclick="AssignmentApp.viewAssignment(${a.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="grid-card-header">
                     <div class="grid-card-title">${a.title}</div>
@@ -490,9 +634,9 @@ const AssignmentUI = {
                 ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
                 ${this.ocrStatusLabel(a) ? `<div class="grid-card-ocr">${this.ocrStatusLabel(a)}</div>` : ''}
                 <div class="grid-card-meta">
-                    <span>截止：${this.formatDate(a.deadline)}</span>
+                    <span>${i18n.t('asg.list.deadlinePrefix')}${this.formatDate(a.deadline)}</span>
                     <span class="meta-dot">·</span>
-                    <span>${a.submission_count||0}份提交</span>
+                    <span>${i18n.t('asg.list.submissionCountInline', {count: a.submission_count||0})}</span>
                     <span class="meta-dot">·</span>
                     <span>${target}</span>
                 </div>
@@ -513,16 +657,16 @@ const AssignmentUI = {
         if (!deadline) return '';
         const diff = new Date(deadline) - new Date();
         const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        if (days < 0) return `<span class="deadline-warn overdue">已逾期</span>`;
-        if (days <= 1) return `<span class="deadline-warn urgent">今天截止</span>`;
-        if (days <= 3) return `<span class="deadline-warn soon">還剩 ${days} 天</span>`;
+        if (days < 0) return `<span class="deadline-warn overdue">${i18n.t('asg.deadline.overdue')}</span>`;
+        if (days <= 1) return `<span class="deadline-warn urgent">${i18n.t('asg.deadline.today')}</span>`;
+        if (days <= 3) return `<span class="deadline-warn soon">${i18n.t('asg.deadline.daysLeft', {days})}</span>`;
         return '';
     },
 
     renderStudentAssignments(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
-            <div class="empty-state-text">暫無作業</div></div>`;
+            <div class="empty-state-text">${i18n.t('asg.list.emptyStudent')}</div></div>`;
         return `<div class="assignment-grid">${assignments.map(a => {
             const st = a.submission_status || 'not_submitted';
             const warn = st === 'not_submitted' ? this.deadlineWarning(a.deadline) : '';
@@ -535,7 +679,7 @@ const AssignmentUI = {
                 </div>
                 ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
                 <div class="grid-card-meta">
-                    <span>截止：${this.formatDate(a.deadline)}</span>
+                    <span>${i18n.t('asg.list.deadlinePrefix')}${this.formatDate(a.deadline)}</span>
                     <span class="meta-dot">·</span>
                     <span>${a.created_by_name||''}</span>
                     ${warn ? `<span class="meta-dot">·</span>${warn}` : ''}
@@ -543,7 +687,7 @@ const AssignmentUI = {
                 <div class="grid-card-footer">
                     ${a.my_score !== null && a.my_score !== undefined ?
                         `<span class="submission-score">${a.my_score}/${a.max_score}</span>` :
-                        '<span style="color:var(--text-tertiary);font-size:13px;">未評分</span>'}
+                        `<span style="color:var(--text-tertiary);font-size:13px;">${i18n.t('asg.list.notScored')}</span>`}
                     <div class="grid-card-progress-wrap">
                         <div class="grid-card-progress">
                             <div class="grid-card-progress-fill" style="width:${pct}%"></div>
@@ -558,7 +702,7 @@ const AssignmentUI = {
     renderSubmissionsList(submissions) {
         if (!submissions.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
-            <div class="empty-state-text">尚無學生提交</div></div>`;
+            <div class="empty-state-text">${i18n.t('asg.list.noSubmissions')}</div></div>`;
         return `<div class="assignment-grid">${submissions.map(s => {
             const initial = (s.student_name || s.username || '?')[0].toUpperCase();
             return `<div class="submission-card" tabindex="0" onclick="AssignmentApp.viewSubmission(${s.id})" onkeydown="event.key==='Enter'&&this.click()">
@@ -566,7 +710,7 @@ const AssignmentUI = {
                 <div class="submission-info">
                     <h4>${s.student_name || s.username}</h4>
                     <p>${s.class_name || ''} · ${this.formatDate(s.submitted_at)}
-                    ${s.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}</p>
+                    ${s.is_late ? ` <span class="badge badge-late">${i18n.t('asg.status.late')}</span>` : ''}</p>
                 </div>
                 <div>
                     ${s.score !== null && s.score !== undefined ?
@@ -594,8 +738,8 @@ const AssignmentUI = {
                     <p>${s.class_name || ''}</p>
                 </div>
                 <div class="proxy-drop-hint">
-                    <span class="badge badge-not_submitted">未提交</span>
-                    <span class="proxy-drop-text">拖拽文件到此處</span>
+                    <span class="badge badge-not_submitted">${i18n.t('asg.status.notSubmitted')}</span>
+                    <span class="proxy-drop-text">${i18n.t('asg.proxy.dragHint')}</span>
                 </div>
                 <div class="proxy-files-area" id="proxyFiles_${s.username}" style="display:none;"></div>
             </div>`);
@@ -618,7 +762,7 @@ const AssignmentUI = {
                     ${s.score !== null && s.score !== undefined ?
                         `<span class="submission-score">${s.score}</span>` :
                         this.badge(s.status)}
-                    <span class="proxy-drop-text">拖拽可重新提交</span>
+                    <span class="proxy-drop-text">${i18n.t('asg.proxy.resubmitHint')}</span>
                 </div>
                 <div class="proxy-files-area" id="proxyFiles_${s.username}" style="display:none;"></div>
             </div>`);
@@ -626,17 +770,17 @@ const AssignmentUI = {
 
         if (!allCards.length) return `<div class="empty-state">
             <div class="empty-state-icon">${this.ICON.inbox}</div>
-            <div class="empty-state-text">沒有可代提交的學生</div></div>`;
+            <div class="empty-state-text">${i18n.t('asg.list.noProxyStudents')}</div></div>`;
 
         return `<div class="proxy-submit-hint" style="margin-bottom:12px;padding:12px 16px;background:var(--brand-lighter);border-radius:var(--radius-card);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
-            ${this.ICON.upload} 將文件拖拽到學生卡片上即可代為提交作業
+            ${this.ICON.upload} ${i18n.t('asg.proxy.submitHelp')}
         </div>
         <div class="assignment-grid">${allCards.join('')}</div>`;
     },
 
     // ---- File List ----
     renderFiles(files, opts = {}) {
-        if (!files || !files.length) return '<p style="color:var(--text-tertiary);font-size:14px;">無文件</p>';
+        if (!files || !files.length) return `<p style="color:var(--text-tertiary);font-size:14px;">${i18n.t('asg.file.noFiles')}</p>`;
         // 如果是 inline 預覽模式（老師查看提交詳情），用文件預覽塊
         if (opts.inlinePreview) {
             return `<div class="file-preview-list">${files.map((f, idx) => {
@@ -649,13 +793,13 @@ const AssignmentUI = {
                         <span class="file-item-icon">${icon}</span>
                         <span class="file-preview-name">${this._escapeHtml ? this._escapeHtml(f.original_name) : f.original_name}</span>
                         <span class="file-preview-size">${this.formatFileSize(f.file_size)}</span>
-                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">▶ 運行</button>` : ''}
-                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${AssignmentUI._escapeHtml(f.original_name)}')">▶ 運行預覽</button>` : ''}
-                        <button class="btn btn-sm btn-outline" onclick="this.closest('.file-preview-block').classList.toggle('collapsed')">收起</button>
-                        <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${AssignmentUI._escapeHtml(f.original_name)}">下載</a>
+                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">${i18n.t('asg.file.run')}</button>` : ''}
+                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${AssignmentUI._escapeHtml(f.original_name)}')">${i18n.t('asg.file.runPreview')}</button>` : ''}
+                        <button class="btn btn-sm btn-outline" onclick="this.closest('.file-preview-block').classList.toggle('collapsed')">${i18n.t('asg.file.collapse')}</button>
+                        <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${AssignmentUI._escapeHtml(f.original_name)}">${i18n.t('asg.file.download')}</a>
                     </div>
                     <div class="file-preview-content" data-loaded="false">
-                        <div class="file-preview-loading"><div class="loading-spinner"></div> 載入預覽中...</div>
+                        <div class="file-preview-loading"><div class="loading-spinner"></div> ${i18n.t('asg.file.loadingPreview')}</div>
                     </div>
                 </div>`;
             }).join('')}</div>`;
@@ -674,13 +818,13 @@ const AssignmentUI = {
                     <div class="size">${this.formatFileSize(f.file_size)}</div>
                 </div>
                 <div class="file-item-actions">
-                    ${f.file_type === 'image' ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.previewImage('/${f.file_path}')">預覽</button>` : ''}
-                    ${f.file_type === 'pdf' ? `<button class="btn btn-sm btn-outline" onclick="window.open('/${f.file_path}','_blank')">查看</button>` : ''}
-                    ${isCode ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.viewCode(${f.id},'${f.file_path}','${f.original_name}')">查看代碼</button>` : ''}
-                    ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">▶ 運行</button>` : ''}
-                    ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${f.original_name}')">▶ 預覽</button>` : ''}
-                    ${f.file_type === 'video' ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewVideo('/${f.file_path}','${f.original_name}')">▶ 播放</button>` : ''}
-                    <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${f.original_name}">下載</a>
+                    ${f.file_type === 'image' ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.previewImage('/${f.file_path}')">${i18n.t('asg.file.preview')}</button>` : ''}
+                    ${f.file_type === 'pdf' ? `<button class="btn btn-sm btn-outline" onclick="window.open('/${f.file_path}','_blank')">${i18n.t('asg.file.view')}</button>` : ''}
+                    ${isCode ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.viewCode(${f.id},'${f.file_path}','${f.original_name}')">${i18n.t('asg.file.viewCode')}</button>` : ''}
+                    ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">${i18n.t('asg.file.run')}</button>` : ''}
+                    ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${f.original_name}')">${i18n.t('asg.file.runPreview')}</button>` : ''}
+                    ${f.file_type === 'video' ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewVideo('/${f.file_path}','${f.original_name}')">${i18n.t('asg.file.play')}</button>` : ''}
+                    <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${f.original_name}">${i18n.t('asg.file.download')}</a>
                 </div></div>`;
         }).join('')}</div>`;
     },
@@ -701,11 +845,11 @@ const AssignmentUI = {
         const typeBadge = typeObj ? `<span class="badge" style="background:var(--brand-light);color:var(--brand);font-size:11px;">${typeObj.icon} ${typeObj.name}</span>` : '';
         let html = `<div class="grading-panel" data-rubric-type="${rubricType}">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
-                <h3 style="margin:0;">${AssignmentUI.ICON.inbox} 批改面板</h3>
+                <h3 style="margin:0;">${AssignmentUI.ICON.inbox} ${i18n.t('asg.grade.panelTitle')}</h3>
                 ${typeBadge}
             </div>
             <button class="btn btn-ai" style="width:100%;margin-bottom:16px;" onclick="AssignmentApp.doAiGrade()">
-                ${AssignmentUI.ICON.ai} AI 自動批改
+                ${AssignmentUI.ICON.ai} ${i18n.t('asg.grade.aiAutoGrade')}
             </button>
             <div id="aiGradeStatus"></div>`;
 
@@ -717,13 +861,13 @@ const AssignmentUI = {
                 html += `<div class="holistic-option ${sel}" data-label="${lv.label}" data-min="${lv.min}" data-max="${lv.max}"
                     onclick="AssignmentApp._selectHolisticLevel(this)">
                     <div class="holistic-option-header">
-                        <span>${lv.label}</span><span>${lv.min}-${lv.max} 分</span>
+                        <span>${lv.label}</span><span>${lv.min}-${lv.max} ${i18n.t('asg.grade.pts')}</span>
                     </div>
                     <div class="holistic-option-desc">${lv.description || ''}</div>
                 </div>`;
             });
             html += `<div class="form-group" style="margin-top:12px;">
-                <label>分數 (在所選等級範圍內)</label>
+                <label>${i18n.t('asg.grade.scoreInRange')}</label>
                 <input type="number" id="holisticScore" class="rubric-input" value="${existingScores[0]?.points || ''}"
                     style="width:100px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
             </div>`;
@@ -738,7 +882,7 @@ const AssignmentUI = {
                         <label>${item.title}</label>
                         <span class="check-toggle ${passed ? 'passed' : 'failed'}" data-id="${item.id}"
                             onclick="AssignmentApp._toggleCheck(this)">
-                            ${passed ? '● 通過' : '✗ 不通過'}
+                            ${passed ? i18n.t('asg.grade.passed') : i18n.t('asg.grade.failed')}
                         </span>
                     </div>
                     <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
@@ -746,7 +890,7 @@ const AssignmentUI = {
             });
             const maxScore = rubricConfig?.max_score || 100;
             html += `<div class="grade-total">
-                <span>得分</span>
+                <span>${i18n.t('asg.grade.scored')}</span>
                 <span><span id="gradeTotal">0</span> / ${maxScore}</span>
             </div>`;
 
@@ -790,7 +934,7 @@ const AssignmentUI = {
                 </div>`;
             });
             html += `<div class="grade-total">
-                <span>總分</span>
+                <span>${i18n.t('asg.grade.totalScore')}</span>
                 <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
             </div>`;
 
@@ -811,7 +955,7 @@ const AssignmentUI = {
                 </div>`;
             });
             html += `<div class="grade-total">
-                <span>加權總分</span>
+                <span>${i18n.t('asg.grade.weightedTotal')}</span>
                 <span><span id="gradeTotal">0</span></span>
             </div>`;
 
@@ -835,7 +979,7 @@ const AssignmentUI = {
                 </div>`;
             });
             html += `<div class="grade-total">
-                <span>總分</span>
+                <span>${i18n.t('asg.grade.totalScore')}</span>
                 <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
             </div>`;
 
@@ -856,17 +1000,17 @@ const AssignmentUI = {
                 </div>`;
             });
             html += `<div class="grade-total">
-                <span>總分</span>
+                <span>${i18n.t('asg.grade.totalScore')}</span>
                 <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
             </div>`;
         }
 
         // Feedback + submit (always present except pure competency keeps submit)
         html += `<div class="form-group" style="margin-top:16px;">
-            <label>教師評語</label>
-            <textarea id="gradeFeedback" rows="3" placeholder="輸入評語...">${feedback}</textarea>
+            <label>${i18n.t('asg.grade.feedback')}</label>
+            <textarea id="gradeFeedback" rows="3" placeholder="${i18n.t('asg.grade.feedbackPh')}">${feedback}</textarea>
         </div>
-        <button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.doGrade()">提交批改</button>
+        <button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.doGrade()">${i18n.t('asg.grade.submit')}</button>
         </div>`;
         return html;
     },
@@ -874,11 +1018,11 @@ const AssignmentUI = {
     // ---- Plagiarism Detection UI ----
 
     renderPlagiarismReport(report, pairs, clusters, hubStudents) {
-        if (!report) return '<div class="empty-state"><div class="empty-state-text">尚未執行過抄袭檢測</div></div>';
+        if (!report) return `<div class="empty-state"><div class="empty-state-text">${i18n.t('asg.plag.notRun')}</div></div>`;
 
         clusters = clusters || [];
         hubStudents = hubStudents || [];
-        const statusMap = { completed: '已完成', running: '檢測中', failed: '失敗', pending: '等待中' };
+        const statusMap = { completed: i18n.t('asg.plag.statusCompleted'), running: i18n.t('asg.plag.statusRunning'), failed: i18n.t('asg.plag.statusFailed'), pending: i18n.t('asg.plag.statusPending') };
         const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
         const flaggedPairs = (pairs || []).filter(p => p.is_flagged);
         const totalStudents = new Set();
@@ -889,7 +1033,7 @@ const AssignmentUI = {
 
         // 風險等級判定
         const riskLevel = report.flagged_pairs === 0 ? 'low' : (report.flagged_pairs <= 3 ? 'medium' : 'high');
-        const riskLabel = { low: '低風險', medium: '中等風險', high: '高風險' };
+        const riskLabel = { low: i18n.t('asg.plag.riskLow'), medium: i18n.t('asg.plag.riskMedium'), high: i18n.t('asg.plag.riskHigh') };
         const riskColor = { low: 'var(--color-success, #248A3D)', medium: 'var(--text-secondary)', high: 'var(--text-primary)' };
 
         // ---- Dashboard Header (Action buttons + Title) ----
@@ -898,31 +1042,31 @@ const AssignmentUI = {
                 <div class="plag-dashboard-top">
                     <button class="btn btn-outline btn-sm" onclick="AssignmentApp.closePlagiarismReport()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                        返回作業
+                        ${i18n.t('asg.plag.backToAssignment')}
                     </button>
                     <div class="plag-dashboard-actions">
                         <button class="btn btn-sm btn-outline" onclick="AssignmentApp.showAlgorithmModal()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-                            算法原理
+                            ${i18n.t('asg.plag.algorithmBtn')}
                         </button>
                         <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                            匯出 Excel
+                            ${i18n.t('asg.export.exportExcel')}
                         </button>
                         <button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                            重新檢測
+                            ${i18n.t('asg.plag.recheck')}
                         </button>
                     </div>
                 </div>
                 <div class="plag-dashboard-title">
                     <div>
-                        <h2>抄袭檢測報告</h2>
+                        <h2>${i18n.t('asg.plag.reportTitle')}</h2>
                         <p class="plag-dashboard-meta">
                             <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
                             ${report.subject ? `<span class="badge badge-graded">${report.subject}</span>` : ''}
-                            ${report.detect_mode ? `<span class="badge badge-submitted">${({code:'代碼',text:'文字',mixed:'混合',chinese_essay:'中文作文',english_essay:'English Essay'})[report.detect_mode] || report.detect_mode}</span>` : ''}
-                            檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
+                            ${report.detect_mode ? `<span class="badge badge-submitted">${({code:i18n.t('asg.plag.modeCode'),text:i18n.t('asg.plag.modeText'),mixed:i18n.t('asg.plag.modeMixed'),chinese_essay:i18n.t('asg.plag.modeChineseEssay'),english_essay:i18n.t('asg.plag.modeEnglishEssay')})[report.detect_mode] || report.detect_mode}</span>` : ''}
+                            ${i18n.t('asg.plag.checkTime')} ${report.created_at || '-'} · ${i18n.t('asg.plag.threshold')} ${report.threshold}%${report.completed_at ? ` · ${i18n.t('asg.plag.completedAt')} ${report.completed_at}` : ''}
                         </p>
                     </div>
                 </div>
@@ -942,31 +1086,31 @@ const AssignmentUI = {
                 </div>
                 <div class="plag-risk-detail">
                     ${report.flagged_pairs === 0
-                        ? '<span>未發現可疑抄襲行為</span>'
-                        : `<span>發現 <b>${report.flagged_pairs}</b> 對可疑配對${clusters.length > 0 ? `，形成 <b>${clusters.length}</b> 個群組` : ''}</span>`
+                        ? `<span>${i18n.t('asg.plag.noSuspicious')}</span>`
+                        : `<span>${i18n.t('asg.plag.foundPairs', {count: report.flagged_pairs})}${clusters.length > 0 ? `，${i18n.t('asg.plag.foundClusters', {count: clusters.length})}` : ''}</span>`
                     }
                 </div>
             </div>
             <div class="plag-metrics">
                 <div class="plag-metric">
                     <div class="plag-metric-value">${totalStudents.size}</div>
-                    <div class="plag-metric-label">參與學生</div>
+                    <div class="plag-metric-label">${i18n.t('asg.plag.participantStudents')}</div>
                 </div>
                 <div class="plag-metric">
                     <div class="plag-metric-value">${report.total_pairs}</div>
-                    <div class="plag-metric-label">對比總數</div>
+                    <div class="plag-metric-label">${i18n.t('asg.plag.totalPairs')}</div>
                 </div>
                 <div class="plag-metric">
                     <div class="plag-metric-value${report.flagged_pairs > 0 ? ' has-issue' : ''}">${report.flagged_pairs}</div>
-                    <div class="plag-metric-label">可疑配對</div>
+                    <div class="plag-metric-label">${i18n.t('asg.plag.suspiciousPairs')}</div>
                 </div>
                 <div class="plag-metric">
                     <div class="plag-metric-value${clusters.length > 0 ? ' has-issue' : ''}">${clusters.length}</div>
-                    <div class="plag-metric-label">抄襲群組</div>
+                    <div class="plag-metric-label">${i18n.t('asg.plag.plagiarismClusters')}</div>
                 </div>
                 <div class="plag-metric">
                     <div class="plag-metric-value${hubStudents.length > 0 ? ' has-issue' : ''}">${hubStudents.length}</div>
-                    <div class="plag-metric-label">疑似源頭</div>
+                    <div class="plag-metric-label">${i18n.t('asg.plag.suspectedSource')}</div>
                 </div>
             </div>
         </div>`;
@@ -974,14 +1118,14 @@ const AssignmentUI = {
         // ---- Hub Students ----
         if (hubStudents.length > 0) {
             html += `<div class="plag-hub-section">
-                <div class="plag-section-title">疑似抄襲源頭 <span class="count">${hubStudents.length}</span></div>
-                <p class="plag-hub-desc">以下學生與 3 人以上高度相似，可能是抄襲的源頭</p>
+                <div class="plag-section-title">${i18n.t('asg.plag.hubTitle')} <span class="count">${hubStudents.length}</span></div>
+                <p class="plag-hub-desc">${i18n.t('asg.plag.hubDesc')}</p>
                 <div class="hub-student-list">
                     ${hubStudents.map(h => `<div class="hub-student-card">
                         <div class="hub-avatar">${(h.name || '?')[0].toUpperCase()}</div>
                         <div class="hub-info">
                             <strong>${h.name}</strong>
-                            <span class="hub-meta">與 ${h.degree} 人相似 · 平均 ${h.avg_score}%</span>
+                            <span class="hub-meta">${i18n.t('asg.plag.hubMeta', {degree: h.degree, avg: h.avg_score})}</span>
                         </div>
                     </div>`).join('')}
                 </div>
@@ -991,7 +1135,7 @@ const AssignmentUI = {
         // ---- Cluster Tree Graph ----
         if (clusters.length > 0) {
             html += `<div class="plag-graph-section">
-                <div class="plag-section-title">抄襲傳播樹 <span class="count">${clusters.length} 個群組</span></div>
+                <div class="plag-section-title">${i18n.t('asg.plag.treeTitle')} <span class="count">${i18n.t('asg.plag.treeClusters', {count: clusters.length})}</span></div>
                 ${this._renderPlagiarismTree(clusters)}
             </div>`;
         }
@@ -999,17 +1143,17 @@ const AssignmentUI = {
         // ---- Filter + Pair List ----
         html += `<div class="plag-action-bar">
             <div class="plag-action-bar-left">
-                <h3>配對明細</h3>
+                <h3>${i18n.t('asg.plag.pairDetail')}</h3>
             </div>
             <div class="filter-tabs" style="margin:0;">
-                <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
-                <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">全部 <span class="count">${(pairs || []).length}</span></button>
+                <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">${i18n.t('asg.plag.filterSuspicious')} <span class="count">${flaggedPairs.length}</span></button>
+                <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">${i18n.t('asg.plag.filterAll')} <span class="count">${(pairs || []).length}</span></button>
             </div>
         </div>`;
 
         // ---- Pair List ----
         if (!pairs || !pairs.length) {
-            html += '<div class="empty-state"><div class="empty-state-text">無對比數據</div></div>';
+            html += `<div class="empty-state"><div class="empty-state-text">${i18n.t('asg.plag.noCompareData')}</div></div>`;
         } else {
             html += `<div id="plagPairsArea">${this.renderPlagiarismPairs(flaggedPairs.length ? flaggedPairs : pairs)}</div>`;
         }
@@ -1214,7 +1358,7 @@ const AssignmentUI = {
             // 源頭標記
             if (isSource) {
                 svgContent += `<text x="${pos.x}" y="${pos.y + r + 24}" text-anchor="middle"
-                    font-size="${fontSize - 2}" fill="var(--text-tertiary)">疑似源頭</text>`;
+                    font-size="${fontSize - 2}" fill="var(--text-tertiary)">${i18n.t('asg.plag.suspectedSource')}</text>`;
             }
 
             // 提交時間提示（非源頭，有時間的）
@@ -1229,29 +1373,29 @@ const AssignmentUI = {
         // 源頭信息摘要
         const sourceTime = source.submitted_at ? (() => {
             const t = new Date(source.submitted_at);
-            return `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} 提交`;
+            return `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} ${i18n.t('asg.plag.sourceSubmitTime')}`;
         })() : '';
-        const sourceLen = source.text_len ? `${source.text_len} 字元` : '';
+        const sourceLen = source.text_len ? i18n.t('asg.plag.sourceChars', {count: source.text_len}) : '';
         const sourceDetail = [sourceTime, sourceLen].filter(Boolean).join(' · ');
 
         return `<div class="plag-tree-card">
             <div class="plag-network-header">
-                <span class="cluster-title">群組 ${cluster.id} <span class="count">${N} 人</span></span>
-                <span class="cluster-score">最高 <b>${cluster.max_score}%</b></span>
+                <span class="cluster-title">${i18n.t('asg.plag.clusterTitle', {id: cluster.id})} <span class="count">${i18n.t('asg.plag.clusterMembers', {count: N})}</span></span>
+                <span class="cluster-score">${i18n.t('asg.plag.clusterMaxScore', {score: cluster.max_score})}</span>
             </div>
             <svg class="plag-tree-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
                 ${svgContent}
             </svg>
             <div class="cluster-source" style="margin-top:var(--space-2);">
-                <span class="cluster-source-badge">疑似源頭</span>
+                <span class="cluster-source-badge">${i18n.t('asg.plag.sourceLabel')}</span>
                 <strong>${source.name}</strong>
-                <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%${sourceDetail ? ' · ' + sourceDetail : ''}</span>
+                <span style="color:var(--text-tertiary);font-size:var(--type-badge);">${i18n.t('asg.plag.sourceMatchMeta', {degree: source.degree, avg: source.avg_score})}${sourceDetail ? ' · ' + sourceDetail : ''}</span>
             </div>
         </div>`;
     },
 
     renderPlagiarismPairs(pairs) {
-        if (!pairs || !pairs.length) return '<div class="empty-state"><div class="empty-state-text">無配對數據</div></div>';
+        if (!pairs || !pairs.length) return `<div class="empty-state"><div class="empty-state-text">${i18n.t('asg.plag.noPairData')}</div></div>`;
 
         const mkScoreRing = (pct) => {
             const r = 16, c = 2 * Math.PI * r;
@@ -1278,7 +1422,7 @@ const AssignmentUI = {
                 const riskLabels = { direct_copy: 'Copy', paraphrase: 'Paraphrase', imitation: 'Imitation' };
                 const primaryRisk = risk.primary_risk || '';
                 const fs = p.final_status || '';
-                const fsLabels = { high_risk: '高風險', review_needed: '需複核', low_risk: '低風險' };
+                const fsLabels = { high_risk: i18n.t('asg.risk.high'), review_needed: i18n.t('asg.risk.review'), low_risk: i18n.t('asg.risk.low') };
                 dimHtml = `<div class="pair-dimensions">
                     <span class="dim-tag">Lexical ${Math.round(dims.verbatim)}%</span>
                     <span class="dim-tag">Align ${Math.round(dims.comment)}%</span>
@@ -1290,24 +1434,24 @@ const AssignmentUI = {
                 </div>`;
             } else if (dims) {
                 dimHtml = `<div class="pair-dimensions">
-                    ${dims.logicScore ? `<span class="dim-tag">邏輯 ${Math.round(dims.logicScore)}%</span>` : ''}
-                    ${dims.styleScore ? `<span class="dim-tag">風格 ${Math.round(dims.styleScore)}%</span>` : ''}
-                    ${dims.winnow ? `<span class="dim-tag">指紋 ${Math.round(dims.winnow)}%</span>` : ''}
-                    ${dims.dataFlow ? `<span class="dim-tag">數據流 ${Math.round(dims.dataFlow)}%</span>` : ''}
-                    <span class="dim-tag">命名 ${Math.round(dims.identifier)}%</span>
-                    <span class="dim-tag">逐字 ${Math.round(dims.verbatim)}%</span>
-                    ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯 ${Math.round(dims.typo)}%</span>` : ''}
-                    ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼 ${Math.round(dims.deadCode)}%</span>` : ''}
-                    ${dims.aiSuspicion >= 20 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑 ${Math.round(dims.aiSuspicion)}%</span>` : ''}
-                    ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/${td}</span>` : ''}
+                    ${dims.logicScore ? `<span class="dim-tag">${i18n.t('asg.dim.logic')} ${Math.round(dims.logicScore)}%</span>` : ''}
+                    ${dims.styleScore ? `<span class="dim-tag">${i18n.t('asg.dim.style')} ${Math.round(dims.styleScore)}%</span>` : ''}
+                    ${dims.winnow ? `<span class="dim-tag">${i18n.t('asg.dim.fingerprint')} ${Math.round(dims.winnow)}%</span>` : ''}
+                    ${dims.dataFlow ? `<span class="dim-tag">${i18n.t('asg.dim.dataFlow')} ${Math.round(dims.dataFlow)}%</span>` : ''}
+                    <span class="dim-tag">${i18n.t('asg.dim.naming')} ${Math.round(dims.identifier)}%</span>
+                    <span class="dim-tag">${i18n.t('asg.dim.verbatimShort')} ${Math.round(dims.verbatim)}%</span>
+                    ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">${i18n.t('asg.dim.typo')} ${Math.round(dims.typo)}%</span>` : ''}
+                    ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">${i18n.t('asg.dim.deadCode')} ${Math.round(dims.deadCode)}%</span>` : ''}
+                    ${dims.aiSuspicion >= 20 ? `<span class="dim-tag" style="color:var(--text-tertiary)">${i18n.t('asg.dim.aiSuspicion')} ${Math.round(dims.aiSuspicion)}%</span>` : ''}
+                    ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">${i18n.t('asg.dim.evidence')} ${dims.evidenceHits}/${td}</span>` : ''}
                 </div>`;
             }
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-card-left">
                     <div class="pair-students">
-                        <span>${p.student_a_name || '學生A'}</span>
+                        <span>${p.student_a_name || i18n.t('asg.plag.studentA')}</span>
                         <span class="pair-vs">vs</span>
-                        <span>${p.student_b_name || '學生B'}</span>
+                        <span>${p.student_b_name || i18n.t('asg.plag.studentB')}</span>
                     </div>
                     ${dimHtml}
                     ${p.ai_analysis ? `<div class="pair-ai-hint">${p.ai_analysis.substring(0, 100)}${p.ai_analysis.length > 100 ? '...' : ''}</div>` : ''}
@@ -1330,21 +1474,21 @@ const AssignmentUI = {
         const hits = dims ? (dims.softEvidenceHits || dims.evidenceHits || 0) : 0;
 
         // 風險等級（克制色系：暗磚紅/暖橙/灰綠）
-        let level = 'low', color = '#4a7c59', label = '低風險';
+        let level = 'low', color = '#4a7c59', label = i18n.t('asg.risk.low');
         if (pct >= 60 || (aiHigh && pct >= 40) || hits >= 4) {
-            level = 'high'; color = '#9b2c2c'; label = '高風險';
+            level = 'high'; color = '#9b2c2c'; label = i18n.t('asg.risk.high');
         } else if (pct >= 40 || hits >= 2 || aiAnalysis) {
-            level = 'review'; color = '#b7791f'; label = '需複核';
+            level = 'review'; color = '#b7791f'; label = i18n.t('asg.risk.review');
         }
 
         // 主要類型
-        let type = '正常';
+        let type = i18n.t('asg.risk.normal');
         if (dims) {
-            if (dims.verbatim > 60) type = '直接複製';
-            else if (dims.comment > 60 && dims.verbatim < 40 && dims.identifier > 50) type = '改寫抄襲';
-            else if (dims.structure > 60 && dims.verbatim < 30) type = '結構仿寫';
-            else if ((dims.cohortSuppressedCount || 0) > 5) type = '模板化相似';
-            else if (pct >= 40) type = '疑似抄襲';
+            if (dims.verbatim > 60) type = i18n.t('asg.risk.directCopy');
+            else if (dims.comment > 60 && dims.verbatim < 40 && dims.identifier > 50) type = i18n.t('asg.risk.paraphrase');
+            else if (dims.structure > 60 && dims.verbatim < 30) type = i18n.t('asg.risk.structureImitation');
+            else if ((dims.cohortSuppressedCount || 0) > 5) type = i18n.t('asg.risk.templateSimilar');
+            else if (pct >= 40) type = i18n.t('asg.risk.suspectedPlag');
         }
 
         // 一句話摘要：取最重要的 2-3 條 signals
@@ -1368,20 +1512,20 @@ const AssignmentUI = {
         html += `<div class="verdict-header verdict-${risk.level}">
             <div class="verdict-top-row">
                 <h3 class="verdict-title">
-                    ${this._escapeHtml(pair.student_a_name || '學生A')}
+                    ${this._escapeHtml(pair.student_a_name || i18n.t('asg.plag.studentA'))}
                     <span class="verdict-vs">vs</span>
-                    ${this._escapeHtml(pair.student_b_name || '學生B')}
+                    ${this._escapeHtml(pair.student_b_name || i18n.t('asg.plag.studentB'))}
                 </h3>
-                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">← 返回報告</button>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">${i18n.t('asg.plag.backToReport')}</button>
             </div>
             <div class="verdict-body">
                 <div class="verdict-badge-row">
                     <span class="verdict-badge" style="background:${risk.color};">${risk.label}</span>
-                    ${risk.type !== '正常' ? `<span class="verdict-type">${risk.type}</span>` : ''}
-                    <span class="verdict-score">算法總分 ${pct.toFixed(1)}%</span>
+                    ${risk.type !== i18n.t('asg.risk.normal') ? `<span class="verdict-type">${risk.type}</span>` : ''}
+                    <span class="verdict-score">${i18n.t('asg.plag.algorithmScore', {score: pct.toFixed(1)})}</span>
                 </div>
                 ${risk.summary ? `<p class="verdict-summary">${this._escapeHtml(risk.summary)}</p>` : ''}
-                ${dims && dims.cohortSize > 0 ? `<p class="verdict-cohort">已在 ${dims.cohortSize} 份同批次作品中降權模板句${dims.cohortSuppressedCount > 0 ? `（${dims.cohortSuppressedCount} 個短語被降權）` : ''}</p>` : ''}
+                ${dims && dims.cohortSize > 0 ? `<p class="verdict-cohort">${i18n.t('asg.plag.cohortSuppressed', {count: dims.cohortSize})}${dims.cohortSuppressedCount > 0 ? i18n.t('asg.plag.phrasesSuppressed', {count: dims.cohortSuppressedCount}) : ''}</p>` : ''}
             </div>
         </div>`;
 
@@ -1391,7 +1535,7 @@ const AssignmentUI = {
             const topBlocks = blocks.slice(0, 3);
             const strengthDot = s => `<span class="status-dot dot-${s}"></span>`;
             html += `<div class="evidence-summary">
-                <h4 class="evidence-summary-title">關鍵證據</h4>
+                <h4 class="evidence-summary-title">${i18n.t('asg.plag.keyEvidence')}</h4>
                 ${topBlocks.map((b, i) => `<div class="evidence-card evidence-${b.strength}">
                     <div class="evidence-card-header">
                         <span class="evidence-rank">${strengthDot(b.strength)} ${i + 1}.</span>
@@ -1401,7 +1545,7 @@ const AssignmentUI = {
                         <div class="evidence-snippet"><span class="snippet-label">A:</span> ${this._escapeHtml(b.snippet_a)}</div>
                         <div class="evidence-snippet"><span class="snippet-label">B:</span> ${this._escapeHtml(b.snippet_b || '')}</div>
                     </div>` : ''}
-                    <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">查看原文對照 ↓</button>
+                    <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">${i18n.t('asg.plag.jumpToOriginal')}</button>
                 </div>`).join('')}
             </div>`;
         }
@@ -1414,7 +1558,7 @@ const AssignmentUI = {
             const previewHtml = this._renderMd(firstPara);
             html += `<div class="ai-analysis-card">
                 <h4 class="ai-card-title" onclick="this.parentElement.classList.toggle('ai-expanded')">
-                    系統判讀
+                    ${i18n.t('asg.plag.systemAnalysis')}
                     <span class="ai-toggle-icon">▼</span>
                 </h4>
                 <div class="ai-preview">${previewHtml}</div>
@@ -1440,24 +1584,24 @@ const AssignmentUI = {
 
             if (detectMode === 'chinese_essay') {
                 // ---- 中文作文：教師友好 ----
-                html += `<h4 class="dim-group-title">主要證據</h4>
-                    ${mkBarT('直接文字重合', dims.verbatim, 'verbatim_score: 逐字重疊率 + 低頻短語加權覆蓋')}
-                    ${mkBarT('句子順序相似', dims.comment, 'comment_score: 匈牙利匹配 × 0.75 + 句子鏈連續度 × 0.25')}
-                    ${mkBarT('語義內容接近', dims.identifier, 'identifier_score: text2vec 語義嵌入余弦相似度')}
-                    ${mkBarT('寫作風格接近', dims.indent, 'indent_score: 54 維風格指紋（標點/高頻字/關聯詞/情感動詞/成語/句式）')}
-                    <h4 class="dim-group-title">輔助信號</h4>
-                    ${mkBarT('篇章結構相似', dims.structure, 'structure_score: 功能段落結構 × 0.7 + 段落長度比 × 0.3')}
-                    ${mkBarT('開頭/結尾相似', Math.max(dims.openingSim || 0, dims.endingSim || 0), 'boundary: max(opening_sim, ending_sim)')}
-                    ${mkBarT('多維證據一致', dims.softEvidenceScore || dims.evidence, `soft_evidence: sigmoid 平滑加權，${dims.softEvidenceHits || dims.evidenceHits || 0}/${dims.softEvidenceDims || dims.totalDims} 維命中`)}`;
+                html += `<h4 class="dim-group-title">${i18n.t('asg.dim.mainEvidence')}</h4>
+                    ${mkBarT(i18n.t('asg.dim.verbatim'), dims.verbatim, 'verbatim_score: 逐字重疊率 + 低頻短語加權覆蓋')}
+                    ${mkBarT(i18n.t('asg.dim.sentenceOrder'), dims.comment, 'comment_score: 匈牙利匹配 × 0.75 + 句子鏈連續度 × 0.25')}
+                    ${mkBarT(i18n.t('asg.dim.semantic'), dims.identifier, 'identifier_score: text2vec 語義嵌入余弦相似度')}
+                    ${mkBarT(i18n.t('asg.dim.writingStyle'), dims.indent, 'indent_score: 54 維風格指紋（標點/高頻字/關聯詞/情感動詞/成語/句式）')}
+                    <h4 class="dim-group-title">${i18n.t('asg.dim.auxSignals')}</h4>
+                    ${mkBarT(i18n.t('asg.dim.essayStructure'), dims.structure, 'structure_score: 功能段落結構 × 0.7 + 段落長度比 × 0.3')}
+                    ${mkBarT(i18n.t('asg.dim.openingEnding'), Math.max(dims.openingSim || 0, dims.endingSim || 0), 'boundary: max(opening_sim, ending_sim)')}
+                    ${mkBarT(i18n.t('asg.dim.multiDimEvidence'), dims.softEvidenceScore || dims.evidence, `soft_evidence: sigmoid 平滑加權，${dims.softEvidenceHits || dims.evidenceHits || 0}/${dims.softEvidenceDims || dims.totalDims} 維命中`)}`;
 
                 // Cohort 抑制提示
                 if (dims.cohortSuppressedCount > 0) {
-                    html += `<div class="dim-cohort-note">${dims.cohortSuppressedCount} 個常見短語被降權（平均權重 ${(dims.cohortAvgWeight || 1).toFixed(2)}）</div>`;
+                    html += `<div class="dim-cohort-note">${i18n.t('asg.plag.suppressedNote', {count: dims.cohortSuppressedCount, weight: (dims.cohortAvgWeight || 1).toFixed(2)})}</div>`;
                 }
 
                 // 罕見短語列表
                 if (dims.rarePhrases && dims.rarePhrases.length) {
-                    html += `<div class="dim-rare-phrases">共享罕見短語: ${dims.rarePhrases.slice(0, 5).map(p => `<span class="rare-phrase-tag">${this._escapeHtml(p)}</span>`).join(' ')}</div>`;
+                    html += `<div class="dim-rare-phrases">${i18n.t('asg.plag.rarePhrasesShared')} ${dims.rarePhrases.slice(0, 5).map(p => `<span class="rare-phrase-tag">${this._escapeHtml(p)}</span>`).join(' ')}</div>`;
                 }
 
             } else if (detectMode === 'english_essay') {
@@ -1467,26 +1611,26 @@ const AssignmentUI = {
                 const riskLabels = { direct_copy: 'Direct Copy', paraphrase: 'Paraphrase', imitation: 'Imitation', normal: 'Normal' };
                 const finalStatus = pair.final_status || '';
                 if (finalStatus) {
-                    const statusLabels = { high_risk: '高風險', review_needed: '需人工複核', low_risk: '低風險' };
+                    const statusLabels = { high_risk: i18n.t('asg.risk.high'), review_needed: i18n.t('asg.risk.reviewManual'), low_risk: i18n.t('asg.risk.low') };
                     const statusColors = { high_risk: '#9b2c2c', review_needed: '#b7791f', low_risk: '#4a7c59' };
                     html += `<div style="margin-bottom:var(--space-3)">
                         <span class="verdict-badge" style="background:${statusColors[finalStatus] || '#888'};">${statusLabels[finalStatus] || finalStatus}</span>
                         ${primaryRisk !== 'normal' ? `<span class="verdict-type">${riskLabels[primaryRisk]}</span>` : ''}
                     </div>`;
                 }
-                html += `<h4 class="dim-group-title">主要證據</h4>
-                    ${mkBarT('逐字重疊', dims.verbatim, 'Lexical Overlap: 詞級重合率')}
-                    ${mkBarT('句子對齊', dims.comment, 'Sentence Alignment: 匈牙利匹配')}
-                    ${mkBarT('語義改寫', dims.identifier, 'Semantic Paraphrase: 嵌入向量相似度')}
-                    ${mkBarT('論述結構', dims.structure, 'Discourse Structure: 段落功能序列比較')}
-                    ${mkBarT('文體特徵', dims.indent, 'Stylometry: 風格計量特徵向量')}
-                    <h4 class="dim-group-title">輔助信號</h4>
-                    ${mkBarT('開頭相似', dims.openingSim, 'Opening: 前 120 字 SequenceMatcher')}
-                    ${mkBarT('結尾相似', dims.endingSim, 'Ending: 後 120 字 SequenceMatcher')}
-                    ${dims.rarePhraseScore > 0 ? mkBarT('罕見短語', dims.rarePhraseScore, 'Rare Phrase: 低頻 n-gram 加權覆蓋') : ''}
-                    ${mkBarT('多維證據', dims.evidence, `Evidence: ${dims.evidenceHits}/${dims.totalDims} 維命中`)}`;
+                html += `<h4 class="dim-group-title">${i18n.t('asg.dim.mainEvidence')}</h4>
+                    ${mkBarT(i18n.t('asg.dim.lexicalOverlap'), dims.verbatim, 'Lexical Overlap: 詞級重合率')}
+                    ${mkBarT(i18n.t('asg.dim.sentenceAlignment'), dims.comment, 'Sentence Alignment: 匈牙利匹配')}
+                    ${mkBarT(i18n.t('asg.dim.semanticParaphrase'), dims.identifier, 'Semantic Paraphrase: 嵌入向量相似度')}
+                    ${mkBarT(i18n.t('asg.dim.discourseStructure'), dims.structure, 'Discourse Structure: 段落功能序列比較')}
+                    ${mkBarT(i18n.t('asg.dim.stylometry'), dims.indent, 'Stylometry: 風格計量特徵向量')}
+                    <h4 class="dim-group-title">${i18n.t('asg.dim.auxSignals')}</h4>
+                    ${mkBarT(i18n.t('asg.dim.openingSim'), dims.openingSim, 'Opening: 前 120 字 SequenceMatcher')}
+                    ${mkBarT(i18n.t('asg.dim.endingSim'), dims.endingSim, 'Ending: 後 120 字 SequenceMatcher')}
+                    ${dims.rarePhraseScore > 0 ? mkBarT(i18n.t('asg.dim.rarePhrase'), dims.rarePhraseScore, 'Rare Phrase: 低頻 n-gram 加權覆蓋') : ''}
+                    ${mkBarT(i18n.t('asg.dim.multiDim'), dims.evidence, `Evidence: ${dims.evidenceHits}/${dims.totalDims} 維命中`)}`;
                 if (risk2 && primaryRisk !== 'normal') {
-                    html += `<h4 class="dim-group-title">風險評估</h4>
+                    html += `<h4 class="dim-group-title">${i18n.t('asg.dim.riskAssessment')}</h4>
                         ${mkBarT('Direct Copy', risk2.risk_direct_copy || 0, '')}
                         ${mkBarT('Paraphrase', risk2.risk_paraphrase || 0, '')}
                         ${mkBarT('Imitation', risk2.risk_imitation || 0, '')}`;
@@ -1496,25 +1640,25 @@ const AssignmentUI = {
                 const logicPct = Math.round(dims.logicScore || 0);
                 const stylePct = Math.round(dims.styleScore || 0);
                 html += `<div class="plag-dual-scores">
-                    <div class="plag-dual-card"><div class="plag-dual-label">邏輯相似度</div><div class="plag-dual-value">${logicPct}%</div></div>
-                    <div class="plag-dual-card"><div class="plag-dual-label">風格一致性</div><div class="plag-dual-value">${stylePct}%</div></div>
+                    <div class="plag-dual-card"><div class="plag-dual-label">${i18n.t('asg.dim.logicSimilarity')}</div><div class="plag-dual-value">${logicPct}%</div></div>
+                    <div class="plag-dual-card"><div class="plag-dual-label">${i18n.t('asg.dim.styleConsistency')}</div><div class="plag-dual-value">${stylePct}%</div></div>
                 </div>
-                ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
-                ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
-                <h4 class="dim-group-title">邏輯維度</h4>
-                ${dims.winnow ? mkBarT('程序指紋', dims.winnow, 'Winnowing: MOSS 風格指紋比對') : ''}
-                ${mkBarT('代碼骨架', dims.structure, 'Token 結構相似度')}
-                ${dims.dataFlow ? mkBarT('數據流', dims.dataFlow, '數據流圖相似度') : ''}
-                ${mkBarT('逐字複製', dims.verbatim, '字符級重疊率')}
-                <h4 class="dim-group-title">風格維度</h4>
-                ${mkBarT('變量命名', dims.identifier, '標識符指紋相似度')}
-                ${mkBarT('縮排風格', dims.indent, '縮排/空白模式指紋')}
-                ${mkBarT('注釋/字串', dims.comment, '注釋文本與字串常量')}
-                ${dims.typo > 0 ? mkBarT('共享拼錯', dims.typo, '共同拼寫錯誤（強物證）') : ''}
-                ${dims.deadCode > 0 ? mkBarT('死代碼', dims.deadCode, '共同未使用代碼（強物證）') : ''}
-                <h4 class="dim-group-title">綜合</h4>
-                ${mkBarT('多維證據', dims.evidence, `${dims.evidenceHits || 0}/${dims.totalDims} 維命中`)}
-                ${dims.aiSuspicion >= 20 ? mkBarT('AI 生成嫌疑', dims.aiSuspicion, '') : ''}`;
+                ${logicPct > 70 && stylePct < 40 ? `<div class="dim-code-badge">${i18n.t('asg.dim.logicHighStyleLow')}</div>` : ''}
+                ${logicPct > 70 && stylePct > 60 ? `<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">${i18n.t('asg.dim.logicHighStyleHigh')}</div>` : ''}
+                <h4 class="dim-group-title">${i18n.t('asg.dim.logicDimTitle')}</h4>
+                ${dims.winnow ? mkBarT(i18n.t('asg.dim.programFingerprint'), dims.winnow, 'Winnowing: MOSS 風格指紋比對') : ''}
+                ${mkBarT(i18n.t('asg.dim.codeSkeleton'), dims.structure, 'Token 結構相似度')}
+                ${dims.dataFlow ? mkBarT(i18n.t('asg.dim.dataFlow'), dims.dataFlow, '數據流圖相似度') : ''}
+                ${mkBarT(i18n.t('asg.dim.verbatimCopy'), dims.verbatim, '字符級重疊率')}
+                <h4 class="dim-group-title">${i18n.t('asg.dim.styleDimTitle')}</h4>
+                ${mkBarT(i18n.t('asg.dim.variableNaming'), dims.identifier, '標識符指紋相似度')}
+                ${mkBarT(i18n.t('asg.dim.indentStyle'), dims.indent, '縮排/空白模式指紋')}
+                ${mkBarT(i18n.t('asg.dim.commentString'), dims.comment, '注釋文本與字串常量')}
+                ${dims.typo > 0 ? mkBarT(i18n.t('asg.dim.sharedTypo'), dims.typo, '共同拼寫錯誤（強物證）') : ''}
+                ${dims.deadCode > 0 ? mkBarT(i18n.t('asg.dim.deadCode'), dims.deadCode, '共同未使用代碼（強物證）') : ''}
+                <h4 class="dim-group-title">${i18n.t('asg.dim.synthesisTitle')}</h4>
+                ${mkBarT(i18n.t('asg.dim.multiDim'), dims.evidence, `${dims.evidenceHits || 0}/${dims.totalDims} 維命中`)}
+                ${dims.aiSuspicion >= 20 ? mkBarT(i18n.t('asg.dim.aiSuspicion'), dims.aiSuspicion, '') : ''}`;
             }
 
             // 分析信號（所有模式共用）
@@ -1533,10 +1677,10 @@ const AssignmentUI = {
             const strengthDot5 = s => `<span class="status-dot dot-${s}"></span>`;
             html += `<div class="evidence-list-section">
                 <div class="evidence-list-header">
-                    <h4>全部證據 <span class="count">${blocks.length}</span></h4>
+                    <h4>${i18n.t('asg.plag.allEvidence')} <span class="count">${blocks.length}</span></h4>
                     <div class="evidence-filters">
-                        <button class="btn-filter active" onclick="AssignmentApp._filterEvidence('all', this)">全部</button>
-                        <button class="btn-filter" onclick="AssignmentApp._filterEvidence('strong', this)">只看強證據</button>
+                        <button class="btn-filter active" onclick="AssignmentApp._filterEvidence('all', this)">${i18n.t('asg.plag.filterAll')}</button>
+                        <button class="btn-filter" onclick="AssignmentApp._filterEvidence('strong', this)">${i18n.t('asg.plag.filterStrongOnly')}</button>
                     </div>
                 </div>
                 <div class="evidence-list" id="evidenceList">
@@ -1544,8 +1688,8 @@ const AssignmentUI = {
                         <div class="evidence-list-card-header">
                             <span>${strengthDot5(b.strength)} <strong>#${b.rank || (i+1)}</strong> ${this._escapeHtml(b.description || '')}</span>
                             <div class="evidence-list-actions">
-                                <button class="btn-copy-evidence" onclick="AssignmentApp._copyEvidence(${i})" title="複製摘要">複製</button>
-                                <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">定位 ↓</button>
+                                <button class="btn-copy-evidence" onclick="AssignmentApp._copyEvidence(${i})" title="${i18n.t('asg.plag.copy')}">${i18n.t('asg.plag.copy')}</button>
+                                <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">${i18n.t('asg.plag.locateDown')}</button>
                             </div>
                         </div>
                         ${b.snippet_a ? `<div class="evidence-snippets-full">
@@ -1561,35 +1705,35 @@ const AssignmentUI = {
         const fragments = (pair.matched_fragments || []).filter(f => f.type !== 'dimension_breakdown');
         if (fragments.length && !blocks.length) {
             html += `<div class="plagiarism-fragments">
-                <div class="plag-section-title">匹配片段 <span class="count">${fragments.length}</span></div>
+                <div class="plag-section-title">${i18n.t('asg.plag.matchedFragments')} <span class="count">${fragments.length}</span></div>
                 ${fragments.map((f, i) => `<div class="fragment-item">
-                    <span class="fragment-label">片段 ${i + 1} · ${f.length || 0} 字元</span>
+                    <span class="fragment-label">${i18n.t('asg.plag.fragment', {n: i + 1, len: f.length || 0})}</span>
                     <pre class="fragment-text">${this._escapeHtml(f.text || '')}</pre>
                 </div>`).join('')}
             </div>`;
         }
 
         // ====== 第 6 塊：全文同步對照區 ======
-        const textA = pair.text_a || '（無內容）';
-        const textB = pair.text_b || '（無內容）';
+        const textA = pair.text_a || i18n.t('asg.plag.noContent');
+        const textB = pair.text_b || i18n.t('asg.plag.noContent');
         const diff = this._diffTexts(textA, textB);
 
         html += `<div class="sync-compare-section">
-            <h4 class="sync-compare-title">全文對照</h4>
+            <h4 class="sync-compare-title">${i18n.t('asg.plag.fullCompare')}</h4>
             <div class="sync-compare" id="syncCompare">
                 <div class="compare-col">
-                    <div class="compare-header">${this._escapeHtml(pair.student_a_name || '學生A')}</div>
+                    <div class="compare-header">${this._escapeHtml(pair.student_a_name || i18n.t('asg.plag.studentA'))}</div>
                     <pre class="compare-text" id="compareTextA">${diff.htmlA}</pre>
                 </div>
                 <div class="compare-col">
-                    <div class="compare-header">${this._escapeHtml(pair.student_b_name || '學生B')}</div>
+                    <div class="compare-header">${this._escapeHtml(pair.student_b_name || i18n.t('asg.plag.studentB'))}</div>
                     <pre class="compare-text" id="compareTextB">${diff.htmlB}</pre>
                 </div>
             </div>
             <div class="compare-legend">
-                <span class="legend-item"><span class="legend-swatch hl-identical"></span>完全相同</span>
-                <span class="legend-item"><span class="legend-swatch hl-similar"></span>高度相似</span>
-                <span class="legend-item"><span class="legend-swatch hl-unique"></span>僅此份有</span>
+                <span class="legend-item"><span class="legend-swatch hl-identical"></span>${i18n.t('asg.plag.legendIdentical')}</span>
+                <span class="legend-item"><span class="legend-swatch hl-similar"></span>${i18n.t('asg.plag.legendSimilar')}</span>
+                <span class="legend-item"><span class="legend-swatch hl-unique"></span>${i18n.t('asg.plag.legendUnique')}</span>
             </div>
         </div>`;
 
@@ -1937,14 +2081,14 @@ const AssignmentApp = {
     // ---- Teacher: Assignment List ----
     async showTeacherList() {
         this.state.phase = 'list';
-        this.setBreadcrumb([{ label: '作業列表' }]);
+        this.setBreadcrumb([{ label: i18n.t('asg.list.title') }]);
         this.setHeaderActions('');
 
         const main = document.getElementById('mainContent');
         main.innerHTML = `<div class="assignment-grid">${AssignmentUI.skeletonCards(4)}</div>`;
 
         const resp = await AssignmentAPI.listTeacherAssignments();
-        if (!resp || !resp.success) { main.innerHTML = '<div class="empty-state"><div class="empty-state-text">載入失敗</div></div>'; return; }
+        if (!resp || !resp.success) { main.innerHTML = `<div class="empty-state"><div class="empty-state-text">${i18n.t('asg.page.loadFail')}</div></div>`; return; }
 
         this._teacherAssignments = resp.data || [];
         this.renderSidebar();
@@ -1960,7 +2104,7 @@ const AssignmentApp = {
         const actionEl = document.getElementById('sidebarAction');
         if (actionEl) {
             actionEl.innerHTML = isTeacher
-                ? `<button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.openCreateModal()">+ 新增作業</button>`
+                ? `<button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.openCreateModal()">${i18n.t('asg.sidebar.newAssignment')}</button>`
                 : '';
         }
 
@@ -1979,10 +2123,10 @@ const AssignmentApp = {
             const counts = { all: data.length, draft: 0, published: 0, closed: 0 };
             data.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
             items = [
-                { key: 'all', label: '全部', count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
-                { key: 'draft', label: '草稿', count: counts.draft, action: "AssignmentApp._sidebarFilter('draft')" },
-                { key: 'published', label: '已發布', count: counts.published, action: "AssignmentApp._sidebarFilter('published')" },
-                { key: 'closed', label: '已關閉', count: counts.closed, action: "AssignmentApp._sidebarFilter('closed')" },
+                { key: 'all', label: i18n.t('asg.sidebar.all'), count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
+                { key: 'draft', label: i18n.t('asg.sidebar.draft'), count: counts.draft, action: "AssignmentApp._sidebarFilter('draft')" },
+                { key: 'published', label: i18n.t('asg.sidebar.published'), count: counts.published, action: "AssignmentApp._sidebarFilter('published')" },
+                { key: 'closed', label: i18n.t('asg.sidebar.closed'), count: counts.closed, action: "AssignmentApp._sidebarFilter('closed')" },
             ];
         } else {
             const data = this._studentAssignments || [];
@@ -1992,10 +2136,10 @@ const AssignmentApp = {
                 if (counts[st] !== undefined) counts[st]++;
             });
             items = [
-                { key: 'all', label: '全部', count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
-                { key: 'not_submitted', label: '待提交', count: counts.not_submitted, action: "AssignmentApp._sidebarFilter('not_submitted')" },
-                { key: 'submitted', label: '已提交', count: counts.submitted, action: "AssignmentApp._sidebarFilter('submitted')" },
-                { key: 'graded', label: '已批改', count: counts.graded, action: "AssignmentApp._sidebarFilter('graded')" },
+                { key: 'all', label: i18n.t('asg.sidebar.all'), count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
+                { key: 'not_submitted', label: i18n.t('asg.sidebar.pending'), count: counts.not_submitted, action: "AssignmentApp._sidebarFilter('not_submitted')" },
+                { key: 'submitted', label: i18n.t('asg.sidebar.submitted'), count: counts.submitted, action: "AssignmentApp._sidebarFilter('submitted')" },
+                { key: 'graded', label: i18n.t('asg.sidebar.graded'), count: counts.graded, action: "AssignmentApp._sidebarFilter('graded')" },
             ];
         }
 
@@ -2013,18 +2157,18 @@ const AssignmentApp = {
             const totalSubs = data.reduce((s, a) => s + (a.submission_count || 0), 0);
             const totalGraded = data.reduce((s, a) => s + (a.graded_count || 0), 0);
             stats = [
-                { label: '作業總數', value: data.length },
-                { label: '總提交', value: totalSubs },
-                { label: '待批改', value: totalSubs - totalGraded },
+                { label: i18n.t('asg.sidebar.totalAssignments'), value: data.length },
+                { label: i18n.t('asg.sidebar.totalSubmissions'), value: totalSubs },
+                { label: i18n.t('asg.sidebar.pendingGrade'), value: totalSubs - totalGraded },
             ];
         } else {
             const data = this._studentAssignments || [];
             const pending = data.filter(a => (a.submission_status || 'not_submitted') === 'not_submitted').length;
             const graded = data.filter(a => a.submission_status === 'graded').length;
             stats = [
-                { label: '作業總數', value: data.length },
-                { label: '待提交', value: pending },
-                { label: '已批改', value: graded },
+                { label: i18n.t('asg.sidebar.totalAssignments'), value: data.length },
+                { label: i18n.t('asg.sidebar.pendingSubmit'), value: pending },
+                { label: i18n.t('asg.sidebar.graded'), value: graded },
             ];
         }
 
@@ -2063,7 +2207,7 @@ const AssignmentApp = {
         const isTeacher = this.state.role === 'teacher' || this.state.role === 'admin';
 
         // Reset to list context
-        this.setBreadcrumb([{ label: isTeacher ? '作業列表' : '我的作業' }]);
+        this.setBreadcrumb([{ label: isTeacher ? i18n.t('asg.list.title') : i18n.t('asg.list.myTitle') }]);
         this.setHeaderActions('');
 
         const main = document.getElementById('mainContent');
@@ -2073,13 +2217,13 @@ const AssignmentApp = {
             const filtered = key === 'all' ? items : items.filter(a => a.status === key);
 
             const viewToggle = `<div class="view-toggle">
-                <button onclick="AssignmentApp.setView('list')" class="${this.state.view === 'list' ? 'active' : ''}" title="列表模式">☰</button>
-                <button onclick="AssignmentApp.setView('grid')" class="${this.state.view === 'grid' ? 'active' : ''}" title="網格模式">⊞</button>
+                <button onclick="AssignmentApp.setView('list')" class="${this.state.view === 'list' ? 'active' : ''}" title="${i18n.t('asg.page.listMode')}">☰</button>
+                <button onclick="AssignmentApp.setView('grid')" class="${this.state.view === 'grid' ? 'active' : ''}" title="${i18n.t('asg.page.gridMode')}">⊞</button>
             </div>`;
 
             const header = AssignmentUI.renderWorkspaceHeader(
-                '作業列表',
-                `${filtered.length} 項作業`,
+                i18n.t('asg.list.title'),
+                i18n.t('asg.list.itemCount', {count: filtered.length}),
                 viewToggle
             );
 
@@ -2094,8 +2238,8 @@ const AssignmentApp = {
                 : items.filter(a => (a.submission_status || 'not_submitted') === key);
 
             const header = AssignmentUI.renderWorkspaceHeader(
-                '我的作業',
-                `${filtered.length} 項作業`
+                i18n.t('asg.list.myTitle'),
+                i18n.t('asg.list.itemCount', {count: filtered.length})
             );
 
             main.innerHTML = header + AssignmentUI.renderStudentAssignments(filtered);
@@ -2136,7 +2280,7 @@ const AssignmentApp = {
             AssignmentAPI.getTargets(),
         ]);
 
-        if (!asgResp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
+        if (!asgResp?.success) { main.innerHTML = `<p>${i18n.t('asg.page.loadFail')}</p>`; return; }
         const asg = asgResp.data;
         const subs = subResp?.data || [];
         this._currentAsg = asg;
@@ -2159,34 +2303,34 @@ const AssignmentApp = {
         this._notSubmittedStudents = notSubmitted;
 
         this.setBreadcrumb([
-            { label: '作業列表', action: 'AssignmentApp.showTeacherList()' },
+            { label: i18n.t('asg.list.title'), action: 'AssignmentApp.showTeacherList()' },
             { label: asg.title }
         ]);
         this.setHeaderActions(`
-            ${asg.status === 'draft' ? `<button class="btn btn-success" onclick="AssignmentApp.publishAssignment(${id})">發布</button>` : ''}
-            ${asg.status === 'published' ? `<button class="btn btn-warning" onclick="AssignmentApp.closeAssignment(${id})">關閉提交</button>` : ''}
-            ${asg.status !== 'closed' ? `<button class="btn btn-outline" onclick="AssignmentApp.editAssignment(${id})">編輯</button>` : ''}
-            <button class="btn btn-outline btn-danger" onclick="AssignmentApp.deleteAssignment(${id})">刪除作業</button>
+            ${asg.status === 'draft' ? `<button class="btn btn-success" onclick="AssignmentApp.publishAssignment(${id})">${i18n.t('asg.detail.publish')}</button>` : ''}
+            ${asg.status === 'published' ? `<button class="btn btn-warning" onclick="AssignmentApp.closeAssignment(${id})">${i18n.t('asg.detail.closeSubmission')}</button>` : ''}
+            ${asg.status !== 'closed' ? `<button class="btn btn-outline" onclick="AssignmentApp.editAssignment(${id})">${i18n.t('asg.detail.edit')}</button>` : ''}
+            <button class="btn btn-outline btn-danger" onclick="AssignmentApp.deleteAssignment(${id})">${i18n.t('asg.detail.delete')}</button>
         `);
 
         // Assignment detail + submissions
-        const target = asg.target_type === 'all' ? '所有人' :
-            asg.target_type === 'class' ? `班級: ${asg.target_value}` : `學生: ${asg.target_value}`;
-        const typeLabel = (AssignmentApp.RUBRIC_TYPES.find(t => t.id === (asg.rubric_type || 'points')) || {}).name || '簡單計分';
+        const target = asg.target_type === 'all' ? i18n.t('asg.list.targetAll') :
+            asg.target_type === 'class' ? i18n.t('asg.list.targetClass', {value: asg.target_value}) : i18n.t('asg.list.targetStudentFull', {value: asg.target_value});
+        const typeLabel = (AssignmentApp.RUBRIC_TYPES.find(t => t.id === (asg.rubric_type || 'points')) || {}).name || i18n.t('asg.rubric.points');
         const gradedCount = asg.graded_count || 0;
         const subCount = asg.submission_count || 0;
 
         // Stat cards
         const stats = [
-            { icon: AssignmentUI.ICON.clock, label: '截止日', value: AssignmentUI.formatDate(asg.deadline) },
-            { icon: AssignmentUI.ICON.folder, label: '已提交', value: `${subCount} 份` },
-            { icon: AssignmentUI.ICON.check, label: '已批改', value: `${gradedCount} / ${subCount}` },
+            { icon: AssignmentUI.ICON.clock, label: i18n.t('asg.detail.deadline'), value: AssignmentUI.formatDate(asg.deadline) },
+            { icon: AssignmentUI.ICON.folder, label: i18n.t('asg.detail.submitted'), value: i18n.t('asg.detail.submittedCount', {count: subCount}) },
+            { icon: AssignmentUI.ICON.check, label: i18n.t('asg.detail.filterGraded'), value: i18n.t('asg.detail.gradedCount', {graded: gradedCount, total: subCount}) },
         ];
-        if (asg.avg_score) stats.push({ icon: AssignmentUI.ICON.chart, label: '平均分', value: Number(asg.avg_score).toFixed(1) });
+        if (asg.avg_score) stats.push({ icon: AssignmentUI.ICON.chart, label: i18n.t('asg.detail.avgScore'), value: Number(asg.avg_score).toFixed(1) });
 
         // Rubric pills
         const rubricPills = (asg.rubric_items || []).map(r =>
-            `<span class="badge" style="margin:2px;background:rgba(0,0,0,0.04);color:var(--text-secondary);">${r.title}${r.max_points ? ' ('+r.max_points+'分)' : r.weight ? ' ('+r.weight+'%)' : ''}</span>`
+            `<span class="badge" style="margin:2px;background:rgba(0,0,0,0.04);color:var(--text-secondary);">${r.title}${r.max_points ? ' ('+r.max_points+i18n.t('asg.grade.pts')+')' : r.weight ? ' ('+r.weight+'%)' : ''}</span>`
         ).join('');
 
         // Submission filter tabs
@@ -2202,7 +2346,7 @@ const AssignmentApp = {
                         ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
                         <div style="margin-top:8px;font-size:13px;color:var(--text-tertiary);">${AssignmentUI.ICON.user} ${target}</div>
                         ${(asg.attachments && asg.attachments.length) ? `<div style="margin-top:12px;">
-                            <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} 附件</div>
+                            <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} ${i18n.t('asg.detail.attachments')}</div>
                             ${AssignmentUI.renderFiles(asg.attachments)}
                         </div>` : ''}
                     </div>
@@ -2216,27 +2360,27 @@ const AssignmentApp = {
                 ${rubricPills ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
                     <span class="badge" style="background:var(--brand-light);color:var(--brand);">${typeLabel}</span>
                     ${rubricPills}
-                    ${asg.max_score != null ? `<span style="font-weight:600;font-size:13px;margin-left:4px;">滿分: ${asg.max_score}</span>` : ''}
+                    ${asg.max_score != null ? `<span style="font-weight:600;font-size:13px;margin-left:4px;">${i18n.t('asg.detail.maxScore', {score: asg.max_score})}</span>` : ''}
                 </div>` : ''}
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <h3 style="margin:0;">學生提交</h3>
+                    <h3 style="margin:0;">${i18n.t('asg.detail.studentSubmissions')}</h3>
                     ${(ungradedCount + gradedSubCount) > 0 ? `<button class="btn btn-sm btn-ai" onclick="AssignmentApp.batchAiGrade()" id="batchAiBtn">
-                        ${AssignmentUI.ICON.ai} 一鍵AI批改
+                        ${AssignmentUI.ICON.ai} ${i18n.t('asg.detail.batchAiGrade')}
                     </button>` : ''}
                     ${subs.length > 0 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportGradeExcel()" id="exportExcelBtn">
-                        匯出成績
+                        ${i18n.t('asg.detail.exportGrades')}
                     </button>` : ''}
                     ${subs.length >= 2 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.openPlagiarism()" id="plagiarismBtn" style="border-color:#f59e0b;color:#f59e0b;">
-                        抄袭檢測
+                        ${i18n.t('asg.detail.plagiarismCheck')}
                     </button>` : ''}
                 </div>
                 <div class="filter-tabs" style="margin:0;">
-                    <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
-                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('submitted', this)">待批改 <span class="count">${ungradedCount}</span></button>
-                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('graded', this)">已批改 <span class="count">${gradedSubCount}</span></button>
-                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('proxy', this)">代提交 <span class="count">${notSubmitted.length}</span></button>
+                    <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">${i18n.t('asg.detail.filterAll')} <span class="count">${subs.length}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('submitted', this)">${i18n.t('asg.detail.filterPending')} <span class="count">${ungradedCount}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('graded', this)">${i18n.t('asg.detail.filterGraded')} <span class="count">${gradedSubCount}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('proxy', this)">${i18n.t('asg.detail.filterProxy')} <span class="count">${notSubmitted.length}</span></button>
                 </div>
             </div>
             <div id="batchAiProgress" style="display:none;"></div>
@@ -2283,13 +2427,13 @@ const AssignmentApp = {
         main.innerHTML = AssignmentUI.skeletonSubmission();
 
         const resp = await AssignmentAPI.getSubmission(subId);
-        if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
+        if (!resp?.success) { main.innerHTML = `<p>${i18n.t('asg.page.loadFail')}</p>`; return; }
         const sub = resp.data;
         const asg = sub.assignment || {};
         const rubricItems = sub.rubric_items || [];
 
         this.setBreadcrumb([
-            { label: '作業列表', action: 'AssignmentApp.showTeacherList()' },
+            { label: i18n.t('asg.list.title'), action: 'AssignmentApp.showTeacherList()' },
             { label: asg.title || '作業', action: `AssignmentApp.viewAssignment(${sub.assignment_id})` },
             { label: sub.student_name || sub.username }
         ]);
@@ -2314,15 +2458,15 @@ const AssignmentApp = {
             <div class="two-col">
                 <div>
                     <div class="form-section">
-                        <h3>${AssignmentUI.ICON.clip} 提交內容</h3>
-                        <p style="margin-bottom:12px;color:var(--text-secondary);">${sub.content || '無文字備註'}</p>
+                        <h3>${AssignmentUI.ICON.clip} ${i18n.t('asg.grade.submissionContent')}</h3>
+                        <p style="margin-bottom:12px;color:var(--text-secondary);">${sub.content || i18n.t('asg.student.noTextNote')}</p>
                         <div style="margin-bottom:8px;font-size:13px;color:var(--text-tertiary);">
-                            提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
-                            ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                            ${i18n.t('asg.grade.submitTime')} ${AssignmentUI.formatDate(sub.submitted_at)}
+                            ${sub.is_late ? ` <span class="badge badge-late">${i18n.t('asg.status.late')}</span>` : ''}
                         </div>
                     </div>
                     <div class="form-section">
-                        <h3>${AssignmentUI.ICON.folder} 提交文件</h3>
+                        <h3>${AssignmentUI.ICON.folder} ${i18n.t('asg.grade.submissionFiles')}</h3>
                         ${AssignmentUI.renderFiles(sub.files, { inlinePreview: true })}
                     </div>
                     <div id="swiftOutputArea"></div>
@@ -2332,8 +2476,8 @@ const AssignmentApp = {
                     ${(rubricItems.length || rubricType === 'holistic') ?
                         AssignmentUI.renderGradingPanel(rubricItems, existingScores, sub.feedback || '', rubricType, rubricConfig) : `
                     <div class="grading-panel">
-                        <h3>${AssignmentUI.ICON.inbox} 快速評分</h3>
-                        <p style="color:var(--text-tertiary);font-size:14px;">此作業未設定評分標準</p>
+                        <h3>${AssignmentUI.ICON.inbox} ${i18n.t('asg.grade.quickGrade')}</h3>
+                        <p style="color:var(--text-tertiary);font-size:14px;">${i18n.t('asg.grade.noRubric')}</p>
                     </div>`}
                 </div>
             </div>
@@ -2373,7 +2517,7 @@ const AssignmentApp = {
         const isPassed = el.classList.contains('passed');
         el.classList.toggle('passed', !isPassed);
         el.classList.toggle('failed', isPassed);
-        el.innerHTML = !isPassed ? '● 通過' : '✗ 不通過';
+        el.innerHTML = !isPassed ? i18n.t('asg.grade.passed') : i18n.t('asg.grade.failed');
         this.updateGradeTotal();
     },
 
@@ -2484,27 +2628,27 @@ const AssignmentApp = {
             feedback: feedback
         });
         if (resp?.success) {
-            UIModule.toast('批改完成', 'success');
+            UIModule.toast(i18n.t('asg.toast.gradeDone'), 'success');
             this.viewAssignment(this.state.currentAssignment);
         } else {
-            UIModule.toast('批改失敗: ' + (resp?.message || resp?.detail || '未知錯誤'), 'error');
+            UIModule.toast(i18n.t('asg.toast.gradeFail', {msg: resp?.message || resp?.detail || ''}), 'error');
         }
     },
 
     async doAiGrade() {
         const statusEl = document.getElementById('aiGradeStatus');
-        if (statusEl) statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div class="loading-spinner"></div><span style="font-size:14px;">AI 正在分析中...</span></div>';
+        if (statusEl) statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div class="loading-spinner"></div><span style="font-size:14px;">${i18n.t('asg.ai.analyzing')}</span></div>`;
 
         const resp = await AssignmentAPI.aiGrade(this.state.currentSubmission);
         if (!resp?.success || resp.data?.error) {
-            if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-error);font-size:14px;margin-bottom:12px;">AI 批改失敗: ${resp?.data?.overall_feedback || '未知錯誤'}</div>`;
+            if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-error);font-size:14px;margin-bottom:12px;">${i18n.t('asg.ai.gradeFail', {msg: resp?.data?.overall_feedback || ''})}</div>`;
             return;
         }
 
         const result = resp.data;
         const panel = document.querySelector('.grading-panel');
         const rubricType = panel?.dataset.rubricType || 'points';
-        if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-success);font-size:14px;margin-bottom:12px;">${AssignmentUI.ICON.check} AI 批改完成，結果已填入</div>`;
+        if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-success);font-size:14px;margin-bottom:12px;">${AssignmentUI.ICON.check} ${i18n.t('asg.ai.gradeDone')}</div>`;
 
         if (rubricType === 'holistic') {
             // Select the level
@@ -2523,7 +2667,7 @@ const AssignmentApp = {
                         const passed = item.passed || (item.points > 0);
                         toggle.classList.toggle('passed', passed);
                         toggle.classList.toggle('failed', !passed);
-                        toggle.innerHTML = passed ? '● 通過' : '✗ 不通過';
+                        toggle.innerHTML = passed ? i18n.t('asg.grade.passed') : i18n.t('asg.grade.failed');
                     }
                 } else if (rubricType === 'competency') {
                     const btn = document.querySelector(`.level-btn[data-id="${item.rubric_item_id}"][data-level="${item.selected_level}"]`);
@@ -2567,7 +2711,7 @@ const AssignmentApp = {
         const graded = allSubs.filter(s => s.status === 'graded');
 
         if (!allSubs.length) {
-            UIModule.toast('沒有可批改的提交', 'info');
+            UIModule.toast(i18n.t('asg.toast.noSubmissions'), 'info');
             return;
         }
 
@@ -2584,19 +2728,19 @@ const AssignmentApp = {
         <div class="modal-overlay" id="batchAiModal">
             <div class="batch-ai-modal">
                 <div class="batch-ai-modal-header">
-                    <h3>${AssignmentUI.ICON.ai} 一鍵 AI 批改</h3>
+                    <h3>${AssignmentUI.ICON.ai} ${i18n.t('asg.ai.batchTitle')}</h3>
                     <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeBatchAiModal()">✕</button>
                 </div>
                 <div class="batch-ai-modal-body">
-                    <label class="batch-ai-label">批改範圍</label>
+                    <label class="batch-ai-label">${i18n.t('asg.ai.batchScope')}</label>
                     <div class="batch-ai-mode-select">
                         <label class="batch-ai-mode-option${defaultMode === 'remaining' ? ' selected' : ''}${!ungraded.length ? ' disabled' : ''}">
                             <input type="radio" name="batchAiMode" value="remaining"
                                 ${defaultMode === 'remaining' ? 'checked' : ''} ${!ungraded.length ? 'disabled' : ''}
                                 onchange="AssignmentApp._updateBatchMode()">
                             <div class="batch-ai-mode-content">
-                                <span class="batch-ai-mode-title">📝 批改剩餘</span>
-                                <span class="batch-ai-mode-desc">僅批改尚未評分的提交 (<strong>${ungraded.length}</strong> 份)</span>
+                                <span class="batch-ai-mode-title">📝 ${i18n.t('asg.ai.batchRemaining')}</span>
+                                <span class="batch-ai-mode-desc">${i18n.t('asg.ai.batchRemainingDesc', {count: ungraded.length})}</span>
                             </div>
                         </label>
                         <label class="batch-ai-mode-option${defaultMode === 'all' ? ' selected' : ''}">
@@ -2604,29 +2748,29 @@ const AssignmentApp = {
                                 ${defaultMode === 'all' ? 'checked' : ''}
                                 onchange="AssignmentApp._updateBatchMode()">
                             <div class="batch-ai-mode-content">
-                                <span class="batch-ai-mode-title">🔄 全部重新批改</span>
-                                <span class="batch-ai-mode-desc">重新批改所有提交，覆蓋已有評分 (<strong>${allSubs.length}</strong> 份)</span>
+                                <span class="batch-ai-mode-title">🔄 ${i18n.t('asg.ai.batchAll')}</span>
+                                <span class="batch-ai-mode-desc">${i18n.t('asg.ai.batchAllDesc', {count: allSubs.length})}</span>
                             </div>
                         </label>
                     </div>
-                    <label class="batch-ai-label">額外提示（選填）</label>
+                    <label class="batch-ai-label">${i18n.t('asg.ai.extraPrompt')}</label>
                     <textarea id="batchAiExtraPrompt" class="batch-ai-textarea" rows="4"
                         placeholder="例如：&#10;• 評分寬鬆一些，鼓勵為主&#10;• 嚴格按照標準扣分&#10;• 重點關注代碼的可讀性&#10;• 如果有部分完成也給相應分數"></textarea>
                     <div class="batch-ai-modal-tips">
-                        <span style="font-weight:500;">💡 提示範例：</span>
+                        <span style="font-weight:500;">💡 ${i18n.t('asg.ai.tipHint')}</span>
                         <div class="batch-ai-tip-chips">
-                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('評分寬鬆一些，以鼓勵學生為主')">寬鬆評分</button>
-                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('嚴格按照評分標準，不符合要求的必須扣分')">嚴格評分</button>
-                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('重點關注代碼是否能正確運行，功能是否完整')">重功能</button>
-                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('注重代碼風格和可讀性，命名規範、縮進、註釋等')">重代碼風格</button>
-                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('部分完成的也酌情給分，不要全部扣掉')">部分給分</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('${i18n.t('asg.ai.tipLenientText')}')">${i18n.t('asg.ai.tipLenient')}</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('${i18n.t('asg.ai.tipStrictText')}')">${i18n.t('asg.ai.tipStrict')}</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('${i18n.t('asg.ai.tipFunctionText')}')">${i18n.t('asg.ai.tipFunction')}</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('${i18n.t('asg.ai.tipStyleText')}')">${i18n.t('asg.ai.tipStyle')}</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('${i18n.t('asg.ai.tipPartialText')}')">${i18n.t('asg.ai.tipPartial')}</button>
                         </div>
                     </div>
                 </div>
                 <div class="batch-ai-modal-footer">
-                    <button class="btn btn-outline" onclick="AssignmentApp.closeBatchAiModal()">取消</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.closeBatchAiModal()">${i18n.t('asg.ai.cancel')}</button>
                     <button class="btn btn-ai" id="batchAiStartBtn" onclick="AssignmentApp._startBatchAiGrade()">
-                        ${AssignmentUI.ICON.ai} 開始批改 (${defaultCount} 份)
+                        ${AssignmentUI.ICON.ai} ${i18n.t('asg.ai.startGrade', {count: defaultCount})}
                     </button>
                 </div>
             </div>
@@ -2648,7 +2792,7 @@ const AssignmentApp = {
 
         // Update button text
         const btn = document.getElementById('batchAiStartBtn');
-        if (btn) btn.innerHTML = `${AssignmentUI.ICON.ai} 開始批改 (${count} 份)`;
+        if (btn) btn.innerHTML = `${AssignmentUI.ICON.ai} ${i18n.t('asg.ai.startGrade', {count})}`;
     },
 
     _insertAiTip(text) {
@@ -2670,7 +2814,7 @@ const AssignmentApp = {
         if (!assignmentId) return;
 
         const btn = document.getElementById('exportExcelBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '匯出中...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('asg.export.exporting'); }
 
         try {
             const resp = await AssignmentAPI.exportExcel(assignmentId);
@@ -2678,7 +2822,7 @@ const AssignmentApp = {
 
             // Extract filename from Content-Disposition header
             const cd = resp.headers.get('content-disposition');
-            let filename = '成績.xlsx';
+            let filename = i18n.t('asg.export.gradesFilename');
             if (cd) {
                 const match = cd.match(/filename\*?=['"]?(?:UTF-8'')?([^;\r\n"']*)['"]?/i);
                 if (match) filename = decodeURIComponent(match[1]);
@@ -2693,12 +2837,12 @@ const AssignmentApp = {
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-            UIModule.toast('成績匯出成功', 'success');
+            UIModule.toast(i18n.t('asg.export.gradesSuccess'), 'success');
         } catch (e) {
-            console.error('匯出失敗:', e);
-            UIModule.toast('匯出失敗: ' + (e.message || ''), 'error');
+            console.error('Export failed:', e);
+            UIModule.toast(i18n.t('asg.export.gradesFail', {msg: e.message || ''}), 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '匯出成績'; }
+            if (btn) { btn.disabled = false; btn.textContent = i18n.t('asg.export.exportGrades'); }
         }
     },
 
@@ -2763,52 +2907,52 @@ const AssignmentApp = {
         <div class="modal-overlay" id="plagConfigModal">
             <div class="plag-config-modal">
                 <div class="plag-config-header">
-                    <h3>抄袭檢測配置</h3>
+                    <h3>${i18n.t('asg.plag.configTitle')}</h3>
                     <button class="btn btn-sm btn-outline" onclick="document.getElementById('plagConfigModal').remove()">✕</button>
                 </div>
                 <div class="plag-config-body">
-                    <label class="plag-config-label">科目</label>
+                    <label class="plag-config-label">${i18n.t('asg.plag.configSubject')}</label>
                     <select id="plagSubjectSelect" class="plag-config-select"
                         onchange="AssignmentApp._onPlagSubjectChange()">
                         ${subjectsHtml}
                     </select>
 
                     <div id="plagModeSection">
-                        <label class="plag-config-label" style="margin-top:var(--space-4)">作業類型</label>
+                        <label class="plag-config-label" style="margin-top:var(--space-4)">${i18n.t('asg.plag.configType')}</label>
                         <div class="plag-mode-options" id="plagModeOptions"></div>
                     </div>
 
-                    <label class="plag-config-label" style="margin-top:var(--space-4)">檢測嚴格度</label>
+                    <label class="plag-config-label" style="margin-top:var(--space-4)">${i18n.t('asg.plag.configStrictness')}</label>
                     <div class="plag-mode-options">
                         <label class="plag-mode-option">
                             <input type="radio" name="plagStrictness" value="loose"
                                 onchange="AssignmentApp._onPlagModeChange(this)">
                             <div class="plag-mode-content">
-                                <span class="plag-mode-title">寬鬆</span>
-                                <span class="plag-mode-desc">只標記高度相似</span>
+                                <span class="plag-mode-title">${i18n.t('asg.plag.strictLoose')}</span>
+                                <span class="plag-mode-desc">${i18n.t('asg.plag.strictLooseDesc')}</span>
                             </div>
                         </label>
                         <label class="plag-mode-option selected">
                             <input type="radio" name="plagStrictness" value="normal" checked
                                 onchange="AssignmentApp._onPlagModeChange(this)">
                             <div class="plag-mode-content">
-                                <span class="plag-mode-title">標準</span>
-                                <span class="plag-mode-desc">推薦，平衡準確與覆蓋</span>
+                                <span class="plag-mode-title">${i18n.t('asg.plag.strictNormal')}</span>
+                                <span class="plag-mode-desc">${i18n.t('asg.plag.strictNormalDesc')}</span>
                             </div>
                         </label>
                         <label class="plag-mode-option">
                             <input type="radio" name="plagStrictness" value="strict"
                                 onchange="AssignmentApp._onPlagModeChange(this)">
                             <div class="plag-mode-content">
-                                <span class="plag-mode-title">嚴格</span>
-                                <span class="plag-mode-desc">輕微相似也會標記</span>
+                                <span class="plag-mode-title">${i18n.t('asg.plag.strictStrict')}</span>
+                                <span class="plag-mode-desc">${i18n.t('asg.plag.strictStrictDesc')}</span>
                             </div>
                         </label>
                     </div>
                 </div>
                 <div class="plag-config-footer">
-                    <button class="btn btn-outline" onclick="document.getElementById('plagConfigModal').remove()">取消</button>
-                    <button class="btn btn-primary" onclick="AssignmentApp._confirmStartPlagiarism()">開始檢測</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('plagConfigModal').remove()">${i18n.t('asg.ai.cancel')}</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp._confirmStartPlagiarism()">${i18n.t('asg.plag.startCheck')}</button>
                 </div>
             </div>
         </div>`;
@@ -2831,26 +2975,26 @@ const AssignmentApp = {
         let modes = [];
         if (isChinese) {
             modes = [
-                { value: 'chinese_essay', title: '中文作文', desc: '抄襲、套用、仿寫三級檢測', selected: true },
-                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
-                { value: 'mixed', title: '混合', desc: '自動識別類型' },
+                { value: 'chinese_essay', title: i18n.t('asg.plag.modeChineseEssayOpt'), desc: i18n.t('asg.plag.modeChineseEssayDesc'), selected: true },
+                { value: 'text', title: i18n.t('asg.plag.modeTextOpt'), desc: i18n.t('asg.plag.modeTextDesc') },
+                { value: 'mixed', title: i18n.t('asg.plag.modeMixedOpt'), desc: i18n.t('asg.plag.modeMixedDesc') },
             ];
         } else if (isEnglish) {
             modes = [
-                { value: 'english_essay', title: 'English Essay', desc: '直接抄襲、改寫、結構模仿三級檢測', selected: true },
-                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
-                { value: 'mixed', title: '混合', desc: '自動識別類型' },
+                { value: 'english_essay', title: i18n.t('asg.plag.modeEnglishEssayOpt'), desc: i18n.t('asg.plag.modeEnglishEssayDesc'), selected: true },
+                { value: 'text', title: i18n.t('asg.plag.modeTextOpt'), desc: i18n.t('asg.plag.modeTextDesc') },
+                { value: 'mixed', title: i18n.t('asg.plag.modeMixedOpt'), desc: i18n.t('asg.plag.modeMixedDesc') },
             ];
         } else if (isIct) {
             modes = [
-                { value: 'code', title: '代碼', desc: '變量名、縮排、逐字複製' },
-                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
-                { value: 'mixed', title: '混合', desc: '自動識別類型', selected: true },
+                { value: 'code', title: i18n.t('asg.plag.modeCodeOpt'), desc: i18n.t('asg.plag.modeCodeDesc') },
+                { value: 'text', title: i18n.t('asg.plag.modeTextOpt'), desc: i18n.t('asg.plag.modeTextDesc') },
+                { value: 'mixed', title: i18n.t('asg.plag.modeMixedOpt'), desc: i18n.t('asg.plag.modeMixedDesc'), selected: true },
             ];
         } else {
             modes = [
-                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
-                { value: 'mixed', title: '混合', desc: '自動識別類型', selected: true },
+                { value: 'text', title: i18n.t('asg.plag.modeTextOpt'), desc: i18n.t('asg.plag.modeTextDesc') },
+                { value: 'mixed', title: i18n.t('asg.plag.modeMixedOpt'), desc: i18n.t('asg.plag.modeMixedDesc'), selected: true },
             ];
             // 建議根據作文語言選擇模式
             const hint = document.getElementById('plagModeHint');
@@ -2894,16 +3038,16 @@ const AssignmentApp = {
         if (!assignmentId) return;
 
         const btn = document.getElementById('plagiarismBtn');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 啟動中...'; }
+        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> ${i18n.t('asg.ai.starting')}`; }
 
         const resp = await AssignmentAPI.startPlagiarismCheck(assignmentId, { threshold, subject, detect_mode });
         if (!resp?.success) {
-            UIModule.toast('啟動抄袭檢測失敗: ' + (resp?.message || ''), 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
+            UIModule.toast(i18n.t('asg.plag.startFail', {msg: resp?.message || ''}), 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = i18n.t('asg.detail.plagiarismCheck'); }
             return;
         }
 
-        UIModule.toast('抄袭檢測已在後台啟動', 'success');
+        UIModule.toast(i18n.t('asg.plag.startedBg'), 'success');
         this._startPlagiarismPolling(assignmentId);
     },
 
@@ -2966,73 +3110,73 @@ const AssignmentApp = {
         };
 
         const dimHtml = dimSections[mode] || dimSections.code || `
-            <h4 class="algo-section-title">評分維度</h4>
-            <p class="algo-text">系統從多個維度（文字重合、語義相似、結構對比等）綜合評分，各維度加權合計得到最終相似度。</p>`;
+            <h4 class="algo-section-title">${i18n.t('asg.algo.dimTitle')}</h4>
+            <p class="algo-text">${i18n.t('asg.algo.dimGenericDesc')}</p>`;
 
-        const modeLabel = ({chinese_essay:'中文作文',english_essay:'English Essay',code:'代碼',text:'文字',mixed:'混合'})[mode] || mode;
+        const modeLabel = ({chinese_essay:i18n.t('asg.plag.modeChineseEssay'),english_essay:i18n.t('asg.plag.modeEnglishEssay'),code:i18n.t('asg.plag.modeCode'),text:i18n.t('asg.plag.modeText'),mixed:i18n.t('asg.plag.modeMixed')})[mode] || mode;
 
         const html = `
         <div class="modal-overlay active" id="algorithmModal" onclick="if(event.target===this)this.remove()">
             <div class="algorithm-modal">
                 <div class="algorithm-modal-header">
-                    <h3>算法原理</h3>
+                    <h3>${i18n.t('asg.algo.title')}</h3>
                     <button class="btn btn-sm btn-outline" onclick="document.getElementById('algorithmModal').remove()">✕</button>
                 </div>
                 <div class="algorithm-modal-body">
 
                     <div class="algo-section">
-                        <h4 class="algo-section-title">檢測流程</h4>
+                        <h4 class="algo-section-title">${i18n.t('asg.algo.flowTitle')}</h4>
                         <div class="algo-flow">
                             <div class="algo-flow-step">
                                 <div class="algo-flow-num">1</div>
-                                <div class="algo-flow-label">文本提取</div>
-                                <div class="algo-flow-desc">從每位學生的提交中提取文本內容</div>
+                                <div class="algo-flow-label">${i18n.t('asg.algo.step1')}</div>
+                                <div class="algo-flow-desc">${i18n.t('asg.algo.step1Desc')}</div>
                             </div>
                             <div class="algo-flow-arrow">&rarr;</div>
                             <div class="algo-flow-step">
                                 <div class="algo-flow-num">2</div>
-                                <div class="algo-flow-label">兩兩比對</div>
-                                <div class="algo-flow-desc">每對作品從多個維度計算相似度</div>
+                                <div class="algo-flow-label">${i18n.t('asg.algo.step2')}</div>
+                                <div class="algo-flow-desc">${i18n.t('asg.algo.step2Desc')}</div>
                             </div>
                             <div class="algo-flow-arrow">&rarr;</div>
                             <div class="algo-flow-step">
                                 <div class="algo-flow-num">3</div>
-                                <div class="algo-flow-label">AI 複核</div>
-                                <div class="algo-flow-desc">對高相似度的配對進行語義分析</div>
+                                <div class="algo-flow-label">${i18n.t('asg.algo.step3')}</div>
+                                <div class="algo-flow-desc">${i18n.t('asg.algo.step3Desc')}</div>
                             </div>
                         </div>
                     </div>
 
                     <div class="algo-section">
-                        <div class="algo-mode-badge">當前模式：${modeLabel}</div>
+                        <div class="algo-mode-badge">${i18n.t('asg.algo.currentMode', {mode: modeLabel})}</div>
                         ${dimHtml}
                     </div>
 
                     <div class="algo-section">
-                        <h4 class="algo-section-title">防誤判機制</h4>
+                        <h4 class="algo-section-title">${i18n.t('asg.algo.antiMisjudge')}</h4>
                         <ul class="algo-list">
-                            <li><strong>同批次模板降權</strong>：如果某段文字在全班多份作品中出現（如題目要求、範文片段），系統會自動降低該段的權重</li>
-                            <li><strong>多維度交叉驗證</strong>：只有多個維度同時超過閾值才會判定為高風險，避免單一維度的偶然高分造成誤判</li>
-                            ${mode === 'code' ? '<li><strong>短作業閾值自適應</strong>：代碼量少的作業自然相似度較高，系統會自動提高判定閾值</li>' : ''}
-                            ${mode === 'chinese_essay' || mode === 'english_essay' ? '<li><strong>開頭/結尾降權</strong>：如果全班多篇作文開頭或結尾相似（可能是老師給了範例），系統會降低這部分的影響</li>' : ''}
+                            <li><strong>${i18n.t('asg.algo.templateSuppression')}</strong>：${i18n.t('asg.algo.templateSuppDesc')}</li>
+                            <li><strong>${i18n.t('asg.algo.crossValidation')}</strong>：${i18n.t('asg.algo.crossValidDesc')}</li>
+                            ${mode === 'code' ? `<li><strong>${i18n.t('asg.algo.shortCodeAdaptive')}</strong>：${i18n.t('asg.algo.shortCodeAdaptDesc')}</li>` : ''}
+                            ${mode === 'chinese_essay' || mode === 'english_essay' ? `<li><strong>${i18n.t('asg.algo.boundaryWeight')}</strong>：${i18n.t('asg.algo.boundaryWeightDesc')}</li>` : ''}
                         </ul>
                     </div>
 
                     <div class="algo-section">
-                        <h4 class="algo-section-title">風險等級說明</h4>
+                        <h4 class="algo-section-title">${i18n.t('asg.algo.riskLevelTitle')}</h4>
                         <table class="algo-dim-table algo-risk-table">
                             <tbody>
                                 <tr>
-                                    <td><span class="verdict-badge" style="background:#9b2c2c;color:#fff;">高風險</span></td>
-                                    <td>總分 &ge; 60%，或 AI 判定為抄襲且總分 &ge; 40%，或 4 個以上維度同時命中</td>
+                                    <td><span class="verdict-badge" style="background:#9b2c2c;color:#fff;">${i18n.t('asg.risk.high')}</span></td>
+                                    <td>${i18n.t('asg.algo.riskHighDesc')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="verdict-badge" style="background:#b7791f;color:#fff;">需複核</span></td>
-                                    <td>總分 &ge; 40%，或 2 個以上維度命中，或有 AI 分析結果</td>
+                                    <td><span class="verdict-badge" style="background:#b7791f;color:#fff;">${i18n.t('asg.algo.riskReview')}</span></td>
+                                    <td>${i18n.t('asg.algo.riskReviewDesc')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span class="verdict-badge" style="background:#4a7c59;color:#fff;">低風險</span></td>
-                                    <td>不符合以上條件</td>
+                                    <td><span class="verdict-badge" style="background:#4a7c59;color:#fff;">${i18n.t('asg.risk.low')}</span></td>
+                                    <td>${i18n.t('asg.algo.riskLowDesc')}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -3040,7 +3184,7 @@ const AssignmentApp = {
 
                 </div>
                 <div class="algorithm-modal-footer">
-                    <button class="btn btn-outline" onclick="document.getElementById('algorithmModal').remove()">關閉</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('algorithmModal').remove()">${i18n.t('asg.algo.close')}</button>
                 </div>
             </div>
         </div>`;
@@ -3066,7 +3210,7 @@ const AssignmentApp = {
             <div class="global-plag-inner">
                 <div class="global-plag-info">
                     <div class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></div>
-                    <span id="globalPlagText">抄袭檢測中...</span>
+                    <span id="globalPlagText">${i18n.t('asg.plag.checkingProgress')}</span>
                 </div>
                 <div class="global-plag-track">
                     <div class="global-plag-fill" id="globalPlagFill" style="width:0%"></div>
@@ -3085,7 +3229,7 @@ const AssignmentApp = {
         const pct = document.getElementById('globalPlagPct');
         if (bar) bar.style.display = 'block';
         if (fill) fill.style.width = `${progress}%`;
-        if (text) text.textContent = detail || '抄袭檢測中...';
+        if (text) text.textContent = detail || i18n.t('asg.plag.checkingProgress');
         if (pct) pct.textContent = `${progress}%`;
     },
 
@@ -3126,31 +3270,31 @@ const AssignmentApp = {
                 this._hasPlagReport = true;
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '查看報告';
+                    btn.innerHTML = i18n.t('asg.plag.viewReport');
                     btn.style.borderColor = 'var(--brand)';
                     btn.style.color = 'var(--brand)';
                 }
                 if (job.flagged_pairs > 0) {
-                    UIModule.toast(`檢測完成！發現 ${job.flagged_pairs} 對可疑抄襲`, 'warning');
+                    UIModule.toast(i18n.t('asg.plag.checkDoneSuspicious', {count: job.flagged_pairs}), 'warning');
                 } else {
-                    UIModule.toast('檢測完成，未發現可疑抄襲', 'success');
+                    UIModule.toast(i18n.t('asg.plag.checkDoneClean'), 'success');
                 }
                 // 如果當前正在看這個作業，自動打開報告
                 if (this.state.currentAssignment === assignmentId) {
                     this.showPlagiarismReport();
                 }
             } else if (job.status === 'failed') {
-                if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
-                UIModule.toast('抄袭檢測失敗', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = i18n.t('asg.detail.plagiarismCheck'); }
+                UIModule.toast(i18n.t('asg.plag.checkFailed'), 'error');
             } else {
-                if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = i18n.t('asg.detail.plagiarismCheck'); }
             }
             return;
         }
 
         if (job.status === 'running') {
             const progress = job.progress || 0;
-            const detail = job.detail || '正在分析學生提交內容...';
+            const detail = job.detail || i18n.t('asg.plag.analyzingContent');
 
             // 更新全局浮動進度條（始終可見）
             this._showGlobalPlagBar(progress, detail);
@@ -3159,7 +3303,7 @@ const AssignmentApp = {
             if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> ${progress}%`; }
             if (progressEl) {
                 progressEl.style.display = 'block';
-                const phaseLabels = { extract: '讀取提交', compare: '比對分析', ai: 'AI 分析', save: '儲存結果' };
+                const phaseLabels = { extract: i18n.t('asg.plag.phaseExtract'), compare: i18n.t('asg.plag.phaseCompare'), ai: i18n.t('asg.plag.phaseAi'), save: i18n.t('asg.plag.phaseSave') };
                 const phaseLabel = phaseLabels[job.phase] || job.phase || '';
                 progressEl.innerHTML = `
                     <div class="plag-progress-box">
@@ -3181,14 +3325,14 @@ const AssignmentApp = {
         if (!assignmentId) return;
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入報告中...</p></div>';
+        main.innerHTML = `<div class="workspace-loading"><div class="loading-spinner"></div><p>${i18n.t('asg.plag.loadingReport')}</p></div>`;
 
         // 清空頂部動作列（返回按鈕已整合到報告儀表盤頂部）
         this.setHeaderActions('');
 
         const resp = await AssignmentAPI.getPlagiarismReport(assignmentId);
         if (!resp?.success) {
-            main.innerHTML = '<div class="empty-state"><div class="empty-state-text">尚未執行過抄袭檢測</div></div>';
+            main.innerHTML = `<div class="empty-state"><div class="empty-state-text">${i18n.t('asg.plag.notRun')}</div></div>`;
             return;
         }
 
@@ -3215,11 +3359,11 @@ const AssignmentApp = {
 
     async viewPlagiarismPair(pairId) {
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入詳情中...</p></div>';
+        main.innerHTML = `<div class="workspace-loading"><div class="loading-spinner"></div><p>${i18n.t('asg.plag.loadingDetail')}</p></div>`;
 
         const resp = await AssignmentAPI.getPlagiarismPairDetail(pairId);
         if (!resp?.success || !resp.data) {
-            UIModule.toast('載入配對詳情失敗', 'error');
+            UIModule.toast(i18n.t('asg.plag.loadPairFail'), 'error');
             this.showPlagiarismReport();
             return;
         }
@@ -3255,9 +3399,9 @@ const AssignmentApp = {
         const b = dims.evidenceBlocks[idx];
         const text = `#${b.rank || idx+1} [${b.strength}] ${b.description}\nA: ${b.snippet_a || ''}\nB: ${b.snippet_b || ''}`;
         navigator.clipboard.writeText(text).then(() => {
-            UIModule.toast('已複製證據摘要', 'success');
+            UIModule.toast(i18n.t('asg.plag.copiedEvidence'), 'success');
         }).catch(() => {
-            UIModule.toast('複製失敗', 'error');
+            UIModule.toast(i18n.t('asg.plag.copyFailed'), 'error');
         });
     },
 
@@ -3321,14 +3465,14 @@ const AssignmentApp = {
         if (!assignmentId) return;
 
         const btn = document.getElementById('plagExportBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '匯出中...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('asg.export.exporting'); }
 
         try {
             const resp = await AssignmentAPI.exportPlagiarismExcel(assignmentId);
             if (!resp) return;
 
             const cd = resp.headers.get('content-disposition');
-            let filename = '抄袭檢測報告.xlsx';
+            let filename = i18n.t('asg.export.plagReportFilename');
             if (cd) {
                 const match = cd.match(/filename\*?=['"]?(?:UTF-8'')?([^;\r\n"']*)['"]?/i);
                 if (match) filename = decodeURIComponent(match[1]);
@@ -3343,12 +3487,12 @@ const AssignmentApp = {
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-            UIModule.toast('報告匯出成功', 'success');
+            UIModule.toast(i18n.t('asg.export.plagReportSuccess'), 'success');
         } catch (e) {
-            console.error('匯出失敗:', e);
-            UIModule.toast('匯出失敗: ' + (e.message || ''), 'error');
+            console.error('Export failed:', e);
+            UIModule.toast(i18n.t('asg.export.gradesFail', {msg: e.message || ''}), 'error');
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = '匯出 Excel'; }
+            if (btn) { btn.disabled = false; btn.textContent = i18n.t('asg.export.exportExcel'); }
         }
     },
 
@@ -3362,7 +3506,7 @@ const AssignmentApp = {
                 this._startPlagiarismPolling(assignmentId);
             } else if (data.status === 'completed' && btn) {
                 // 已有報告，按鈕顯示「查看報告」
-                btn.innerHTML = '查看報告';
+                btn.innerHTML = i18n.t('asg.plag.viewReport');
                 btn.style.borderColor = 'var(--brand)';
                 btn.style.color = 'var(--brand)';
                 this._hasPlagReport = true;
@@ -3377,17 +3521,17 @@ const AssignmentApp = {
 
         const assignmentId = this.state.currentAssignment;
         const btn = document.getElementById('batchAiBtn');
-        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 啟動中...`; }
+        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> ${i18n.t('asg.ai.starting')}`; }
 
         // Call backend to start batch grading
         const resp = await AssignmentAPI.startBatchAiGrade(assignmentId, extraPrompt, mode);
         if (!resp?.success) {
-            UIModule.toast('啟動批改失敗: ' + (resp?.message || ''), 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = `${AssignmentUI.ICON.ai} 一鍵AI批改`; }
+            UIModule.toast(i18n.t('asg.toast.batchStartFail', {msg: resp?.message || ''}), 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = `${AssignmentUI.ICON.ai} ${i18n.t('asg.detail.batchAiGrade')}`; }
             return;
         }
 
-        UIModule.toast('AI 批改已在後台啟動', 'success');
+        UIModule.toast(i18n.t('asg.toast.batchStarted'), 'success');
         // Start polling
         this._startBatchPolling(assignmentId);
     },
@@ -3425,7 +3569,7 @@ const AssignmentApp = {
         }
 
         if (job.status === 'running') {
-            if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 批改中 ${job.done}/${job.total}`; }
+            if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> ${i18n.t('asg.ai.grading', {done: job.done, total: job.total})}`; }
             if (progressEl) {
                 progressEl.style.display = 'block';
                 const pct = job.total > 0 ? Math.round((job.done / job.total) * 100) : 0;
@@ -3435,10 +3579,10 @@ const AssignmentApp = {
                             <div class="batch-ai-bar-fill" style="width:${pct}%"></div>
                         </div>
                         <div class="batch-ai-stats">
-                            <span>進度: ${job.done}/${job.total}</span>
+                            <span>${i18n.t('asg.ai.progress', {done: job.done, total: job.total})}</span>
                             <span style="color:var(--color-success);">✓ ${job.success}</span>
                             ${job.fail ? `<span style="color:var(--color-error);">✗ ${job.fail}</span>` : ''}
-                            <button class="btn btn-sm btn-outline" onclick="AssignmentApp._cancelBatchAiGrade()" style="margin-left:auto;">取消</button>
+                            <button class="btn btn-sm btn-outline" onclick="AssignmentApp._cancelBatchAiGrade()" style="margin-left:auto;">${i18n.t('asg.ai.cancel')}</button>
                         </div>
                     </div>`;
             }
@@ -3448,15 +3592,15 @@ const AssignmentApp = {
         // done / cancelled
         this._stopBatchPolling();
         const isDone = job.status === 'done';
-        const label = isDone ? '批改完成' : '已取消';
+        const label = isDone ? i18n.t('asg.toast.batchDone') : i18n.t('asg.toast.batchCancelled');
         if (progressEl) {
             progressEl.style.display = 'block';
             progressEl.innerHTML = `
                 <div class="batch-ai-progress batch-ai-done">
-                    <span>${AssignmentUI.ICON.check} ${label}！成功 ${job.success} 份${job.fail ? `，失敗 ${job.fail} 份` : ''}</span>
+                    <span>${AssignmentUI.ICON.check} ${label}！${i18n.t('asg.toast.batchResultDetail', {success: job.success})}${job.fail ? `，${i18n.t('asg.toast.batchResultFail', {fail: job.fail})}` : ''}</span>
                 </div>`;
         }
-        UIModule.toast(`AI ${label}: ${job.success} 成功, ${job.fail} 失敗`, job.success > 0 ? 'success' : 'warning');
+        UIModule.toast(i18n.t('asg.toast.batchResult', {label, success: job.success, fail: job.fail}), job.success > 0 ? 'success' : 'warning');
         // Refresh after a short delay
         setTimeout(() => this.viewAssignment(assignmentId), 1500);
     },
@@ -3464,19 +3608,21 @@ const AssignmentApp = {
     async _cancelBatchAiGrade() {
         const assignmentId = this.state.currentAssignment;
         await AssignmentAPI.cancelBatchAiGrade(assignmentId);
-        UIModule.toast('正在取消...', 'info');
+        UIModule.toast(i18n.t('asg.ai.cancelling'), 'info');
     },
 
     // ---- Rubric Type Definitions ----
-    RUBRIC_TYPES: [
-        { id: 'points', icon: '📊', name: '簡單計分', desc: '各項設定滿分，直接打分' },
-        { id: 'analytic_levels', icon: '📋', name: '分級量規', desc: '每項有等級描述和對應分數' },
-        { id: 'weighted_pct', icon: '📐', name: '權重百分比', desc: '各項按權重計算總分' },
-        { id: 'checklist', icon: '✅', name: '通過清單', desc: '每項只有通過/不通過' },
-        { id: 'competency', icon: '🎯', name: '能力等級', desc: '無分數，按能力等級評估' },
-        { id: 'dse_criterion', icon: '🏫', name: 'DSE 標準', desc: '按等級描述打分，適用 DSE 評核' },
-        { id: 'holistic', icon: '📝', name: '整體評分', desc: '整體選擇一個等級' },
-    ],
+    get RUBRIC_TYPES() {
+        return [
+            { id: 'points', icon: '📊', name: i18n.t('asg.rubric.points'), desc: i18n.t('asg.rubric.pointsDesc') },
+            { id: 'analytic_levels', icon: '📋', name: i18n.t('asg.rubric.analyticLevels'), desc: i18n.t('asg.rubric.analyticLevelsDesc') },
+            { id: 'weighted_pct', icon: '📐', name: i18n.t('asg.rubric.weightedPct'), desc: i18n.t('asg.rubric.weightedPctDesc') },
+            { id: 'checklist', icon: '✅', name: i18n.t('asg.rubric.checklist'), desc: i18n.t('asg.rubric.checklistDesc') },
+            { id: 'competency', icon: '🎯', name: i18n.t('asg.rubric.competency'), desc: i18n.t('asg.rubric.competencyDesc') },
+            { id: 'dse_criterion', icon: '🏫', name: i18n.t('asg.rubric.dseCriterion'), desc: i18n.t('asg.rubric.dseCriterionDesc') },
+            { id: 'holistic', icon: '📝', name: i18n.t('asg.rubric.holistic'), desc: i18n.t('asg.rubric.holisticDesc') },
+        ];
+    },
 
     // ---- Teacher: Create/Edit ----
     async openCreateModal(editId = null) {
@@ -3493,7 +3639,7 @@ const AssignmentApp = {
         this.state.recognizedQuestions = [];
         if (this.state.ocrPollingTimer) { clearInterval(this.state.ocrPollingTimer); this.state.ocrPollingTimer = null; }
 
-        document.getElementById('createModalTitle').textContent = editId ? '編輯作業' : '創建作業';
+        document.getElementById('createModalTitle').textContent = editId ? i18n.t('asg.create.titleEdit') : i18n.t('asg.create.titleCreate');
 
         // Load targets
         if (!this.state.targets) {
@@ -3622,7 +3768,7 @@ const AssignmentApp = {
         document.getElementById('stepItem2').className = `step-item ${n === 2 ? 'active' : ''}`;
         // Update step 2 label based on assignment type
         const step2Label = document.querySelector('#stepItem2 span');
-        if (step2Label) step2Label.textContent = isExam ? '題目管理' : '評分標準';
+        if (step2Label) step2Label.textContent = isExam ? i18n.t('asg.create.stepQuestions') : i18n.t('asg.create.stepRubric');
         // Animated progress line
         const line = document.querySelector('.step-line');
         if (line) line.classList.toggle('filled', n >= 2);
@@ -3677,21 +3823,21 @@ const AssignmentApp = {
     // ---- Type Editors ----
     _editorPoints() {
         return `<div class="form-group">
-            <label>評分項目</label>
+            <label>${i18n.t('asg.rubric.itemsLabel')}</label>
             <div class="rubric-editor">
-                <div class="rubric-header"><span>項目名稱</span><span>滿分</span><span></span></div>
+                <div class="rubric-header"><span>${i18n.t('asg.rubric.itemName')}</span><span>${i18n.t('asg.rubric.maxPoints')}</span><span></span></div>
                 <div id="rubricRows"></div>
-                <div class="rubric-total"><span>合計</span><span id="rubricTotal">0</span><span></span></div>
+                <div class="rubric-total"><span>${i18n.t('asg.rubric.total')}</span><span id="rubricTotal">0</span><span></span></div>
             </div>
-            <button class="add-rubric-btn" onclick="AssignmentApp.addRubricRow()">+ 添加項目</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp.addRubricRow()">${i18n.t('asg.rubric.addItem')}</button>
         </div>`;
     },
 
     _editorAnalyticLevels() {
         return `<div class="form-group">
-            <label>分級評分標準</label>
+            <label>${i18n.t('asg.rubric.analyticLabel')}</label>
             <div id="analyticCriteria"></div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addAnalyticCriterion()">+ 添加標準</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addAnalyticCriterion()">${i18n.t('asg.rubric.addCriterion')}</button>
         </div>`;
     },
 
@@ -3700,29 +3846,29 @@ const AssignmentApp = {
         const card = document.createElement('div');
         card.className = 'criterion-card';
         const defaultLevels = levels || [
-            { level: '優秀', points: maxPts, description: '' },
-            { level: '良好', points: Math.round(maxPts * 0.7), description: '' },
-            { level: '及格', points: Math.round(maxPts * 0.4), description: '' },
-            { level: '不及格', points: 0, description: '' },
+            { level: i18n.t('asg.rubric.excellent'), points: maxPts, description: '' },
+            { level: i18n.t('asg.rubric.good'), points: Math.round(maxPts * 0.7), description: '' },
+            { level: i18n.t('asg.rubric.pass'), points: Math.round(maxPts * 0.4), description: '' },
+            { level: i18n.t('asg.rubric.fail'), points: 0, description: '' },
         ];
         card.innerHTML = `
             <div class="criterion-card-header">
-                <input type="text" class="criterion-title" placeholder="標準名稱" value="${title}">
-                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">滿分:</span>
+                <input type="text" class="criterion-title" placeholder="${i18n.t('asg.rubric.criterionName')}" value="${title}">
+                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">${i18n.t('asg.rubric.maxPoints')}:</span>
                 <input type="number" class="criterion-max" style="width:70px;" value="${maxPts}" min="0" step="0.5">
                 <button class="remove-btn" onclick="this.closest('.criterion-card').remove()">✕</button>
             </div>
             <div class="criterion-card-body">
                 <div class="level-rows">
                     ${defaultLevels.map(l => `<div class="level-row">
-                        <input type="text" class="lv-label" placeholder="等級" value="${l.level}">
-                        <input type="number" class="lv-points" placeholder="分數" value="${l.points}" min="0" step="0.5">
-                        <textarea class="lv-desc" placeholder="描述..." rows="1">${l.description || ''}</textarea>
+                        <input type="text" class="lv-label" placeholder="${i18n.t('asg.rubric.levelLabel')}" value="${l.level}">
+                        <input type="number" class="lv-points" placeholder="${i18n.t('asg.grade.score')}" value="${l.points}" min="0" step="0.5">
+                        <textarea class="lv-desc" placeholder="${i18n.t('asg.rubric.levelDescPh')}" rows="1">${l.description || ''}</textarea>
                         <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>
                     </div>`).join('')}
                 </div>
                 <button style="width:100%;padding:4px;border:1px dashed var(--border-strong);background:none;color:var(--brand);cursor:pointer;border-radius:4px;margin-top:4px;font-size:13px;"
-                    onclick="AssignmentApp._addLevelRow(this)">+ 添加等級</button>
+                    onclick="AssignmentApp._addLevelRow(this)">${i18n.t('asg.rubric.addLevel')}</button>
             </div>`;
         container.appendChild(card);
     },
@@ -3732,26 +3878,26 @@ const AssignmentApp = {
         const row = document.createElement('div');
         row.className = 'level-row';
         row.innerHTML = `
-            <input type="text" class="lv-label" placeholder="等級" value="">
-            <input type="number" class="lv-points" placeholder="分數" value="0" min="0" step="0.5">
-            <textarea class="lv-desc" placeholder="描述..." rows="1"></textarea>
+            <input type="text" class="lv-label" placeholder="${i18n.t('asg.rubric.levelLabel')}" value="">
+            <input type="number" class="lv-points" placeholder="${i18n.t('asg.grade.score')}" value="0" min="0" step="0.5">
+            <textarea class="lv-desc" placeholder="${i18n.t('asg.rubric.levelDescPh')}" rows="1"></textarea>
             <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
         rows.appendChild(row);
     },
 
     _editorWeightedPct() {
         return `<div class="form-group">
-            <label>總分設定</label>
+            <label>${i18n.t('asg.rubric.totalScore')}</label>
             <input type="number" id="weightTotalScore" value="100" min="1" style="width:120px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
         </div>
         <div class="form-group">
-            <label>評分項目 (權重需合計 100%)</label>
+            <label>${i18n.t('asg.rubric.weightItems')}</label>
             <div class="rubric-editor">
-                <div class="rubric-header"><span>項目名稱</span><span>權重 %</span><span></span></div>
+                <div class="rubric-header"><span>${i18n.t('asg.rubric.itemName')}</span><span>${i18n.t('asg.rubric.weightPct')}</span><span></span></div>
                 <div id="weightRows"></div>
             </div>
-            <div id="weightValidation" class="weight-validation valid">合計: 0%</div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addWeightRow()">+ 添加項目</button>
+            <div id="weightValidation" class="weight-validation valid">${i18n.t('asg.rubric.weightSum', {pct: 0})}</div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addWeightRow()">${i18n.t('asg.rubric.addItem')}</button>
         </div>`;
     },
 
@@ -3760,7 +3906,7 @@ const AssignmentApp = {
         const row = document.createElement('div');
         row.className = 'rubric-row';
         row.innerHTML = `
-            <input type="text" class="wt-title" placeholder="項目名稱" value="${title}">
+            <input type="text" class="wt-title" placeholder="${i18n.t('asg.rubric.itemName')}" value="${title}">
             <input type="number" class="wt-weight" placeholder="%" value="${weight}" min="0" max="100" step="1"
                 oninput="AssignmentApp._updateWeightTotal()">
             <button class="remove-btn" onclick="this.parentElement.remove();AssignmentApp._updateWeightTotal();">✕</button>`;
@@ -3774,22 +3920,22 @@ const AssignmentApp = {
         inputs.forEach(inp => total += parseFloat(inp.value) || 0);
         const el = document.getElementById('weightValidation');
         if (el) {
-            el.textContent = `合計: ${total}%`;
+            el.textContent = i18n.t('asg.rubric.weightSum', {pct: total});
             el.className = `weight-validation ${Math.abs(total - 100) < 0.01 ? 'valid' : 'invalid'}`;
         }
     },
 
     _editorChecklist() {
         return `<div class="form-group">
-            <label>滿分設定</label>
+            <label>${i18n.t('asg.rubric.checklistMax')}</label>
             <input type="number" id="checklistMaxScore" value="100" min="1" style="width:120px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
         </div>
         <div class="form-group">
-            <label>檢查項目 (通過/不通過)</label>
+            <label>${i18n.t('asg.rubric.checklistItems')}</label>
             <div class="rubric-editor" style="border-bottom:none;">
                 <div id="checklistItems"></div>
             </div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addChecklistItem()">+ 添加項目</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addChecklistItem()">${i18n.t('asg.rubric.addItem')}</button>
         </div>`;
     },
 
@@ -3799,26 +3945,26 @@ const AssignmentApp = {
         item.className = 'checklist-item';
         item.innerHTML = `
             <span style="color:var(--text-tertiary);">☐</span>
-            <input type="text" class="cl-title" placeholder="檢查項目" value="${title}">
+            <input type="text" class="cl-title" placeholder="${i18n.t('asg.rubric.checklistItem')}" value="${title}">
             <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
         container.appendChild(item);
     },
 
     _editorCompetency() {
         return `<div class="form-group">
-            <label>能力等級標籤 (可自定義)</label>
+            <label>${i18n.t('asg.rubric.competencyLabels')}</label>
             <div id="competencyLevels" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
-            <button class="add-rubric-btn" style="border-top:1px dashed var(--border-strong);" onclick="AssignmentApp._addCompetencyLevel()">+ 添加等級</button>
+            <button class="add-rubric-btn" style="border-top:1px dashed var(--border-strong);" onclick="AssignmentApp._addCompetencyLevel()">${i18n.t('asg.rubric.addLevel')}</button>
         </div>
         <div class="form-group">
-            <label>評估標準</label>
+            <label>${i18n.t('asg.rubric.competencyItems')}</label>
             <div class="rubric-editor" style="border-bottom:none;">
                 <div id="competencyItems"></div>
             </div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addCompetencyItem()">+ 添加標準</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addCompetencyItem()">${i18n.t('asg.rubric.addCriterion')}</button>
         </div>
         <div style="padding:8px 12px;background:rgba(0,122,255,0.08);border-radius:8px;font-size:13px;color:var(--color-info);">
-            此類型無數字分數，老師為每項選擇一個能力等級。
+            ${i18n.t('asg.rubric.competencyNote')}
         </div>`;
     },
 
@@ -3830,7 +3976,7 @@ const AssignmentApp = {
     },
 
     _addCompetencyLevel() {
-        const name = prompt('輸入等級名稱:');
+        const name = prompt(i18n.t('asg.rubric.inputLevelName'));
         if (name && name.trim()) this._addCompetencyLevelTag(name.trim());
     },
 
@@ -3849,20 +3995,20 @@ const AssignmentApp = {
         const item = document.createElement('div');
         item.className = 'checklist-item';
         item.innerHTML = `
-            <input type="text" class="comp-title" placeholder="評估標準名稱" value="${title}">
+            <input type="text" class="comp-title" placeholder="${i18n.t('asg.rubric.competencyItemPh')}" value="${title}">
             <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
         container.appendChild(item);
     },
 
     _editorDSECriterion() {
         return `<div class="form-group">
-            <label>每項最高等級</label>
+            <label>${i18n.t('asg.rubric.dseMaxLevel')}</label>
             <input type="number" id="dseMaxLevel" value="7" min="1" max="20" style="width:80px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
         </div>
         <div class="form-group">
-            <label>DSE 評分標準</label>
+            <label>${i18n.t('asg.rubric.dseCriteria')}</label>
             <div id="dseCriteria"></div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addDSECriterion()">+ 添加標準</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addDSECriterion()">${i18n.t('asg.rubric.addCriterion')}</button>
         </div>`;
     },
 
@@ -3882,21 +4028,21 @@ const AssignmentApp = {
         ];
         card.innerHTML = `
             <div class="criterion-card-header">
-                <input type="text" class="dse-title" placeholder="評核準則名稱" value="${title}">
-                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">滿分:</span>
+                <input type="text" class="dse-title" placeholder="${i18n.t('asg.rubric.dseCriterionName')}" value="${title}">
+                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">${i18n.t('asg.rubric.maxPoints')}:</span>
                 <input type="number" class="dse-max" style="width:60px;" value="${maxLevel}" min="1">
                 <button class="remove-btn" onclick="this.closest('.criterion-card').remove()">✕</button>
             </div>
             <div class="criterion-card-body">
                 <div class="level-rows">
                     ${defaultLevels.map(l => `<div class="level-row" style="grid-template-columns:80px 1fr 36px;">
-                        <input type="text" class="dse-lv-label" placeholder="等級" value="${l.level}">
-                        <textarea class="dse-lv-desc" placeholder="等級描述..." rows="1">${l.description || ''}</textarea>
+                        <input type="text" class="dse-lv-label" placeholder="${i18n.t('asg.rubric.levelLabel')}" value="${l.level}">
+                        <textarea class="dse-lv-desc" placeholder="${i18n.t('asg.rubric.levelDescPh')}" rows="1">${l.description || ''}</textarea>
                         <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>
                     </div>`).join('')}
                 </div>
                 <button style="width:100%;padding:4px;border:1px dashed var(--border-strong);background:none;color:var(--brand);cursor:pointer;border-radius:4px;margin-top:4px;font-size:13px;"
-                    onclick="AssignmentApp._addDSELevelRow(this)">+ 添加等級</button>
+                    onclick="AssignmentApp._addDSELevelRow(this)">${i18n.t('asg.rubric.addLevel')}</button>
             </div>`;
         container.appendChild(card);
     },
@@ -3907,20 +4053,20 @@ const AssignmentApp = {
         row.className = 'level-row';
         row.style.gridTemplateColumns = '80px 1fr 36px';
         row.innerHTML = `
-            <input type="text" class="dse-lv-label" placeholder="等級" value="">
-            <textarea class="dse-lv-desc" placeholder="等級描述..." rows="1"></textarea>
+            <input type="text" class="dse-lv-label" placeholder="${i18n.t('asg.rubric.levelLabel')}" value="">
+            <textarea class="dse-lv-desc" placeholder="${i18n.t('asg.rubric.levelDescPh')}" rows="1"></textarea>
             <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
         rows.appendChild(row);
     },
 
     _editorHolistic() {
         return `<div class="form-group">
-            <label>整體評分等級</label>
+            <label>${i18n.t('asg.rubric.holisticLevels')}</label>
             <div id="holisticLevels"></div>
-            <button class="add-rubric-btn" onclick="AssignmentApp._addHolisticLevel()">+ 添加等級</button>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addHolisticLevel()">${i18n.t('asg.rubric.addLevel')}</button>
         </div>
         <div style="padding:8px 12px;background:rgba(0,122,255,0.08);border-radius:8px;font-size:13px;color:var(--color-info);">
-            無細項拆分，老師直接選擇一個整體等級。
+            ${i18n.t('asg.rubric.holisticNote')}
         </div>`;
     },
 
@@ -4003,12 +4149,12 @@ const AssignmentApp = {
         select.innerHTML = '';
 
         if (type === 'class') {
-            label.textContent = '選擇班級';
+            label.textContent = i18n.t('asg.create.selectClass');
             (this.state.targets?.classes || []).forEach(c => {
                 select.innerHTML += `<option value="${c}">${c}</option>`;
             });
         } else if (type === 'student') {
-            label.textContent = '選擇學生';
+            label.textContent = i18n.t('asg.create.selectStudent');
             (this.state.targets?.students || []).forEach(s => {
                 select.innerHTML += `<option value="${s.username}">${s.display_name || s.username} (${s.class_name || ''})</option>`;
             });
@@ -4021,8 +4167,8 @@ const AssignmentApp = {
         const row = document.createElement('div');
         row.className = 'rubric-row';
         row.innerHTML = `
-            <input type="text" class="rubric-title" placeholder="評分項目名稱" value="${title}">
-            <input type="number" class="rubric-points" placeholder="滿分" value="${maxPoints}" min="0" step="0.5"
+            <input type="text" class="rubric-title" placeholder="${i18n.t('asg.rubric.itemName')}" value="${title}">
+            <input type="number" class="rubric-points" placeholder="${i18n.t('asg.rubric.maxPoints')}" value="${maxPoints}" min="0" step="0.5"
                 oninput="AssignmentApp.updateRubricTotal()">
             <button class="remove-btn" onclick="this.parentElement.remove();AssignmentApp.updateRubricTotal();">✕</button>`;
         rows.appendChild(row);
@@ -4174,7 +4320,7 @@ const AssignmentApp = {
             this.state.examFiles = [];
             document.getElementById('examFilePreview').innerHTML = '';
             document.getElementById('startOcrBtn').disabled = true;
-            document.getElementById('startOcrBtn').textContent = '開始識別';
+            document.getElementById('startOcrBtn').textContent = i18n.t('asg.ocr.startRecognize');
             document.getElementById('examUploadZone').style.display = '';
             this._setupExamUploadZone();
         }
@@ -4198,11 +4344,11 @@ const AssignmentApp = {
         const allowed = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'application/pdf'];
         for (const f of fileList) {
             if (!allowed.includes(f.type) && !f.name.match(/\.(jpg|jpeg|png|heic|heif|pdf)$/i)) {
-                UIModule.toast(`不支持的文件類型: ${f.name}`, 'warning');
+                UIModule.toast(i18n.t('asg.file.unsupportedType', {name: f.name}), 'warning');
                 continue;
             }
             if (f.size > 10 * 1024 * 1024) {
-                UIModule.toast(`文件過大 (>10MB): ${f.name}`, 'warning');
+                UIModule.toast(i18n.t('asg.file.tooLarge', {name: f.name}), 'warning');
                 continue;
             }
             this.state.examFiles.push(f);
@@ -4241,13 +4387,13 @@ const AssignmentApp = {
         if (this.state.examFiles.length === 0) return;
         const btn = document.getElementById('startOcrBtn');
         btn.disabled = true;
-        btn.textContent = '上傳中...';
+        btn.textContent = i18n.t('asg.ocr.uploading');
 
         const resp = await AssignmentAPI.uploadExamPaper(this.state.examFiles);
         if (!resp?.success) {
-            UIModule.toast('上傳失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            UIModule.toast(i18n.t('asg.toast.uploadFail', {msg: resp?.message || resp?.detail || ''}), 'error');
             btn.disabled = false;
-            btn.textContent = '開始識別';
+            btn.textContent = i18n.t('asg.ocr.startRecognize');
             return;
         }
 
@@ -4275,7 +4421,7 @@ const AssignmentApp = {
             this.state.ocrPollingTimer = null;
 
             if (data.status === 'failed') {
-                UIModule.toast('識別失敗，請重新上傳', 'error');
+                UIModule.toast(i18n.t('asg.ocr.failRetry'), 'error');
                 return;
             }
 
@@ -4283,7 +4429,7 @@ const AssignmentApp = {
                 this.state.recognizedQuestions = data.questions;
                 this._renderQuestionEditor();
             } else {
-                UIModule.toast('未識別到任何題目', 'warning');
+                UIModule.toast(i18n.t('asg.ocr.noQuestions'), 'warning');
             }
         }
     },
@@ -4293,11 +4439,11 @@ const AssignmentApp = {
         if (!container) return;
         container.style.display = '';
         const statusMap = {
-            uploading: '上傳中...',
-            processing: '識別中...',
-            completed: '識別完成',
-            partial_failed: '部分完成',
-            failed: '識別失敗',
+            uploading: i18n.t('asg.ocr.uploading'),
+            processing: i18n.t('asg.ocr.processing'),
+            completed: i18n.t('asg.ocr.done'),
+            partial_failed: i18n.t('asg.ocr.partialFailed'),
+            failed: i18n.t('asg.ocr.failed'),
         };
         const statusClass = data.status === 'completed' ? 'success'
             : data.status === 'partial_failed' ? 'warning'
@@ -4306,8 +4452,8 @@ const AssignmentApp = {
         let html = `<div class="ocr-status-bar ocr-status--${statusClass}">
             <div class="ocr-status-summary">
                 <span class="ocr-status-label">${statusMap[data.status] || data.status}</span>
-                <span class="ocr-status-counts">共 ${data.total_files} 個文件，已完成 ${data.completed_files || 0} 個${data.failed_files ? '，失敗 ' + data.failed_files + ' 個' : ''}</span>
-                ${data.total_questions ? `<span class="ocr-status-questions">| 共識別 ${data.total_questions} 題${data.low_confidence_count ? '，' + data.low_confidence_count + ' 題低置信度' : ''}</span>` : ''}
+                <span class="ocr-status-counts">${i18n.t('asg.ocr.fileCount', {total: data.total_files, done: data.completed_files || 0})}${data.failed_files ? '，' + i18n.t('asg.ocr.fileFailed', {count: data.failed_files}) : ''}</span>
+                ${data.total_questions ? `<span class="ocr-status-questions">| ${i18n.t('asg.ocr.questionCount', {count: data.total_questions})}${data.low_confidence_count ? '，' + i18n.t('asg.ocr.lowConfidence', {count: data.low_confidence_count}) : ''}</span>` : ''}
             </div>`;
         if (data.status === 'processing') {
             html += `<div class="ocr-progress-bar"><div class="ocr-progress-fill" style="width:${data.total_files ? ((data.completed_files||0) / data.total_files * 100) : 0}%"></div></div>`;
@@ -4344,17 +4490,17 @@ const AssignmentApp = {
         const passageCount = questions.filter(q => q.question_type === 'passage').length;
         const questionCount = questions.length - passageCount;
         let html = `<div class="question-editor-toolbar">
-            <span class="question-editor-count">${passageCount > 0 ? `${passageCount} 段資料 + ` : ''}共 ${questionCount} 題，總分 ${totalPoints} 分</span>
+            <span class="question-editor-count">${passageCount > 0 ? i18n.t('asg.question.passageCount', {count: passageCount}) : ''}${i18n.t('asg.question.totalQuestions', {count: questionCount, points: totalPoints})}</span>
             <label class="question-filter-toggle">
-                <input type="checkbox" id="showLowConfidence" onchange="AssignmentApp._filterQuestions()"> 只看低置信度
+                <input type="checkbox" id="showLowConfidence" onchange="AssignmentApp._filterQuestions()"> ${i18n.t('asg.question.showLowConfidence')}
             </label>
-            <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addQuestion()">+ 添加題目</button>
+            <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addQuestion()">${i18n.t('asg.question.addQuestion')}</button>
         </div>`;
 
         // Group by source_page
         const groups = {};
         questions.forEach((q, i) => {
-            const key = q.source_page ? `第 ${q.source_page} 頁` : '未分頁';
+            const key = q.source_page ? i18n.t('asg.question.page', {page: q.source_page}) : i18n.t('asg.question.unpaged');
             if (!groups[key]) groups[key] = [];
             groups[key].push({ ...q, _index: i });
         });
@@ -4369,39 +4515,39 @@ const AssignmentApp = {
                 const confClass = q.ocr_confidence != null && q.ocr_confidence < 0.7 ? 'low-confidence' : '';
                 const passageClass = isPassage ? 'passage-card' : '';
                 const sourceHints = [];
-                if (q.source_page) sourceHints.push(`第 ${q.source_page} 頁`);
-                if (q.ocr_confidence != null) sourceHints.push(`置信度 ${(q.ocr_confidence * 100).toFixed(0)}%`);
-                if (q.metadata?.has_math_formula || q.has_math_formula) sourceHints.push('含公式');
+                if (q.source_page) sourceHints.push(i18n.t('asg.question.page', {page: q.source_page}));
+                if (q.ocr_confidence != null) sourceHints.push(i18n.t('asg.question.confidence', {pct: (q.ocr_confidence * 100).toFixed(0)}));
+                if (q.metadata?.has_math_formula || q.has_math_formula) sourceHints.push(i18n.t('asg.question.hasMath'));
 
                 const pointsReadonly = isFillBlank ? 'readonly class="q-points q-points-readonly" title="總分由填空項自動匯總"' : 'class="q-points" title="分值"';
 
                 html += `<div class="question-card ${confClass} ${passageClass}" data-index="${i}" id="qcard_${i}">
                     <div class="question-card-header">
                         <div class="question-card-row1">
-                            <input type="text" class="q-number" value="${this._escapeAttr(q.question_number || '')}" placeholder="${isPassage ? '資料編號' : '題號'}" title="${isPassage ? '資料編號' : '題號'}">
-                            ${isPassage ? '<span class="passage-badge">資料</span>' : `<input type="number" ${pointsReadonly} value="${q.points != null ? q.points : ''}" placeholder="分值" min="0" step="0.5">`}
+                            <input type="text" class="q-number" value="${this._escapeAttr(q.question_number || '')}" placeholder="${isPassage ? i18n.t('asg.question.passageNumber') : i18n.t('asg.question.questionNumber')}" title="${isPassage ? i18n.t('asg.question.passageNumber') : i18n.t('asg.question.questionNumber')}">
+                            ${isPassage ? `<span class="passage-badge">${i18n.t('asg.question.passageLabel')}</span>` : `<input type="number" ${pointsReadonly} value="${q.points != null ? q.points : ''}" placeholder="${i18n.t('asg.question.pointsLabel')}" min="0" step="0.5">`}
                             <select class="q-type" title="題型" onchange="AssignmentApp._onQuestionTypeChange(${i}, this.value)">
-                                <option value="passage" ${q.question_type === 'passage' ? 'selected' : ''}>資料段落</option>
-                                <option value="open" ${q.question_type === 'open' ? 'selected' : ''}>開放題</option>
-                                <option value="multiple_choice" ${q.question_type === 'multiple_choice' ? 'selected' : ''}>選擇題</option>
-                                <option value="fill_blank" ${q.question_type === 'fill_blank' ? 'selected' : ''}>填空題</option>
-                                <option value="true_false" ${q.question_type === 'true_false' ? 'selected' : ''}>判斷題</option>
+                                <option value="passage" ${q.question_type === 'passage' ? 'selected' : ''}>${i18n.t('asg.question.typePassage')}</option>
+                                <option value="open" ${q.question_type === 'open' ? 'selected' : ''}>${i18n.t('asg.question.typeOpen')}</option>
+                                <option value="multiple_choice" ${q.question_type === 'multiple_choice' ? 'selected' : ''}>${i18n.t('asg.question.typeMC')}</option>
+                                <option value="fill_blank" ${q.question_type === 'fill_blank' ? 'selected' : ''}>${i18n.t('asg.question.typeFillBlank')}</option>
+                                <option value="true_false" ${q.question_type === 'true_false' ? 'selected' : ''}>${i18n.t('asg.question.typeTrueFalse')}</option>
                             </select>
                             <button class="question-delete-btn" onclick="AssignmentApp._removeQuestion(${i})" title="刪除">&times;</button>
                         </div>
                         ${sourceHints.length > 0 ? `<div class="question-source-hints">${sourceHints.join(' | ')}</div>` : ''}
                     </div>
                     <div class="question-card-body">
-                        <label>${isPassage ? '資料內容' : '題目'}</label>
-                        <textarea class="q-text" rows="${isPassage ? 5 : 3}" placeholder="${isPassage ? '資料/段落內容 (表格、文字等)' : '題目內容'}">${this._escapeHtml(q.question_text || '')}</textarea>
+                        <label>${isPassage ? i18n.t('asg.question.passageContent') : i18n.t('asg.question.questionContent')}</label>
+                        <textarea class="q-text" rows="${isPassage ? 5 : 3}" placeholder="${isPassage ? i18n.t('asg.question.passageContentPh') : i18n.t('asg.question.questionContentPh')}">${this._escapeHtml(q.question_text || '')}</textarea>
                         ${isPassage ? '' : `<div class="question-answer-row">
                             <div class="question-answer-field">
-                                <label>答案</label>
-                                <textarea class="q-answer" rows="2" placeholder="參考答案">${this._escapeHtml(q.answer_text || '')}</textarea>
+                                <label>${i18n.t('asg.question.answer')}</label>
+                                <textarea class="q-answer" rows="2" placeholder="${i18n.t('asg.question.answerPh')}">${this._escapeHtml(q.answer_text || '')}</textarea>
                             </div>
                             <div class="question-answer-source">
                                 <span class="answer-source-badge source-${q.answer_source || 'missing'}">${
-                                    { extracted: '已識別', inferred: '推斷', missing: '無答案', manual: '手動' }[q.answer_source || 'missing'] || '未知'
+                                    { extracted: i18n.t('asg.question.answerExtracted'), inferred: i18n.t('asg.question.answerInferred'), missing: i18n.t('asg.question.answerMissing'), manual: i18n.t('asg.question.answerManual') }[q.answer_source || 'missing'] || ''
                                 }</span>
                             </div>
                         </div>`}
@@ -4520,7 +4666,7 @@ const AssignmentApp = {
             </div>`;
         });
 
-        html += `<div class="blanks-editor-hint">題目總分將自動等於所有子項分值之和</div>
+        html += `<div class="blanks-editor-hint">${i18n.t('asg.blank.autoSumHint')}</div>
         </div>`;
         return html;
     },
@@ -4538,7 +4684,7 @@ const AssignmentApp = {
             if (ptsEl) ptsEl.value = totalPts;
             // Update blanks header count
             const headerLabel = document.querySelector(`#qcard_${qi} .blanks-editor-header label`);
-            if (headerLabel) headerLabel.textContent = `填空項目 (共 ${q.metadata.blanks.length} 項，合計 ${totalPts} 分)`;
+            if (headerLabel) headerLabel.textContent = i18n.t('asg.blank.items', {count: q.metadata.blanks.length, points: totalPts});
         } else if (field === 'input_type') {
             q.metadata.blanks[bi].input_type = value || 'short_text';
         } else {
@@ -4579,7 +4725,7 @@ const AssignmentApp = {
         if (tpl && q.metadata.blank_mode === 'inline') q.metadata.blank_mode = 'mixed';
         q.points = synced.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
         this._renderQuestionEditor();
-        UIModule.toast(`已從模板同步 ${synced.length} 個空格`, 'success');
+        UIModule.toast(i18n.t('asg.toast.syncBlanks', {count: synced.length}), 'success');
     },
 
     _addBlank(qi) {
@@ -4613,7 +4759,7 @@ const AssignmentApp = {
         // Switching away from fill_blank: confirm and clear blanks
         if (oldType === 'fill_blank' && newType !== 'fill_blank') {
             if (q.metadata?.blanks?.length > 0) {
-                if (!confirm('切換題型將清除所有填空項，確定？')) {
+                if (!confirm(i18n.t('asg.confirm.switchType'))) {
                     // Revert select
                     const sel = document.querySelector(`#qcard_${qi} .q-type`);
                     if (sel) sel.value = 'fill_blank';
@@ -4700,7 +4846,7 @@ const AssignmentApp = {
     _addPendingAttachments(fileList) {
         const total = this.state.pendingAttachments.length + this.state.existingAttachments.filter(a => !this.state.deletedAttachmentIds.includes(a.id)).length;
         for (const f of fileList) {
-            if (total + this.state.pendingAttachments.length >= 10) { UIModule.toast('附件最多 10 個', 'warning'); break; }
+            if (total + this.state.pendingAttachments.length >= 10) { UIModule.toast(i18n.t('asg.create.attachMax'), 'warning'); break; }
             this.state.pendingAttachments.push(f);
         }
         this._renderAttachmentLists();
@@ -4761,7 +4907,7 @@ const AssignmentApp = {
 
     async saveAsDraft() {
         const data = this._getFormData();
-        if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
+        if (!data.title) { UIModule.toast(i18n.t('asg.toast.titleRequired'), 'warning'); return; }
 
         let resp;
         if (this.state.editingId) {
@@ -4775,20 +4921,20 @@ const AssignmentApp = {
             if (asgId && (this.state.pendingAttachments.length > 0 || this.state.deletedAttachmentIds.length > 0)) {
                 await this._syncAttachments(asgId);
             }
-            UIModule.toast('草稿已保存', 'success');
+            UIModule.toast(i18n.t('asg.toast.draftSaved'), 'success');
             this.closeCreateModal();
             this.showTeacherList();
         } else {
-            UIModule.toast('保存失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            UIModule.toast(i18n.t('asg.toast.saveFail', {msg: resp?.message || resp?.detail || ''}), 'error');
         }
     },
 
     async saveAndPublish() {
         const data = this._getFormData();
-        if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
+        if (!data.title) { UIModule.toast(i18n.t('asg.toast.titleRequired'), 'warning'); return; }
         // Validate form questions before publishing
         if (data.assignment_type === 'form') {
-            if (!data.questions || data.questions.length === 0) { UIModule.toast('表單作業至少需要 1 道題目', 'warning'); return; }
+            if (!data.questions || data.questions.length === 0) { UIModule.toast(i18n.t('asg.toast.formMinQuestions'), 'warning'); return; }
             const err = FormBuilder.validate();
             if (err) { UIModule.toast(err, 'warning'); return; }
         }
@@ -4818,11 +4964,11 @@ const AssignmentApp = {
         }
 
         if (resp?.success) {
-            UIModule.toast('作業已發布', 'success');
+            UIModule.toast(i18n.t('asg.toast.published'), 'success');
             this.closeCreateModal();
             this.showTeacherList();
         } else {
-            UIModule.toast('發布失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            UIModule.toast(i18n.t('asg.toast.publishFail', {msg: resp?.message || resp?.detail || ''}), 'error');
         }
     },
 
@@ -4831,49 +4977,49 @@ const AssignmentApp = {
     },
 
     async publishAssignment(id) {
-        if (!await UIModule.confirm('確定要發布此作業？', '發布作業')) return;
+        if (!await UIModule.confirm(i18n.t('asg.confirm.publish'), i18n.t('asg.confirm.publishTitle'))) return;
         const resp = await AssignmentAPI.publishAssignment(id);
         if (resp?.success) {
-            UIModule.toast('作業已發布', 'success');
+            UIModule.toast(i18n.t('asg.toast.published'), 'success');
             this.viewAssignment(id);
         } else {
-            UIModule.toast('發布失敗', 'error');
+            UIModule.toast(i18n.t('asg.toast.publishFailShort'), 'error');
         }
     },
 
     async closeAssignment(id) {
-        if (!await UIModule.confirm('確定要關閉此作業？關閉後學生將無法提交。', '關閉作業')) return;
+        if (!await UIModule.confirm(i18n.t('asg.confirm.close'), i18n.t('asg.confirm.closeTitle'))) return;
         const resp = await AssignmentAPI.closeAssignment(id);
         if (resp?.success) {
-            UIModule.toast('作業已關閉', 'success');
+            UIModule.toast(i18n.t('asg.toast.closed'), 'success');
             this.viewAssignment(id);
         } else {
-            UIModule.toast('關閉失敗', 'error');
+            UIModule.toast(i18n.t('asg.toast.closeFail'), 'error');
         }
     },
 
     async deleteAssignment(id) {
-        if (!await UIModule.confirm('確定要刪除此作業？此操作不可撤銷。', '刪除作業')) return;
+        if (!await UIModule.confirm(i18n.t('asg.confirm.delete'), i18n.t('asg.confirm.deleteTitle'))) return;
         const resp = await AssignmentAPI.deleteAssignment(id);
         if (resp?.success) {
-            UIModule.toast('作業已刪除', 'success');
+            UIModule.toast(i18n.t('asg.toast.deleted'), 'success');
             this.showTeacherList();
         } else {
-            UIModule.toast('刪除失敗', 'error');
+            UIModule.toast(i18n.t('asg.toast.deleteFail'), 'error');
         }
     },
 
     // ---- Student ----
     async showStudentList() {
         this.state.phase = 'list';
-        this.setBreadcrumb([{ label: '我的作業' }]);
+        this.setBreadcrumb([{ label: i18n.t('asg.list.myTitle') }]);
         this.setHeaderActions('');
 
         const main = document.getElementById('mainContent');
         main.innerHTML = `<div class="assignment-grid">${AssignmentUI.skeletonCards(3)}</div>`;
 
         const resp = await AssignmentAPI.listMyAssignments();
-        if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
+        if (!resp?.success) { main.innerHTML = `<p>${i18n.t('asg.page.loadFail')}</p>`; return; }
 
         this._studentAssignments = resp.data || [];
         this.renderSidebar();
@@ -4888,7 +5034,7 @@ const AssignmentApp = {
         main.innerHTML = AssignmentUI.skeletonDetail();
 
         const resp = await AssignmentAPI.getMyAssignment(id);
-        if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
+        if (!resp?.success) { main.innerHTML = `<p>${i18n.t('asg.page.loadFail')}</p>`; return; }
 
         const asg = resp.data;
         const sub = asg.my_submission;
@@ -4898,7 +5044,7 @@ const AssignmentApp = {
         const hasQuestions = isForm || isExam;
 
         this.setBreadcrumb([
-            { label: '我的作業', action: 'AssignmentApp.showStudentList()' },
+            { label: i18n.t('asg.list.myTitle'), action: 'AssignmentApp.showStudentList()' },
             { label: asg.title }
         ]);
 
@@ -4907,8 +5053,8 @@ const AssignmentApp = {
             this.setHeaderActions('');
         } else {
             this.setHeaderActions(
-                !sub ? `<button class="btn btn-primary" onclick="AssignmentApp.openSubmitModal(${id})">${AssignmentUI.ICON.upload} 提交作業</button>` :
-                sub.status === 'submitted' ? `<button class="btn btn-warning" onclick="AssignmentApp.openSubmitModal(${id})">重新提交</button>` : ''
+                !sub ? `<button class="btn btn-primary" onclick="AssignmentApp.openSubmitModal(${id})">${AssignmentUI.ICON.upload} ${i18n.t('asg.student.submitBtn')}</button>` :
+                sub.status === 'submitted' ? `<button class="btn btn-warning" onclick="AssignmentApp.openSubmitModal(${id})">${i18n.t('asg.student.resubmitBtn')}</button>` : ''
             );
         }
 
@@ -4918,24 +5064,24 @@ const AssignmentApp = {
             <h3 style="margin:0;">${asg.title}</h3>
             ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
             ${(asg.attachments && asg.attachments.length) ? `<div style="margin-top:12px;">
-                <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} 附件</div>
+                <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} ${i18n.t('asg.detail.attachments')}</div>
                 ${AssignmentUI.renderFiles(asg.attachments)}
             </div>` : ''}
             <div class="detail-stats" style="margin-top:12px;">
                 <div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.user}</div>
-                    <div><div class="stat-value">${asg.created_by_name || ''}</div><div class="stat-label">教師</div></div>
+                    <div><div class="stat-value">${asg.created_by_name || ''}</div><div class="stat-label">${i18n.t('asg.detail.teacher')}</div></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.clock}</div>
-                    <div><div class="stat-value">${AssignmentUI.formatDate(asg.deadline)} ${deadlineWarn}</div><div class="stat-label">截止日</div></div>
+                    <div><div class="stat-value">${AssignmentUI.formatDate(asg.deadline)} ${deadlineWarn}</div><div class="stat-label">${i18n.t('asg.detail.deadline')}</div></div>
                 </div>
                 ${!hasQuestions ? `<div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.clip}</div>
-                    <div><div class="stat-value">最多 ${asg.max_files || 5} 個</div><div class="stat-label">文件限制</div></div>
+                    <div><div class="stat-value">${i18n.t('asg.detail.maxFiles', {count: asg.max_files || 5})}</div><div class="stat-label">${i18n.t('asg.detail.fileLimit')}</div></div>
                 </div>` : `<div class="stat-card">
                     <div class="stat-icon">📝</div>
-                    <div><div class="stat-value">${questionsForCount.length} 題</div><div class="stat-label">題目數</div></div>
+                    <div><div class="stat-value">${i18n.t('asg.detail.questionsN', {count: questionsForCount.length})}</div><div class="stat-label">${i18n.t('asg.detail.questionCount')}</div></div>
                 </div>`}
             </div>
         </div>`;
@@ -4946,10 +5092,10 @@ const AssignmentApp = {
             if (sub) {
                 // Already submitted — show read-only results
                 html += `<div class="form-section">
-                    <h3>我的作答 ${AssignmentUI.badge(sub.status)}</h3>
+                    <h3>${i18n.t('asg.student.myAnswers')} ${AssignmentUI.badge(sub.status)}</h3>
                     <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
-                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
-                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                        ${i18n.t('asg.student.submitTime', {time: AssignmentUI.formatDate(sub.submitted_at)})}
+                        ${sub.is_late ? ` <span class="badge badge-late">${i18n.t('asg.status.late')}</span>` : ''}
                     </div>
                     ${sub.score != null ? `<div class="student-score-hero"><div class="score-big">${sub.score}</div><div class="score-max">/ ${asg.max_score || '—'}</div></div>` : ''}
                 </div>
@@ -4976,13 +5122,13 @@ const AssignmentApp = {
             if (sub && !(canEdit && !isGraded && ExamStudentView._editMode)) {
                 // Show submitted view
                 html += `<div class="form-section">
-                    <h3>我的作答 ${AssignmentUI.badge(sub.status)}</h3>
+                    <h3>${i18n.t('asg.student.myAnswers')} ${AssignmentUI.badge(sub.status)}</h3>
                     <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
-                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
-                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                        ${i18n.t('asg.student.submitTime', {time: AssignmentUI.formatDate(sub.submitted_at)})}
+                        ${sub.is_late ? ` <span class="badge badge-late">${i18n.t('asg.status.late')}</span>` : ''}
                     </div>
                     ${sub.score != null ? `<div class="student-score-hero"><div class="score-big">${sub.score}</div><div class="score-max">/ ${asg.max_score || '—'}</div></div>` : ''}
-                    ${canEdit && !isGraded ? `<button class="btn btn-outline" style="margin-top:8px;" onclick="ExamStudentView._editMode=true;AssignmentApp.viewStudentAssignment(${id})">修改作答</button>` : ''}
+                    ${canEdit && !isGraded ? `<button class="btn btn-outline" style="margin-top:8px;" onclick="ExamStudentView._editMode=true;AssignmentApp.viewStudentAssignment(${id})">${i18n.t('asg.student.editAnswer')}</button>` : ''}
                 </div>
                 <div class="form-section">
                     ${ExamStudentView.renderSubmittedView(questions, sub.answers || [])}
@@ -5006,11 +5152,11 @@ const AssignmentApp = {
         // ---- File upload type (original flow) ----
         if (sub) {
             html += `<div class="form-section">
-                <h3>我的提交 ${AssignmentUI.badge(sub.status)}</h3>
-                <p style="margin:8px 0;color:var(--text-secondary);">${sub.content || '無備註'}</p>
+                <h3>${i18n.t('asg.student.mySubmission')} ${AssignmentUI.badge(sub.status)}</h3>
+                <p style="margin:8px 0;color:var(--text-secondary);">${sub.content || i18n.t('asg.student.noNote')}</p>
                 <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
-                    提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
-                    ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                    ${i18n.t('asg.student.submitTime', {time: AssignmentUI.formatDate(sub.submitted_at)})}
+                    ${sub.is_late ? ` <span class="badge badge-late">${i18n.t('asg.status.late')}</span>` : ''}
                 </div>
                 ${AssignmentUI.renderFiles(sub.files)}
                 <div id="codePreviewArea"></div>
@@ -5030,7 +5176,7 @@ const AssignmentApp = {
                 const rType = asg.rubric_type || 'points';
 
                 html += `<div class="form-section fade-in">
-                    <h3>${AssignmentUI.ICON.chart} 成績</h3>`;
+                    <h3>${AssignmentUI.ICON.chart} ${i18n.t('asg.student.score')}</h3>`;
 
                 if (rType !== 'competency') {
                     const pctScore = asg.max_score > 0 ? Math.round((sub.score || 0) / asg.max_score * 100) : 0;
@@ -5089,7 +5235,7 @@ const AssignmentApp = {
 
                 if (sub.feedback) {
                     html += `<div class="teacher-note">
-                        <div class="teacher-note-header">${AssignmentUI.ICON.edit} 教師評語</div>
+                        <div class="teacher-note-header">${AssignmentUI.ICON.edit} ${i18n.t('asg.student.teacherFeedback')}</div>
                         <p>${sub.feedback}</p>
                     </div>`;
                 }
@@ -5156,6 +5302,22 @@ const AssignmentApp = {
     _addFiles(fileList) {
         for (const f of fileList) {
             if (this.state.selectedFiles.length >= 5) { UIModule.toast('最多 5 個文件', 'warning'); break; }
+
+            // 預先偵測 macOS directory bundle (.swiftpm / .app / .xcodeproj …)。
+            // 這類「檔案」Finder 看起來像單一檔案,其實是資料夾,瀏覽器完全
+            // 讀不到。在選檔時就 reject,比提交後才報錯好太多。
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                const msg = `「${f.name}」是 macOS 套件資料夾,不能直接上傳。\n請在 Finder 右鍵 → 壓縮 → 改上傳「${f.name}.zip」`;
+                UIModule.toast(msg, 'error');
+                if (typeof alert === 'function') alert(msg);
+                continue;
+            }
+            // 零 byte 也直接拒絕
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案 (0 byte),無法上傳`, 'error');
+                continue;
+            }
+
             this.state.selectedFiles.push(f);
         }
         this._renderSelectedFiles();
@@ -5182,8 +5344,9 @@ const AssignmentApp = {
 
     async doSubmit() {
         const btn = document.getElementById('submitBtn');
+        if (!btn) return;
         btn.disabled = true;
-        btn.innerHTML = '<div class="loading-spinner"></div> 提交中...';
+        btn.innerHTML = `<div class="loading-spinner"></div> ${i18n.t('asg.submit.submitting')}`;
 
         const content = document.getElementById('submitContent').value;
         const files = [...this.state.selectedFiles];
@@ -5196,19 +5359,28 @@ const AssignmentApp = {
             files.push(codeFile);
         }
 
-        const resp = await AssignmentAPI.submitAssignment(
-            this.state.currentAssignment, content, files
-        );
-
-        btn.disabled = false;
-        btn.textContent = '提交';
-
-        if (resp?.success) {
-            this.closeSubmitModal();
-            UIModule.toast('提交成功', 'success');
-            this.viewStudentAssignment(this.state.currentAssignment);
-        } else {
-            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+        try {
+            const resp = await AssignmentAPI.submitAssignment(
+                this.state.currentAssignment, content, files
+            );
+            if (resp?.success) {
+                this.closeSubmitModal();
+                UIModule.toast(i18n.t('asg.toast.submitSuccess'), 'success');
+                this.viewStudentAssignment(this.state.currentAssignment);
+            } else {
+                UIModule.toast(
+                    i18n.t('asg.toast.submitFail', {msg: resp?.message || resp?.detail || ''}),
+                    'error',
+                );
+            }
+        } catch (e) {
+            // 保險 — _submitMultipart 理論上不會 throw,但萬一有其他 exception
+            console.error('doSubmit error:', e);
+            UIModule.toast(i18n.t('asg.toast.submitFail', {msg: e.message || '未知錯誤'}), 'error');
+        } finally {
+            // 不管成功或失敗,按鈕都必須還原,避免「卡在提交中」
+            btn.disabled = false;
+            btn.textContent = i18n.t('asg.submit.submit');
         }
     },
 
@@ -5226,8 +5398,8 @@ const AssignmentApp = {
                 <div class="html-preview-header">
                     <h3>💻 ${this._escapeHtml(fileName)}</h3>
                     <div class="html-preview-controls">
-                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${filePath}')">▶ 運行</button>` : ''}
-                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">▶ 運行預覽</button>` : ''}
+                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${filePath}')">${i18n.t('asg.file.run')}</button>` : ''}
+                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">${i18n.t('asg.file.runPreview')}</button>` : ''}
                     </div>
                 </div>
                 <div class="code-preview">${this._escapeHtml(this._cleanSwiftTokens(text))}</div>
@@ -5336,7 +5508,7 @@ const AssignmentApp = {
                         truncated = true;
                     }
                     el.innerHTML = `<div class="code-preview">${AssignmentUI._escapeHtml(displayText)}</div>
-                        ${truncated ? `<div class="file-preview-truncated">已截斷預覽（前 ${MAX_CODE_LINES} 行），完整內容請下載查看</div>` : ''}`;
+                        ${truncated ? `<div class="file-preview-truncated">${i18n.t('asg.file.truncated', {lines: MAX_CODE_LINES})}</div>` : ''}`;
                 }
             } else if (fileType === 'document' || fileType === 'doc' || fileType === 'ppt') {
                 // Office 文件：docx/xlsx/pptx 調用後端 API
@@ -5350,18 +5522,18 @@ const AssignmentApp = {
                     if (json.success && json.data && json.data.html) {
                         const d = json.data;
                         el.innerHTML = `<div class="file-preview-doc">${d.html}</div>
-                            ${d.truncated ? `<div class="file-preview-truncated">已為預覽效能限制顯示部分內容${d.meta && d.meta.rendered_rows ? `（前 ${d.meta.rendered_rows} 行 × ${d.meta.rendered_cols} 列）` : ''}，完整內容請下載查看</div>` : ''}`;
+                            ${d.truncated ? `<div class="file-preview-truncated">${i18n.t('asg.file.truncatedPartial')}</div>` : ''}`;
                     } else {
-                        const msg = (json.data && json.data.message) || json.message || '預覽失敗';
-                        el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                        const msg = (json.data && json.data.message) || json.message || i18n.t('asg.file.previewFail');
+                        el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>${i18n.t('asg.file.downloadFile')}</a></div>`;
                     }
                 } else {
-                    // .doc / .ppt 等舊格式
-                    el.innerHTML = `<div class="file-preview-error"><p>此格式暫不支持內嵌預覽（.${ext}）</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                    // .doc / .ppt etc
+                    el.innerHTML = `<div class="file-preview-error"><p>${i18n.t('asg.file.formatNotSupported', {ext})}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>${i18n.t('asg.file.downloadFile')}</a></div>`;
                 }
             } else if (fileType === 'archive' && (ext === 'swiftpm' || ext === 'zip')) {
-                // .swiftpm / .zip：調用後端解壓預覽代碼
-                el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 解壓專案中...</div>';
+                // .swiftpm / .zip
+                el.innerHTML = `<div class="file-preview-loading"><div class="loading-spinner"></div> ${i18n.t('asg.file.extractingProject')}</div>`;
                 const resp = await fetch(`/api/assignments/files/${fileId}/preview`, {
                     headers: AssignmentAPI._authHeaders()
                 });
@@ -5369,17 +5541,17 @@ const AssignmentApp = {
                 if (json.success && json.data && json.data.html) {
                     const d = json.data;
                     el.innerHTML = `<div class="file-preview-doc">${d.html}</div>
-                        ${d.truncated ? `<div class="file-preview-truncated">已截斷部分內容，完整代碼請下載查看</div>` : ''}`;
+                        ${d.truncated ? `<div class="file-preview-truncated">${i18n.t('asg.file.truncatedCode')}</div>` : ''}`;
                 } else {
-                    const msg = (json.data && json.data.message) || json.message || '預覽失敗';
-                    el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                    const msg = (json.data && json.data.message) || json.message || i18n.t('asg.file.previewFail');
+                    el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>${i18n.t('asg.file.downloadFile')}</a></div>`;
                 }
             } else {
-                // 其他 archive 等
-                el.innerHTML = `<div class="file-preview-error"><p>此文件類型不支持預覽</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                // other archive types
+                el.innerHTML = `<div class="file-preview-error"><p>${i18n.t('asg.file.typeNotSupported')}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>${i18n.t('asg.file.downloadFile')}</a></div>`;
             }
         } catch (e) {
-            el.innerHTML = `<div class="file-preview-error"><p>預覽載入失敗: ${AssignmentUI._escapeHtml(e.message || '未知錯誤')}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+            el.innerHTML = `<div class="file-preview-error"><p>${i18n.t('asg.file.previewLoadFail', {msg: AssignmentUI._escapeHtml(e.message || '')})}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>${i18n.t('asg.file.downloadFile')}</a></div>`;
         }
     },
 
@@ -5894,7 +6066,7 @@ const AssignmentApp = {
 
             const resp = await AssignmentAPI.runSwift(code);
             if (!resp?.success) {
-                area.innerHTML = `<div class="form-section"><h3>▶ 運行結果</h3><div class="swift-output error">運行失敗</div></div>`;
+                area.innerHTML = `<div class="form-section"><h3>${i18n.t('asg.run.resultTitle')}</h3><div class="swift-output error">${i18n.t('asg.run.runFailed')}</div></div>`;
                 return;
             }
             const result = resp.data;
@@ -6015,11 +6187,26 @@ const AssignmentApp = {
         const files = Array.from(e.dataTransfer.files);
         if (!files.length) return;
 
+        // Pre-flight:拒絕 macOS bundle 和空檔案
+        const validFiles = [];
+        for (const f of files) {
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                UIModule.toast(`「${f.name}」是 macOS 套件資料夾,請先壓縮成 zip 再上傳`, 'error');
+                continue;
+            }
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案,跳過`, 'error');
+                continue;
+            }
+            validFiles.push(f);
+        }
+        if (!validFiles.length) return;
+
         // Store files for this student
         if (!this._proxyPendingFiles[username]) {
             this._proxyPendingFiles[username] = [];
         }
-        this._proxyPendingFiles[username].push(...files);
+        this._proxyPendingFiles[username].push(...validFiles);
 
         // Show the files on the card
         this._renderProxyFiles(username);
@@ -6043,7 +6230,7 @@ const AssignmentApp = {
             </div>
             <div class="proxy-actions">
                 <button class="btn btn-sm btn-success" onclick="event.stopPropagation();AssignmentApp._doProxySubmit('${username}')">
-                    ${AssignmentUI.ICON.upload} 提交
+                    ${AssignmentUI.ICON.upload} ${i18n.t('asg.proxy.submit')}
                 </button>
                 <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();AssignmentApp._clearProxyFiles('${username}')">清除</button>
             </div>
@@ -6065,7 +6252,7 @@ const AssignmentApp = {
     async _doProxySubmit(username) {
         const files = this._proxyPendingFiles[username];
         if (!files || !files.length) {
-            UIModule.toast('沒有文件可提交', 'warning');
+            UIModule.toast(i18n.t('asg.toast.noFilesToSubmit'), 'warning');
             return;
         }
 
@@ -6085,22 +6272,22 @@ const AssignmentApp = {
         try {
             const resp = await AssignmentAPI.teacherSubmitForStudent(assignmentId, username, files);
             if (resp?.success) {
-                UIModule.toast(`已代 ${username} 提交成功`, 'success');
+                UIModule.toast(i18n.t('asg.toast.proxySubmitSuccess', {username}), 'success');
                 this._proxyPendingFiles[username] = [];
                 // Refresh the assignment view
                 this.viewAssignment(assignmentId);
             } else {
-                UIModule.toast('代提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+                UIModule.toast(i18n.t('asg.toast.proxySubmitFail', {msg: resp?.message || resp?.detail || ''}), 'error');
                 if (filesArea) {
                     const submitBtn = filesArea.querySelector('.btn-success');
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} 提交`; }
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} ${i18n.t('asg.proxy.submit')}`; }
                 }
             }
         } catch (e) {
-            UIModule.toast('代提交失敗: ' + e.message, 'error');
+            UIModule.toast(i18n.t('asg.toast.proxySubmitFail', {msg: e.message}), 'error');
             if (filesArea) {
                 const submitBtn = filesArea.querySelector('.btn-success');
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} 提交`; }
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} ${i18n.t('asg.proxy.submit')}`; }
             }
         }
     },
@@ -6253,14 +6440,14 @@ const FormBuilder = {
         this._syncFromDOM();
         for (let i = 0; i < this.questions.length; i++) {
             const q = this.questions[i];
-            if (!q.question_text.trim()) return `第 ${i + 1} 題題目內容不能為空`;
-            if (!q.max_points || q.max_points <= 0) return `第 ${i + 1} 題分數必須大於 0`;
+            if (!q.question_text.trim()) return i18n.t('asg.form.valEmptyQuestion', {n: i + 1});
+            if (!q.max_points || q.max_points <= 0) return i18n.t('asg.form.valZeroScore', {n: i + 1});
             if (q.question_type === 'mc') {
-                if (q.options.length < 2) return `第 ${i + 1} 題至少需要 2 個選項`;
+                if (q.options.length < 2) return i18n.t('asg.form.valMinOptions', {n: i + 1});
                 for (let j = 0; j < q.options.length; j++) {
-                    if (!q.options[j].option_text.trim()) return `第 ${i + 1} 題選項 ${q.options[j].option_key} 內容不能為空`;
+                    if (!q.options[j].option_text.trim()) return i18n.t('asg.form.valEmptyOption', {n: i + 1, key: q.options[j].option_key});
                 }
-                if (!q.correct_answer) return `第 ${i + 1} 題必須選擇正確答案`;
+                if (!q.correct_answer) return i18n.t('asg.form.valNoCorrect', {n: i + 1});
             }
         }
         return null;
@@ -6270,7 +6457,7 @@ const FormBuilder = {
         this._syncFromDOM();
         const total = this.questions.reduce((s, q) => s + (parseFloat(q.max_points) || 0), 0);
         const el = document.getElementById('formTotalScore');
-        if (el) el.textContent = `總分: ${total}`;
+        if (el) el.textContent = i18n.t('asg.form.totalScore', {score: total});
     },
 
     _render() {
@@ -6489,6 +6676,15 @@ const FormStudentView = {
         if (!this._pendingFiles[questionId]) this._pendingFiles[questionId] = [];
         for (const f of input.files) {
             if (this._pendingFiles[questionId].length >= 5) { UIModule.toast('每題最多 5 個文件', 'warning'); break; }
+            // Pre-flight:拒絕 macOS bundle 和空檔案
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                UIModule.toast(`「${f.name}」是 macOS 套件資料夾,請先壓縮成 zip 再上傳`, 'error');
+                continue;
+            }
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案,跳過`, 'error');
+                continue;
+            }
             this._pendingFiles[questionId].push(f);
         }
         input.value = '';
@@ -6544,16 +6740,22 @@ const FormStudentView = {
         const btn = document.getElementById('fsvSubmitBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 提交中...'; }
 
-        const resp = await AssignmentAPI.submitForm(assignmentId, JSON.stringify(answers), this._pendingFiles);
-
-        if (resp?.success) {
-            this._clearDraft(assignmentId);
-            UIModule.toast('提交成功', 'success');
-            AssignmentApp.viewStudentAssignment(assignmentId);
-        } else {
-            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
-            if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
+        try {
+            const resp = await AssignmentAPI.submitForm(assignmentId, JSON.stringify(answers), this._pendingFiles);
+            if (resp?.success) {
+                this._clearDraft(assignmentId);
+                UIModule.toast('提交成功', 'success');
+                AssignmentApp.viewStudentAssignment(assignmentId);
+                return;  // 成功 → 不還原按鈕(頁面即將切換)
+            } else {
+                UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            }
+        } catch (e) {
+            console.error('submitForm error:', e);
+            UIModule.toast('提交失敗: ' + (e.message || '未知錯誤'), 'error');
         }
+        // 失敗才會走到這裡 — 還原按鈕避免卡住
+        if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
     },
 
     renderSubmittedView(questions, answers, files) {

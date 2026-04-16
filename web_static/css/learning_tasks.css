@@ -467,6 +467,7 @@ body {
     flex-shrink: 0;
 }
 
+/* 保留舊 class 僅為向後兼容，新介面改用 .task-item-action */
 .task-item-link {
     display: inline-flex;
     align-items: center;
@@ -519,6 +520,125 @@ body {
 .task-item-tag.website {
     background-color: rgba(155, 89, 182, 0.15);
     color: var(--tag-website);
+}
+
+/* ==================================================
+   行動按鈕（取代右側 ↗ 小圖示）
+   - 44 px 最小觸控面積
+   - 動詞文案 + 圖示 + 箭頭 = 明確可點擊
+   - tag 顏色作為按鈕底色，保留視覺分類
+   ================================================== */
+.task-item-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    margin-top: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    /* 預設（website/其他）*/
+    background-color: rgba(0, 102, 51, 0.1);
+    color: var(--brand-color);
+    border: 1px solid rgba(0, 102, 51, 0.2);
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.task-item-action__icon {
+    flex-shrink: 0;
+}
+
+.task-item-action__text {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-item-action__arrow {
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.task-item-action:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.task-item-action:hover .task-item-action__arrow {
+    opacity: 1;
+    transform: translate(2px, -2px);
+}
+
+.task-item-action:active {
+    transform: translateY(0);
+}
+
+.task-item-action:focus-visible {
+    outline: 2px solid var(--brand-color);
+    outline-offset: 2px;
+}
+
+/* Tag 顏色變體 */
+.task-item-action.video {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: var(--tag-video);
+    border-color: rgba(255, 59, 48, 0.25);
+}
+
+.task-item-action.doc {
+    background-color: rgba(10, 132, 255, 0.1);
+    color: var(--tag-doc);
+    border-color: rgba(10, 132, 255, 0.25);
+}
+
+.task-item-action.cert {
+    background-color: rgba(255, 149, 0, 0.12);
+    color: #FF9500;
+    border-color: rgba(255, 149, 0, 0.3);
+}
+
+.task-item-action.practice {
+    background-color: rgba(52, 199, 89, 0.1);
+    color: var(--tag-practice);
+    border-color: rgba(52, 199, 89, 0.25);
+}
+
+.task-item-action.website {
+    background-color: rgba(155, 89, 182, 0.1);
+    color: var(--tag-website);
+    border-color: rgba(155, 89, 182, 0.25);
+}
+
+.task-item.completed .task-item-action {
+    filter: grayscale(50%);
+}
+
+/* 手機：按鈕變為全寬 + 更大觸控面積 */
+@media (max-width: 768px) {
+    .task-item-action {
+        display: flex;
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+        font-size: 15px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .task-item-action,
+    .task-item-action__arrow {
+        transition: none;
+    }
+    .task-item-action:hover {
+        transform: none;
+    }
 }
 
 .completion-badge {

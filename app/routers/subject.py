@@ -70,12 +70,20 @@ async def get_admin_subjects(request: Request):
             from app.core.exceptions import AuthorizationError
             raise AuthorizationError("需要教师或管理员权限")
 
+        import os
         subjects = get_services().subject.list_subjects(detailed=True)
         # 前端期望 {subjects: {code: {name, icon, config: {...}}, ...}} 格式
         subjects_dict = {}
         for s in subjects:
             code = s.get("subject_code", "")
             config = s.get("config", {}) if isinstance(s.get("config"), dict) else {}
+            # 从文件系统读取真实文档数（config.doc_count 从未被更新，不可靠）
+            kb_dir = os.path.join("Knowledge_base", code)
+            try:
+                real_count = len([f for f in os.listdir(kb_dir) if not f.startswith(".")]) if os.path.isdir(kb_dir) else 0
+            except OSError:
+                real_count = 0
+            config["doc_count"] = real_count
             subjects_dict[code] = {
                 "code": code,
                 "name": s.get("subject_name", code),

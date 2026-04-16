@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-TW" style="color-scheme: light only;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="me.page.title">我的考試成績</title>
+    <link rel="stylesheet" href="/static/css/my_exams.css?v=20260415a">
+    <script src="/static/js/shared/i18n.js?v=20260415a"></script>
+    <script src="/static/js/shared/i18n/common.js?v=20260415a"></script>
+    <script src="/static/js/shared/i18n/my_exams.js?v=20260415a"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <a href="/" class="topbar-back" title="返回">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </a>
+                <h1 class="topbar-title" data-i18n="me.page.title">我的考試成績</h1>
+            </div>
+            <button class="lang-toggle" onclick="i18n.toggle()">中/EN</button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <div class="loading-spinner" style="margin:80px auto;"></div>
+        </main>
+    </div>
+
+    <script src="/static/js/my_exams.js?v=20260415a"></script>
+    <script>MyExamsApp.init();</script>
+</body>
+</html>

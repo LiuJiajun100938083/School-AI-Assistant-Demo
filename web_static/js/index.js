@@ -47,6 +47,7 @@ const HomeAPI = {
             window.location.href = '/login';
             throw new Error('Session expired');
         }
+        // 429 不視為認證失敗，直接返回讓調用方處理
         return resp;
     },
 
@@ -171,9 +172,22 @@ const HomeUI = {
         learning_task_admin:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
         game_upload:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>',
         assignment:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>',
+        dictation:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
         class_diary_review:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="16" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg>',
         exam_creator:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
         admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
+        collab_board:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
+        tool_qrcode:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="17" y1="14" x2="17" y2="14.01"/><line x1="20" y1="14" x2="20" y2="17"/><line x1="14" y1="20" x2="17" y2="20"/><line x1="20" y1="20" x2="20" y2="20.01"/><line x1="17" y1="17" x2="17" y2="20"/></svg>',
+        tool_image_convert:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><path d="M12 5l3 3-3 3"/></svg>',
+        tool_pdf_merge:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="12" y1="11" x2="12" y2="19"/></svg>',
+        tool_countdown:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 14.5"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="12" y1="2" x2="12" y2="4"/></svg>',
+        tool_roll_call:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
+        tool_md_reader:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>',
+        tool_handwriting_math:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l5-5"/><circle cx="9" cy="15" r="4"/><path d="M17 4l3 3-7 7"/><path d="M15 6l3 3"/></svg>',
+        pet_teacher:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+        pet:              '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="17" rx="5" ry="4"/><circle cx="7" cy="10" r="2"/><circle cx="11" cy="6.5" r="2"/><circle cx="17" cy="10" r="2"/><circle cx="15" cy="5" r="1.5"/></svg>',
+        tool_laser_engrave:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8l4-2"/><circle cx="12" cy="16" r="5"/><path d="M12 13v6"/><path d="M9 16h6"/></svg>',
+        exam_grader:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
     },
 
     /* ---------- 分組配置 ---------- */
@@ -182,8 +196,9 @@ const HomeUI = {
         learning:  { i18nKey: 'category.learning',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
         community: { i18nKey: 'category.community',  order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
         teaching:  { i18nKey: 'category.teaching',   order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
-        admin:     { i18nKey: 'category.system',     order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
-        other:     { i18nKey: 'category.other',      order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
+        utilities: { i18nKey: 'category.utilities',  order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>' },
+        admin:     { i18nKey: 'category.system',     order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
+        other:     { i18nKey: 'category.other',      order: 6, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
     },
 
     /* ---------- Sidebar 導航 ---------- */
@@ -358,6 +373,8 @@ const HomeUI = {
    APP — 主控制器
    ============================================================ */
 
+function _esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 const HomeApp = {
 
     state: {
@@ -384,8 +401,9 @@ const HomeApp = {
         }
 
         if (this.state.authToken) {
-            await this._verifyToken();
-            this._playSplashAnimation();
+            // 動畫與數據加載並行，不阻塞
+            const dataReady = this._verifyToken();
+            await this._playSplashAnimation(dataReady);
         } else {
             window.location.href = '/login';
         }
@@ -491,13 +509,28 @@ const HomeApp = {
 
     _filterByCategory(cat) {
         const groups = document.querySelectorAll('.home-group');
+        const visible = [];
         groups.forEach(group => {
-            if (cat === 'all') {
-                group.style.display = '';
-            } else {
-                group.style.display = group.dataset.category === cat ? '' : 'none';
-            }
+            const show = (cat === 'all') || (group.dataset.category === cat);
+            group.style.display = show ? '' : 'none';
+            if (show) visible.push(group);
+            // remove animation class so we can re-trigger
+            group.classList.remove('home-group--animate-in');
         });
+
+        // Force reflow once to reset animations, then re-add the class with stagger
+        // (use requestAnimationFrame so layout settles before animations start)
+        if (visible.length > 0) {
+            // Trigger reflow on first visible
+            // eslint-disable-next-line no-unused-expressions
+            void visible[0].offsetWidth;
+            requestAnimationFrame(() => {
+                visible.forEach((g, i) => {
+                    g.style.setProperty('--home-stagger-delay', (i * 60) + 'ms');
+                    g.classList.add('home-group--animate-in');
+                });
+            });
+        }
     },
 
     /* ---------- 認證 ---------- */
@@ -505,20 +538,27 @@ const HomeApp = {
     async _verifyToken() {
         try {
             const response = await HomeAPI.verify();
+
+            // 429 = 限流，不代表 token 失效，不應清除登入狀態
+            if (response.status === 429) {
+                console.warn('[HomeApp] 驗證請求被限流，保留登入狀態');
+                // 嘗試等待後重試一次
+                const retryAfter = parseInt(response.headers.get('Retry-After') || '3', 10);
+                await new Promise(r => setTimeout(r, retryAfter * 1000));
+                const retry = await HomeAPI.verify();
+                if (retry.ok) {
+                    const result = await retry.json();
+                    if (result.success) return this._applyUserProfile(result.data);
+                }
+                // 重試仍失敗，但 token 可能有效，先載入基礎頁面
+                this._loadHomeApps();
+                return;
+            }
+
             if (response.ok) {
                 const result = await response.json();
                 if (!result.success) throw new Error(i18n.t('token.verifyFailed'));
-                const userProfile = result.data;
-                this.state.currentUser = userProfile.username;
-                this.state.userRole = userProfile.role || 'student';
-                this.state.isAdmin = (this.state.userRole === 'admin');
-                this.state.isTeacher = (this.state.userRole === 'teacher');
-
-                await this._loadSubjectOptions();
-
-                this.state.userInfo = userProfile;
-                this._loadHomeApps();
-                HomeUI.updateHomeUserInfo(userProfile);
+                this._applyUserProfile(result.data);
             } else {
                 throw new Error(i18n.t('token.verifyFailed'));
             }
@@ -527,6 +567,20 @@ const HomeApp = {
             this._clearAuth();
             window.location.href = '/login';
         }
+    },
+
+    /** 驗證成功後套用用戶資料 */
+    _applyUserProfile(userProfile) {
+        this.state.currentUser = userProfile.username;
+        this.state.userRole = userProfile.role || 'student';
+        this.state.isAdmin = (this.state.userRole === 'admin');
+        this.state.isTeacher = (this.state.userRole === 'teacher');
+        this.state.userInfo = userProfile;
+
+        this._loadSubjectOptions();
+        this._loadHomeApps();
+        HomeUI.updateHomeUserInfo(userProfile);
+        this._loadHomePetWidget();
     },
 
     logout() {
@@ -554,7 +608,7 @@ const HomeApp = {
             el.passwordError.textContent = i18n.t('password.emptyFields');
             return;
         }
-        if (newPassword.length < 4) {
+        if (newPassword.length < 8) {
             el.passwordError.textContent = i18n.t('password.tooShort');
             return;
         }
@@ -569,12 +623,552 @@ const HomeApp = {
             if (response.ok && result.success) {
                 alert(i18n.t('password.success'));
                 HomeUI.hideChangePasswordModal();
+                AuthModule.clearAll();
+                window.location.href = '/login';
+                return;
             } else {
                 el.passwordError.textContent = result.detail || i18n.t('password.failed');
             }
         } catch (error) {
             console.error(i18n.t('password.error') + ':', error);
             el.passwordError.textContent = i18n.t('common.networkError');
+        }
+    },
+
+    /* ---------- 宠物组件（主页迷你版） ---------- */
+
+    async _loadHomePetWidget() {
+        try {
+            var token = this.state.authToken;
+            var res = await fetch('/api/pet/me', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!res.ok) return;
+            var data = await res.json();
+
+            var widget = document.getElementById('homePetWidget');
+            if (!widget) return;
+            widget.style.display = 'block';
+
+            // ── 状态 A：无宠物 → 像素蛋 + 领养按钮 ──
+            if (!data.has_pet) {
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarEggCanvas" width="256" height="256"></canvas>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
+                    '</div>';
+                var eggCanvas = document.getElementById('sidebarEggCanvas');
+                if (eggCanvas && window.PetRenderer) {
+                    var eggData = { color_id: 12, body_type: 0, eyes_id: 0, ears_id: 8, tail_id: 7, stage: 'egg', hunger: 100, hygiene: 100 };
+                    PetRenderer.create(eggCanvas, eggData, { mini: true });
+                }
+                this._showPetIntroBubble('egg');
+                return;
+            }
+
+            var pet = data.pet;
+
+            // ── 状态 B：宠物还在蛋阶段 → 像素蛋 + 宠物名 ──
+            if (pet.stage === 'egg') {
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarEggCanvas" width="256" height="256"></canvas>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-adopt__text">' + _esc(pet.pet_name || '') + '</div>' +
+                    '</div>';
+                var eggCanvas = document.getElementById('sidebarEggCanvas');
+                if (eggCanvas && window.PetRenderer) {
+                    var eggData = {
+                        color_id: pet.color_id || 0, body_type: 0, eyes_id: 0,
+                        ears_id: 8, tail_id: 7, stage: 'egg', hunger: 100, hygiene: 100
+                    };
+                    PetRenderer.create(eggCanvas, eggData, { mini: true });
+                }
+                return;
+            }
+
+            // ── 状态 C：宠物升到幼年但还没破壳 → 破壳仪式 ──
+            if (localStorage.getItem('pet_needs_hatch')) {
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" id="sidebarHatchCard">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarHatchCanvas" width="256" height="256"></canvas>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-adopt__text" id="sidebarHatchHint">\uD83E\uDD5A \u70B9\u51FB\u7834\u58F3\uFF01</div>' +
+                    '</div>';
+
+                this._showHatchPopup();
+
+                var hatchCanvas = document.getElementById('sidebarHatchCanvas');
+                if (hatchCanvas && window.PetRenderer) {
+                    var hatchEggData = {
+                        color_id: pet.color_id || 0, body_type: pet.body_type || 0,
+                        eyes_id: pet.eyes_id || 0, ears_id: pet.ears_id || 0,
+                        tail_id: pet.tail_id || 0, stage: 'egg',
+                        hunger: 100, hygiene: 100
+                    };
+                    var hatchRenderer = PetRenderer.create(hatchCanvas, hatchEggData, { mini: true });
+                    var self = this;
+
+                    document.getElementById('sidebarHatchCard').onclick = function () {
+                        if (!hatchRenderer) return;
+                        var hatched = hatchRenderer.crackEgg();
+                        var hint = document.getElementById('sidebarHatchHint');
+                        var level = hatchRenderer.getEggCrackLevel();
+
+                        if (level === 1 && hint) hint.textContent = '\u26A1 \u518D\u70B9\u4E00\u6B21\uFF01';
+                        else if (level === 2 && hint) hint.textContent = '\u26A1 \u5FEB\u8981\u7834\u58F3\u4E86\uFF01';
+
+                        if (hatched) {
+                            if (hint) hint.textContent = '\u2728 \u5B9D\u5B9D\u8BDE\u751F\u4E86\uFF01';
+                            setTimeout(function () {
+                                localStorage.removeItem('pet_needs_hatch');
+                                hatchRenderer.destroy();
+                                hatchRenderer = null;
+                                var popup = document.getElementById('petHatchPopup');
+                                if (popup) popup.remove();
+                                self._loadHomePetWidget();
+                            }, 2500);
+                        }
+                    };
+                }
+                return;
+            }
+
+            // ── 状态 D：正常宠物卡片 ──
+            widget.innerHTML =
+                '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
+                    '<div class="sidebar-pet-name">' + _esc(pet.pet_name || '') + '</div>' +
+                    '<div class="sidebar-pet-stats">' +
+                        '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
+                        '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
+                        '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
+                    '</div>' +
+                    '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
+                '</div>';
+
+            if (!localStorage.getItem('pet_intro_seen')) {
+                this._showPetIntroBubble('intro');
+            }
+
+            this._initRoamingPet(data);
+        } catch (e) {
+            console.warn('Pet widget load failed:', e);
+        }
+    },
+
+    _showPetIntroBubble(type) {
+        // 避免重复显示
+        if (document.getElementById('petIntroBubble')) return;
+
+        var isZh = !window.i18n || i18n.isZh !== false;
+
+        var messages = {
+            egg: {
+                title: isZh ? '🥚 嘿！我在这裡！' : '🥚 Hey! I\'m here!',
+                lines: isZh ? [
+                    '🐾 我是你的專屬寵物精靈',
+                    '📚 完成學習任務可以賺金幣',
+                    '🛒 金幣可以買食物養我長大',
+                    '🏆 和同學比比誰養得最好！',
+                    '',
+                    '👈 點擊左邊領養我吧！'
+                ] : [
+                    '🐾 I\'m your virtual pet!',
+                    '📚 Earn coins by learning',
+                    '🛒 Buy food to grow me',
+                    '🏆 Compete with classmates!',
+                    '',
+                    '👈 Click left to adopt me!'
+                ]
+            },
+            intro: {
+                title: isZh ? '💡 你知道嗎？' : '💡 Did you know?',
+                lines: isZh ? [
+                    '🍖 記得餵我吃東西哦~',
+                    '📚 默寫、做題、玩遊戲都能賺金幣',
+                    '🧼 用金幣買清潔用品幫我洗澡',
+                    '🔥 連續學習天數越多，金幣加倍！',
+                    '💬 點我還可以跟我聊天～'
+                ] : [
+                    '🍖 Remember to feed me!',
+                    '📚 Earn coins from quizzes & games',
+                    '🧼 Buy soap to keep me clean',
+                    '🔥 Streak = coin multiplier!',
+                    '💬 Click me to chat!'
+                ]
+            }
+        };
+
+        var msg = messages[type] || messages.intro;
+
+        var bubble = document.createElement('div');
+        bubble.id = 'petIntroBubble';
+        bubble.className = 'pet-intro-bubble';
+        bubble.innerHTML =
+            '<div class="pet-intro-bubble__close" id="petIntroBubbleClose">&times;</div>' +
+            '<div class="pet-intro-bubble__title">' + msg.title + '</div>' +
+            '<div class="pet-intro-bubble__body">' +
+                msg.lines.map(function(l) { return l ? '<div>' + l + '</div>' : '<div style="height:4px;"></div>'; }).join('') +
+            '</div>';
+
+        // 用 fixed 定位到 sidebar pet widget 附近（避免被 overflow 裁掉）
+        var widget = document.getElementById('homePetWidget');
+        bubble.style.position = 'fixed';
+        bubble.style.left = '8px';
+        bubble.style.width = '180px';
+        bubble.style.zIndex = '60';
+
+        if (widget) {
+            var rect = widget.getBoundingClientRect();
+            bubble.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            bubble.style.left = rect.left + 'px';
+            bubble.style.width = Math.max(180, rect.width) + 'px';
+        } else {
+            bubble.style.bottom = '120px';
+        }
+
+        document.body.appendChild(bubble);
+
+        // 关闭按钮
+        document.getElementById('petIntroBubbleClose').onclick = function(e) {
+            e.stopPropagation();
+            bubble.style.animation = 'petIntroOut 0.2s ease-in forwards';
+            setTimeout(function() { bubble.remove(); }, 250);
+            localStorage.setItem('pet_intro_seen', '1');
+        };
+
+        // 15 秒后自动消失
+        setTimeout(function() {
+            if (bubble.parentElement) {
+                bubble.style.animation = 'petIntroOut 0.3s ease-in forwards';
+                setTimeout(function() { bubble.remove(); }, 350);
+                localStorage.setItem('pet_intro_seen', '1');
+            }
+        }, 15000);
+    },
+
+    _showHatchPopup() {
+        if (document.getElementById('petHatchPopup')) return;
+
+        var isZh = !window.i18n || i18n.isZh !== false;
+        var text = isZh
+            ? '\u4F60\u7684\u5BA0\u7269\u51C6\u5907\u597D\u7834\u58F3\u4E86\uFF01\u70B9\u51FB\u51E0\u4E0B\u5C31\u80FD\u89C1\u5230\u5B83\u5566\uFF01'
+            : 'Your pet is ready to hatch! Click a few times to meet it!';
+
+        var popup = document.createElement('div');
+        popup.id = 'petHatchPopup';
+        popup.className = 'pet-hatch-popup';
+        popup.innerHTML = '<div class="pet-hatch-popup__text">\uD83E\uDD5A ' + text + '</div>';
+
+        var widget = document.getElementById('homePetWidget');
+        popup.style.position = 'fixed';
+        popup.style.left = '8px';
+        popup.style.width = '180px';
+
+        if (widget) {
+            var rect = widget.getBoundingClientRect();
+            popup.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            popup.style.left = rect.left + 'px';
+            popup.style.width = Math.max(180, rect.width) + 'px';
+        } else {
+            popup.style.bottom = '120px';
+        }
+
+        document.body.appendChild(popup);
+
+        setTimeout(function () {
+            if (popup.parentElement) {
+                popup.style.animation = 'petIntroOut 0.3s ease-in forwards';
+                setTimeout(function () { popup.remove(); }, 350);
+            }
+        }, 8000);
+    },
+
+    _initRoamingPet(data) {
+        var pet = data.pet;
+        var floater = document.getElementById('roamingPet');
+        var floatCanvas = document.getElementById('roamingPetCanvas');
+        var infoEl = document.getElementById('roamingPetInfo');
+        var bubbleEl = document.getElementById('roamingPetBubble');
+        if (!floater || !floatCanvas || !window.PetRenderer) return;
+
+        // sidebar 里的宠物 canvas（待在框里的状态）
+        var sidebarWidget = document.getElementById('homePetWidget');
+        var sidebarCard = sidebarWidget ? sidebarWidget.querySelector('.sidebar-pet-card') : null;
+
+        // 在 sidebar 框里渲染宠物（初始状态）
+        if (sidebarCard) {
+            var sidebarCanvasHtml = '<canvas id="sidebarPetCanvas" width="256" height="256" style="width:100px;height:100px;image-rendering:pixelated;"></canvas>';
+            sidebarCard.insertAdjacentHTML('afterbegin', sidebarCanvasHtml);
+            var sidebarCanvas = document.getElementById('sidebarPetCanvas');
+            if (sidebarCanvas) {
+                this._sidebarRenderer = PetRenderer.create(sidebarCanvas, pet, { mini: true });
+            }
+        }
+
+        // 浮动宠物初始隐藏（只有跑出来时显示）
+        floater.style.display = 'none';
+        if (infoEl) infoEl.textContent = pet.pet_name || '';
+        var floatRenderer = PetRenderer.create(floatCanvas, pet, { mini: true });
+
+        var isOut = false;  // 是否在外面漫游
+        var currentX = 80;
+        var roamTimer = null;
+        var self = this;
+
+        // ── 分类消息系统（60+ 条）──
+        var PET_MESSAGES = {
+            morning:   ['☀️ 早安！新的一天加油！','🌅 早上好～今天也要努力哦！','📖 早读时间到！一起学习吧！','🥛 吃过早餐了吗？','🌤️ 美好的一天开始啦～'],
+            afternoon: ['☀️ 下午好～别打瞌睡哦！','📚 下午也要认真学习！','🍵 喝点水休息一下吧～','💪 下午的课也要加油！','🌻 午后时光真好～'],
+            evening:   ['🌙 晚上好～作业写完了吗？','✨ 晚安前记得复习哦！','🌟 今天辛苦啦！','📝 睡前回顾一下今天学的吧～','💤 别太晚睡哦！'],
+            night:     ['🌙 这么晚了还没睡呀？','💤 早点休息，明天才有精神！','🛏️ 该睡觉啦，晚安～'],
+            hungry:    ['🍕 好饿...想吃东西...','🍔 肚子咕咕叫了～','🍖 喂我吃东西嘛！','😢 饿得没力气了...'],
+            dirty:     ['🫧 我需要洗澡澡～','🧼 感觉身上脏脏的...','🚿 帮我洗个澡吧！','😣 好想泡个热水澡...'],
+            sadMood:   ['😢 好无聊，陪我玩嘛...','😔 今天心情不太好...','🥺 摸摸我嘛...','😿 好想要人陪...'],
+            happyMood: ['🎉 我好开心！','❤️ 有你真好！','😆 嘻嘻，今天超棒的！','🌈 心情好好～想跳舞！','✨ 幸福满满！'],
+            study:     ['📚 写完作业了吗？','✏️ 今天的功课要加油哦！','📖 一起来复习吧！','🧠 多动脑筋，越来越聪明！','📝 不懂的题目要问老师哦！','💡 学习就像闯关！','🏆 坚持就是胜利！','📊 错题记得整理哦！','🎯 今天的学习目标完成了吗？','🌟 每天进步一点点！'],
+            streak:    ['🔥 连续打卡好厉害！','📅 坚持学习，继续加油！','💪 连续签到中，别断了哦！'],
+            general:   ['😊 嘿嘿～','🌟 今天天气真好！','🎵 哼哼哼～','🐾 在做什么呀？','💭 在发呆中...','🎈 无聊无聊～'],
+        };
+        var _lastPick = {};
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function pickRoamMessage() {
+            var hour = new Date().getHours();
+            var pool = [];
+            // 状态紧急
+            if (pet.hunger < 40)  pool.push({cat:'hungry',  anim:'sad',   w:5});
+            if (pet.hygiene < 40) pool.push({cat:'dirty',   anim:'sad',   w:5});
+            if (pet.mood < 40)    pool.push({cat:'sadMood', anim:'sad',   w:5});
+            // 快乐
+            if (pet.mood >= 80)   pool.push({cat:'happyMood',anim:'happy',w:3});
+            // 连续打卡
+            var sk = (data.streak && data.streak.current_streak) || 0;
+            if (sk >= 3)          pool.push({cat:'streak',  anim:'happy', w:2});
+            // 时段
+            var tc = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+            pool.push({cat:tc,    anim:'idle', w:3});
+            pool.push({cat:'study',  anim:'idle', w:3});
+            pool.push({cat:'general',anim:'idle', w:1});
+
+            // 加权随机
+            var total = pool.reduce(function(s,p){return s+p.w;},0);
+            var r = Math.random() * total, acc = 0, chosen = pool[pool.length-1];
+            for (var i=0;i<pool.length;i++){acc+=pool[i].w;if(r<acc){chosen=pool[i];break;}}
+
+            // 避免连续重复
+            var msgs = PET_MESSAGES[chosen.cat];
+            var idx = randomInt(0, msgs.length - 1);
+            if (_lastPick[chosen.cat] === idx && msgs.length > 1) idx = (idx + 1) % msgs.length;
+            _lastPick[chosen.cat] = idx;
+
+            return {text: msgs[idx], anim: chosen.anim, dur: 3000};
+        }
+
+        // ── 侧边栏卡片内随机动画 ──
+        var sidebarAnimTimer = null;
+        var sidebarRenderer = self._sidebarRenderer;
+        var sidebarAnims = [
+            {anim:'happy',  dur:2000},
+            {anim:'dance',  dur:2500},
+            {anim:'tickle', dur:1200},
+            {anim:'pat',    dur:1200},
+            {anim:'poke',   dur:800},
+            {anim:'eat',    dur:2000},
+            {anim:'sleep',  dur:2500},
+        ];
+        function sidebarIdleLoop() {
+            if (isOut || !sidebarRenderer) return;
+            var a = sidebarAnims[randomInt(0, sidebarAnims.length - 1)];
+            sidebarRenderer.setState(a.anim, a.dur);
+            sidebarAnimTimer = setTimeout(sidebarIdleLoop, a.dur + randomInt(4000, 10000));
+        }
+        sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(3000, 8000));
+
+        // ── 从框里跑出来 ──
+        function comeOut() {
+            if (isOut) return;
+            isOut = true;
+            if (sidebarAnimTimer) { clearTimeout(sidebarAnimTimer); sidebarAnimTimer = null; }
+
+            var sc = document.getElementById('sidebarPetCanvas');
+            if (sc) sc.style.display = 'none';
+
+            var startX = 40, startBottom = 60;
+            if (sidebarCard) {
+                var rect = sidebarCard.getBoundingClientRect();
+                startX = rect.left;
+                startBottom = window.innerHeight - rect.bottom + 10;
+            }
+
+            floater.style.transition = 'none';
+            floater.style.left = startX + 'px';
+            floater.style.bottom = startBottom + 'px';
+            floater.style.display = 'block';
+
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
+                    var targetX = randomInt(200, Math.max(400, window.innerWidth - 200));
+                    floater.style.left = targetX + 'px';
+                    floater.style.bottom = '10px';
+                    currentX = targetX;
+                    floatRenderer.setState('dance', 3000);
+                });
+            });
+
+            // 到达后显示时段问候
+            setTimeout(function() {
+                if (bubbleEl) {
+                    var picked = pickRoamMessage();
+                    bubbleEl.textContent = picked.text;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, 3000);
+                }
+            }, 3200);
+
+            roamTimer = setTimeout(doRoam, randomInt(8000, 15000));
+        }
+
+        // ── 回到框里 ──
+        function goHome() {
+            if (!isOut) return;
+
+            var homeX = 40;
+            if (sidebarCard) homeX = sidebarCard.getBoundingClientRect().left;
+
+            if (homeX < currentX) floater.classList.add('home-roaming-pet--flip');
+            else floater.classList.remove('home-roaming-pet--flip');
+
+            floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
+            floater.style.left = homeX + 'px';
+            floatRenderer.setState('dance', 3000);
+
+            setTimeout(function() {
+                floater.style.display = 'none';
+                floater.classList.remove('home-roaming-pet--flip');
+                isOut = false;
+                var sc = document.getElementById('sidebarPetCanvas');
+                if (sc) sc.style.display = '';
+                // 恢复侧边栏动画
+                sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(3000, 8000));
+                roamTimer = setTimeout(comeOut, randomInt(15000, 30000));
+            }, 3200);
+        }
+
+        // ── 漫游行为（新增 micro 动作）──
+        var microAnims = [
+            {anim:'sleep',  dur:2500, text:'💤 哈欠～'},
+            {anim:'tickle', dur:1500, text:'🙆 伸个懒腰～'},
+            {anim:'dance',  dur:2000, text:'👀 看看四周...'},
+            {anim:'eat',    dur:2000, text:'🍬 想吃零食...'},
+            {anim:'bath',   dur:1800, text:'💦 甩甩毛～'},
+        ];
+
+        function doRoam() {
+            if (!isOut) return;
+            var actions = ['walk', 'walk', 'happy', 'micro', 'goHome', 'idle'];
+            var action = actions[randomInt(0, actions.length - 1)];
+
+            if (action === 'walk') {
+                var targetX = randomInt(150, Math.max(400, window.innerWidth - 150));
+                if (targetX < currentX) floater.classList.add('home-roaming-pet--flip');
+                else floater.classList.remove('home-roaming-pet--flip');
+                floater.style.left = targetX + 'px';
+                currentX = targetX;
+                floatRenderer.setState('dance', 3500);
+
+            } else if (action === 'happy') {
+                var picked = pickRoamMessage();
+                floatRenderer.setState(picked.anim, picked.dur);
+                if (bubbleEl) {
+                    bubbleEl.textContent = picked.text;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, picked.dur);
+                }
+
+            } else if (action === 'micro') {
+                var m = microAnims[randomInt(0, microAnims.length - 1)];
+                floatRenderer.setState(m.anim, m.dur);
+                if (bubbleEl && Math.random() > 0.3) {
+                    bubbleEl.textContent = m.text;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, m.dur);
+                }
+
+            } else if (action === 'goHome') {
+                goHome();
+                return;
+
+            } else { /* idle */ }
+
+            roamTimer = setTimeout(doRoam, randomInt(6000, 12000));
+        }
+
+        // ── 点击反应（6 种 + 状态感知）──
+        var clickReactions = [
+            {anim:'happy',  msgs:['😊 嘿嘿~','😆 哈哈哈！','🎉 好开心！']},
+            {anim:'pat',    msgs:['✨ 好舒服~','😌 再摸摸~','❤️ 最喜欢被摸了！']},
+            {anim:'poke',   msgs:['💢 别戳我啦!','😤 哼！','👉 戳什么戳！']},
+            {anim:'tickle', msgs:['🌟 好痒好痒!','😂 哈哈停下！','🤣 不要挠了！']},
+            {anim:'dance',  msgs:['💃 一起跳舞！','🎵 摇摆摇摆～','🕺 看我跳！']},
+            {anim:'eat',    msgs:['🍰 有吃的吗？','🍪 想吃饼干！']},
+        ];
+
+        function onPetClick(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var pool = clickReactions.slice();
+            if (pet.hunger < 40) pool.push({anim:'sad', msgs:['😢 好饿...先喂我嘛','🍕 给我吃的！']});
+            if (pet.mood >= 80) pool.push({anim:'happy', msgs:['🥰 超爱你！','💖 幸福！']});
+
+            var reaction = pool[randomInt(0, pool.length - 1)];
+            floatRenderer.setState(reaction.anim, 1500);
+            if (bubbleEl) {
+                bubbleEl.textContent = reaction.msgs[randomInt(0, reaction.msgs.length - 1)];
+                bubbleEl.style.display = '';
+                setTimeout(function() { bubbleEl.style.display = 'none'; }, 2500);
+            }
+        }
+        floater.addEventListener('click', onPetClick);
+        floatCanvas.addEventListener('click', onPetClick);
+        floatCanvas.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+
+        // 点击 sidebar 卡片也跳转
+        if (sidebarCard) {
+            sidebarCard.onclick = function() { window.location = '/pet'; };
+        }
+
+        // 页面不可见时暂停
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (roamTimer) { clearTimeout(roamTimer); roamTimer = null; }
+                if (sidebarAnimTimer) { clearTimeout(sidebarAnimTimer); sidebarAnimTimer = null; }
+            } else {
+                if (!roamTimer) {
+                    if (isOut) roamTimer = setTimeout(doRoam, randomInt(3000, 8000));
+                    else roamTimer = setTimeout(comeOut, randomInt(5000, 15000));
+                }
+                if (!sidebarAnimTimer && !isOut) {
+                    sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(2000, 5000));
+                }
+            }
+        });
+
+        // 初始：在框里待 10-20 秒后第一次出来
+        roamTimer = setTimeout(comeOut, randomInt(10000, 20000));
+
+        // 如果有消息，提前出来打招呼
+        if (data.message) {
+            clearTimeout(roamTimer);
+            roamTimer = setTimeout(comeOut, 3000);
         }
     },
 
@@ -694,8 +1288,9 @@ const HomeApp = {
 
     /* ---------- 啟動動畫 ---------- */
 
-    _playSplashAnimation() {
+    async _playSplashAnimation(dataReadyPromise) {
         if (typeof gsap === 'undefined') {
+            if (dataReadyPromise) await dataReadyPromise.catch(() => {});
             const splash = document.getElementById('splashScreen');
             if (splash) splash.style.display = 'none';
             return;
@@ -715,41 +1310,46 @@ const HomeApp = {
         const welcome      = document.querySelector('.home-welcome');
         const appsGrid     = document.querySelector('.home-apps-grid');
 
-        const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-
         // 隱藏主界面元素
         gsap.set([header, sidebar, welcome, appsGrid].filter(Boolean), { opacity: 0 });
 
-        const tl = gsap.timeline();
-
-        tl
-            // 第一幕：系統喚醒（全部同時出現）
+        /* ── 第一幕：系統喚醒（立即播放，不等網路） ── */
+        gsap.timeline()
             .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.35, ease: EASE
+                opacity: 1, scale: 1,
+                duration: 0.4, ease: 'power2.out'
             }, 0.05)
-            .to(splashLoader, { opacity: 1, duration: 0.15, ease: 'power2.out' }, 0.15)
-            .to(splashLoader, { opacity: 0, duration: 0.15, ease: 'power2.in' }, 0.45)
+            .to(splashLoader, { opacity: 1, duration: 0.2, ease: 'power2.out' }, 0.2);
 
-            // 第二幕：過渡
-            .to(glassPanel, { opacity: 1, duration: 0.15, ease: EASE }, 0.6)
-            .add(() => { splashScreen.style.display = 'none'; }, 0.75)
-            .add(() => {
-                if (header)  gsap.set(header,  { opacity: 0, y: -10 });
-                if (sidebar) gsap.set(sidebar, { opacity: 0, x: -10 });
-                if (welcome) gsap.set(welcome, { opacity: 0, y: 10 });
-                if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 10 });
-            }, 0.75)
-            .to(glassPanel, {
-                opacity: 0, duration: 0.2, ease: EASE,
-                onComplete() { glassPanel.style.display = 'none'; }
-            }, 0.78)
+        /* ── 等待數據就緒 + 最短展示時間 ── */
+        const minDisplay = new Promise(r => setTimeout(r, 600));
+        await Promise.all([minDisplay, dataReadyPromise].filter(Boolean)).catch(() => {});
 
-            // 第三幕：界面元素同時進入
-            .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
-                opacity: 1, y: 0, x: 0,
-                duration: 0.25, ease: 'power2.out'
-            }, 0.8);
+        /* ── 第二幕：絲滑過渡到主界面 ── */
+        return new Promise(resolve => {
+            gsap.timeline({ onComplete: resolve })
+                // 淡出加載動畫
+                .to(splashLoader, { opacity: 0, duration: 0.12, ease: 'power2.in' })
+                // 遮罩升起（蓋住 splash → 主界面切換）
+                .to(glassPanel, { opacity: 1, duration: 0.18, ease: 'power2.inOut' }, '-=0.04')
+                // 在遮罩完全不透明時切換底層內容
+                .add(() => {
+                    splashScreen.style.display = 'none';
+                    if (header)   gsap.set(header,   { opacity: 0, y: -10 });
+                    if (sidebar)  gsap.set(sidebar,  { opacity: 0, x: -10 });
+                    if (welcome)  gsap.set(welcome,  { opacity: 0, y:  10 });
+                    if (appsGrid) gsap.set(appsGrid, { opacity: 0, y:  10 });
+                })
+                // 遮罩淡出，同時主界面滑入（重疊動畫消除空隙）
+                .to(glassPanel, {
+                    opacity: 0, duration: 0.25, ease: 'power2.out',
+                    onComplete() { glassPanel.style.display = 'none'; }
+                })
+                .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
+                    opacity: 1, y: 0, x: 0,
+                    duration: 0.3, ease: 'power2.out'
+                }, '-=0.18');
+        });
     }
 };
 

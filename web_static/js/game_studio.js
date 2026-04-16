@@ -4,9 +4,14 @@
  * 架構：
  *   狀態層（本文件）— 單一數據源，驅動所有 UI 更新
  *   組件層 — ChatPanel / CodeEditor / PreviewFrame / UploadModal
- *   API 層 — 復用 shared/api.js + SSE fetch
+ *   API 層 — 復用 shared/api.js (APIClient) + SSE fetch
  *
  * 狀態流：idle → generating → preview → editing → submitting → done
+ *
+ * 與項目架構的整合：
+ *   - 使用 AuthModule.getToken() 獲取 JWT（非直接 localStorage）
+ *   - 非流式請求使用 APIClient（加載遊戲、上傳提交等）
+ *   - SSE 流式使用原生 fetch（APIClient 不支持 SSE，與 chat 模塊一致）
  */
 'use strict';
 
@@ -23,13 +28,16 @@ const GameStudio = (() => {
         generating: false,      // AI 是否正在生成
         editUUID: null,         // 編輯模式 game UUID
         dirty: false,           // 代碼是否被修改
+        attachments: [],        // 附件 [{filename, content, size, processing}]
     };
 
     let _abortController = null;
     let _progressTimer = null;
     let _progressValue = 0;
-    let _streamBuffer = '';  // 串流累積文字（用於進度條代碼預覽）
-    let _progressEl = null;  // 進度條 DOM 元素（掛在 chatMessages 內）
+    let _streamBuffer = '';
+    let _thinkingBuffer = '';  // 推理過程累積文字
+    let _thinkingEl = null;   // 推理過程 DOM 元素
+    let _progressEl = null;
 
     // ════════════════════════════════════════════════════
     // 狀態修改方法（所有 UI 變更都走這裡）
@@ -51,7 +59,6 @@ const GameStudio = (() => {
         state.code = code;
         state.dirty = code !== state.originalCode;
         _updatePreview();
-        // 如果在代碼模式，同步到編輯器
         if (state.mode === 'code') {
             document.getElementById('codeEditor').value = code;
         }
@@ -64,11 +71,31 @@ const GameStudio = (() => {
     }
 
     // ════════════════════════════════════════════════════
-    // 核心業務：AI 生成
+    // 核心業務：AI 生成（SSE 流式）
     // ════════════════════════════════════════════════════
 
     function _showProgress() {
         _progressValue = 5;
+        _thinkingBuffer = '';
+
+        // 創建推理過程氣泡（可折疊）
+        _thinkingEl = document.createElement('div');
+        _thinkingEl.className = 'gs-msg gs-msg--ai gs-thinking-msg';
+        _thinkingEl.id = 'thinkingBubble';
+        _thinkingEl.style.display = 'none';
+        _thinkingEl.innerHTML = `
+            <span class="gs-msg__label">AI</span>
+            <div class="gs-msg__body">
+                <div class="gs-thinking__header" id="thinkingToggle">
+                    <span>深度推理中...</span>
+                    <span class="gs-thinking__indicator" id="thinkingIndicator">▾</span>
+                </div>
+                <div class="gs-thinking__content" id="thinkingContent">
+                    <pre id="thinkingPre"></pre>
+                </div>
+            </div>`;
+
+        // 創建進度條氣泡
         _progressEl = document.createElement('div');
         _progressEl.className = 'gs-msg gs-msg--ai';
         _progressEl.id = 'genProgress';
@@ -77,19 +104,32 @@ const GameStudio = (() => {
             <div class="gs-msg__body">
                 <div class="gs-progress__label">
                     <span>正在生成遊戲...</span>
-                    <span>預計約 20 秒</span>
+                    <span>預計約 30-60 秒</span>
                 </div>
                 <div class="gs-progress__bar-track">
                     <div class="gs-progress__bar-fill" id="progressFill" style="width:5%"></div>
                 </div>
-                <div class="gs-progress__hint">AI 正在構建遊戲邏輯與介面</div>
+                <div class="gs-progress__hint">AI 正在深度推理並構建遊戲</div>
                 <div class="gs-progress__code"><pre id="progressCodePre"></pre></div>
             </div>`;
         const container = document.getElementById('chatMessages');
         if (container) {
+            container.appendChild(_thinkingEl);
             container.appendChild(_progressEl);
             container.scrollTop = container.scrollHeight;
         }
+        // 折疊/展開推理過程
+        _thinkingEl.querySelector('#thinkingToggle')?.addEventListener('click', () => {
+            const content = _thinkingEl.querySelector('#thinkingContent');
+            const indicator = _thinkingEl.querySelector('#thinkingIndicator');
+            if (content.classList.contains('gs-thinking__content--collapsed')) {
+                content.classList.remove('gs-thinking__content--collapsed');
+                indicator.textContent = '▾';
+            } else {
+                content.classList.add('gs-thinking__content--collapsed');
+                indicator.textContent = '▸';
+            }
+        });
         clearInterval(_progressTimer);
         _progressTimer = setInterval(() => {
             _progressValue = Math.min(_progressValue + 2, 92);
@@ -110,19 +150,59 @@ const GameStudio = (() => {
             _progressEl.remove();
             _progressEl = null;
         }
+        // 推理完成：折疊推理氣泡，更新標題
+        if (_thinkingEl && _thinkingBuffer) {
+            const header = _thinkingEl.querySelector('.gs-thinking__header span:nth-child(2)');
+            if (header) header.textContent = '深度推理過程';
+            const content = _thinkingEl.querySelector('#thinkingContent');
+            if (content) content.classList.add('gs-thinking__content--collapsed');
+            const indicator = _thinkingEl.querySelector('#thinkingIndicator');
+            if (indicator) indicator.textContent = '▸';
+            _thinkingEl = null;
+        } else if (_thinkingEl) {
+            _thinkingEl.remove();
+            _thinkingEl = null;
+        }
+    }
+
+    function _updateThinking(text) {
+        if (!_thinkingEl) return;
+        _thinkingEl.style.display = '';
+        const pre = _thinkingEl.querySelector('#thinkingPre');
+        if (!pre) return;
+        // 顯示最後 30 行
+        const lines = text.split('\n');
+        pre.textContent = lines.slice(-30).join('\n');
+        // 自動滾動到底部
+        const content = _thinkingEl.querySelector('#thinkingContent');
+        if (content) content.scrollTop = content.scrollHeight;
+        // 也滾動聊天區域
+        const container = document.getElementById('chatMessages');
+        if (container) container.scrollTop = container.scrollHeight;
     }
 
     function _updateProgressCode(text) {
         if (!_progressEl) return;
         const pre = _progressEl.querySelector('#progressCodePre');
         if (!pre) return;
-        // 只顯示最後 18 行，讓底部永遠是最新的
         const lines = text.split('\n');
         pre.textContent = lines.slice(-18).join('\n');
     }
 
     async function sendToAI(prompt) {
-        if (!prompt.trim()) return;
+        if (!prompt.trim() && state.attachments.length === 0) return;
+
+        // 注入附件內容到 prompt
+        const attachCtx = _buildAttachmentContext();
+        const fullPrompt = attachCtx
+            ? attachCtx + '用戶的要求：' + prompt
+            : prompt;
+
+        // 清空附件
+        if (state.attachments.length > 0) {
+            state.attachments = [];
+            _renderAttachments();
+        }
 
         // 並發保護：取消舊請求
         if (state.generating && _abortController) {
@@ -138,17 +218,38 @@ const GameStudio = (() => {
 
         addMessage('user', prompt);
 
-        const token = localStorage.getItem('auth_token');
+        // 收縮歡迎提示（首次發送時觸發動畫）
+        if (!state._welcomeCollapsed) {
+            state._welcomeCollapsed = true;
+            const el = document.getElementById('gsWelcome');
+            if (el) {
+                const details = el.querySelector('.gs-welcome__details');
+                if (details) {
+                    details.style.maxHeight = details.scrollHeight + 'px';
+                    requestAnimationFrame(() => {
+                        el.classList.add('gs-welcome--collapsed');
+                        details.style.maxHeight = '0';
+                    });
+                }
+            }
+        }
+
+        // 使用 AuthModule 獲取 token（復用項目認證基礎設施）
+        const token = typeof AuthModule !== 'undefined'
+            ? AuthModule.getToken()
+            : localStorage.getItem('auth_token');
+
         const history = _buildHistory();
 
         try {
+            // SSE 流式使用原生 fetch（APIClient 不支持 streaming）
             const resp = await fetch('/api/games/ai/stream', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ prompt, history }),
+                body: JSON.stringify({ prompt: fullPrompt, history }),
                 signal: _abortController.signal,
             });
 
@@ -169,15 +270,17 @@ const GameStudio = (() => {
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
+                let currentEventType = '';
                 for (const line of lines) {
                     if (line.startsWith('event: ')) {
-                        // 解析下一行的 data
+                        currentEventType = line.slice(7).trim();
                         continue;
                     }
                     if (line.startsWith('data: ')) {
                         const dataStr = line.slice(6).trim();
                         if (dataStr === '[DONE]') continue;
-                        _handleSSEData(line, lines);
+                        _handleSSEData(dataStr, currentEventType);
+                        currentEventType = '';
                     }
                 }
             }
@@ -196,9 +299,7 @@ const GameStudio = (() => {
         }
     }
 
-    function _handleSSEData(line, allLines) {
-        // 找到對應的 event 類型
-        const dataStr = line.slice(6).trim();
+    function _handleSSEData(dataStr, eventType) {
         try {
             const data = JSON.parse(dataStr);
 
@@ -207,16 +308,22 @@ const GameStudio = (() => {
                 return;
             }
             if (data.content !== undefined) {
-                // chunk event — 更新進度條中的代碼預覽（不再單獨顯示 AI 氣泡）
-                _streamBuffer += data.content;
-                _updateProgressCode(_streamBuffer);
+                if (eventType === 'thinking') {
+                    // thinking event — 推理過程
+                    _thinkingBuffer += data.content;
+                    _updateThinking(_thinkingBuffer);
+                } else {
+                    // chunk event — 代碼生成內容
+                    _streamBuffer += data.content;
+                    _updateProgressCode(_streamBuffer);
+                }
             }
             if (data.html !== undefined) {
                 // code event — 提取到的 HTML，更新預覽
                 setCode(data.html);
             }
             if (data.text !== undefined) {
-                // instructions event — 生成完成，顯示玩法介紹氣泡
+                // instructions event — 生成完成，顯示玩法介紹
                 state._gotInstructions = true;
                 _hideProgress(true);
                 addMessage('assistant', data.text);
@@ -239,13 +346,12 @@ const GameStudio = (() => {
     }
 
     function _buildHistory() {
-        // 只取 user/assistant 消息，跳過 system
         const history = state.messages
             .filter(m => m.role === 'user' || m.role === 'assistant')
             .filter(m => m.content.trim())
-            .slice(-12);  // 最近 6 輪
+            .slice(-12);
 
-        // 如果已有生成代碼，注入為 system 上下文，讓 AI 基於此代碼修改
+        // 如果已有生成代碼，注入為 system 上下文
         if (state.code) {
             return [
                 {
@@ -287,23 +393,23 @@ const GameStudio = (() => {
     // 組件：ChatPanel 渲染
     // ════════════════════════════════════════════════════
 
-    /**
-     * 格式化聊天消息內容：
-     * - 檢測 ```html ... ``` 代碼塊 → 深色背景 + 語法高亮
-     * - 普通文本 → 換行處理
-     */
     function _formatMessageContent(text) {
         if (!text) return '';
-        // 分割代碼塊和普通文本
+
+        // 有 marked + DOMPurify 時使用 markdown 渲染
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            const raw = marked.parse(text, { breaks: true, gfm: true });
+            return DOMPurify.sanitize(raw);
+        }
+
+        // 降級：手動處理代碼塊 + 轉義
         const parts = text.split(/(```[\s\S]*?```)/g);
         return parts.map(part => {
             if (part.startsWith('```')) {
-                // 提取語言和代碼
                 const match = part.match(/^```(\w*)\n?([\s\S]*?)```$/);
                 if (match) {
                     const lang = match[1] || 'html';
                     const code = match[2].trim();
-                    // 用 highlight.js 高亮
                     let highlighted;
                     if (typeof hljs !== 'undefined') {
                         try {
@@ -323,38 +429,39 @@ const GameStudio = (() => {
                     </div>`;
                 }
             }
-            // 普通文本
             return _escapeHtml(part).replace(/\n/g, '<br>');
         }).join('');
     }
 
     function _renderMessages() {
         const container = document.getElementById('chatMessages');
-        container.innerHTML = state.messages.map(m => {
+        container.innerHTML = state.messages.map((m, idx) => {
             const cls = m.role === 'user' ? 'gs-msg--user'
                       : m.role === 'assistant' ? 'gs-msg--ai'
                       : 'gs-msg--system';
             const label = m.role === 'user' ? '你' : m.role === 'assistant' ? 'AI' : '系統';
             const body = _formatMessageContent(m.content);
+
+            // 歡迎消息：首條 system 消息，支持收縮
+            if (idx === 0 && m.role === 'system' && !state.editUUID) {
+                const lines = m.content.split('\n');
+                const title = _escapeHtml(lines[0]);
+                const details = _formatMessageContent(lines.slice(1).join('\n'));
+                const collapsed = state._welcomeCollapsed ? ' gs-welcome--collapsed' : '';
+                return `<div class="gs-msg ${cls} gs-welcome${collapsed}" id="gsWelcome">
+                    <div class="gs-welcome__title">${title}</div>
+                    <div class="gs-welcome__details">${details}</div>
+                </div>`;
+            }
+
             return `<div class="gs-msg ${cls}">
                 <span class="gs-msg__label">${label}</span>
                 <div class="gs-msg__body">${body}</div>
             </div>`;
         }).join('');
-        // 如果正在生成，把進度條氣泡重新掛到末尾（innerHTML 會清掉它）
+        if (_thinkingEl) container.appendChild(_thinkingEl);
         if (_progressEl) container.appendChild(_progressEl);
         container.scrollTop = container.scrollHeight;
-    }
-
-    function _renderLastMessage() {
-        const msgs = document.querySelectorAll('#chatMessages .gs-msg');
-        const last = msgs[msgs.length - 1];
-        if (last) {
-            const body = last.querySelector('.gs-msg__body');
-            const lastMsg = state.messages[state.messages.length - 1];
-            body.innerHTML = _formatMessageContent(lastMsg.content);
-        }
-        document.getElementById('chatMessages').scrollTop = 999999;
     }
 
     // ════════════════════════════════════════════════════
@@ -385,7 +492,6 @@ const GameStudio = (() => {
             return;
         }
 
-        const token = localStorage.getItem('auth_token');
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', desc);
@@ -403,7 +509,7 @@ const GameStudio = (() => {
         const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
         formData.append('tags', JSON.stringify(tags));
 
-        // 可見性（分段按鈕 + 班級選擇）
+        // 可見性
         const visValue = modal.querySelector('.gs-visibility__btn--active')?.dataset.value || 'private';
         formData.append('is_public', (visValue === 'public').toString());
         formData.append('teacher_only', (visValue === 'teacher').toString());
@@ -412,31 +518,19 @@ const GameStudio = (() => {
         formData.append('visible_to', JSON.stringify(visibleTo));
 
         try {
-            const url = state.editUUID ? `/api/games/${state.editUUID}` : '/api/games/upload';
-            const method = state.editUUID ? 'PUT' : 'POST';
-            const headers = { 'Authorization': `Bearer ${token}` };
-
-            let resp;
             if (state.editUUID) {
-                // PUT uses JSON
+                // 編輯模式：PUT JSON
                 const body = { name, description: desc, subject, html_content: state.code };
-                resp = await fetch(url, {
-                    method, headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
+                await APIClient.put(`/api/games/${state.editUUID}`, body);
             } else {
-                resp = await fetch(url, { method, headers, body: formData });
-            }
-
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                throw new Error(err.detail || err.message || '提交失敗');
+                // 新建模式：POST FormData（使用 APIClient.upload）
+                await APIClient.upload('/api/games/upload', formData);
             }
 
             state.dirty = false;
-            window.location.href = '/static/my_games.html';
+            window.location.href = '/my_games';
         } catch (e) {
-            _showModalError(e.message);
+            _showModalError(e.message || '提交失敗');
         }
     }
 
@@ -478,24 +572,19 @@ const GameStudio = (() => {
         if (btn) btn.disabled = !state.code.trim();
     }
 
-    /** 從數據庫加載班級列表並生成 checkbox */
+    /** 從 API 加載班級列表並生成 checkbox */
     async function _generateClassCheckboxes() {
         const container = document.getElementById('classCheckboxes');
         const section = document.getElementById('classSelectSection');
         if (!container || !section) return;
 
         try {
-            const token = localStorage.getItem('auth_token');
-            const resp = await fetch('/api/classroom/classes', {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (!resp.ok) return;
-            const data = await resp.json();
+            // 使用 APIClient 復用認證和錯誤處理
+            const data = await APIClient.get('/api/classroom/classes');
 
-            // API 返回 {success, data: {grades: {"中一": [{class_code, class_name}, ...], ...}}}
             const grades = data.data?.grades || data.grades || {};
             const allClasses = [];
-            for (const [grade, classList] of Object.entries(grades)) {
+            for (const [, classList] of Object.entries(grades)) {
                 for (const cls of classList) {
                     const name = typeof cls === 'string' ? cls : (cls.class_name || cls.class_code || '');
                     if (name) allClasses.push(name);
@@ -503,7 +592,6 @@ const GameStudio = (() => {
             }
 
             if (allClasses.length === 0) {
-                // 數據庫沒有班級，隱藏班級選擇區
                 section.dataset.noClasses = 'true';
                 return;
             }
@@ -521,6 +609,150 @@ const GameStudio = (() => {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // ════════════════════════════════════════════════════
+    // 動態載入學科列表
+    // ════════════════════════════════════════════════════
+
+    async function _loadSubjects() {
+        const select = document.getElementById('modalGameSubject');
+        if (!select) return;
+
+        try {
+            const token = typeof AuthModule !== 'undefined'
+                ? AuthModule.getToken()
+                : localStorage.getItem('auth_token');
+            const resp = await fetch('/api/subjects', {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
+            const data = await resp.json();
+
+            if (data.subjects) {
+                // 保留第一個 placeholder option
+                const placeholder = select.querySelector('option[value=""]');
+                select.innerHTML = '';
+                if (placeholder) select.appendChild(placeholder);
+
+                // 按 code 排序後填充
+                const subjects = Object.values(data.subjects);
+                subjects.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+                for (const s of subjects) {
+                    const opt = document.createElement('option');
+                    opt.value = s.code;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                }
+            }
+        } catch (err) {
+            console.warn('載入學科列表失敗，使用預設列表:', err);
+            // 失敗時保持 HTML 中的靜態選項作為降級
+        }
+    }
+
+    // ════════════════════════════════════════════════════
+    // 附件處理
+    // ════════════════════════════════════════════════════
+
+    const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.png', '.jpg', '.jpeg', '.heic'];
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+    async function handleFileSelect(files) {
+        const token = typeof AuthModule !== 'undefined' ? AuthModule.getToken() : localStorage.getItem('auth_token');
+        for (const file of files) {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                addMessage('system', `不支持的文件格式：${file.name}`);
+                continue;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                addMessage('system', `文件太大（上限 50MB）：${file.name}`);
+                continue;
+            }
+            // Add placeholder chip (processing)
+            const idx = state.attachments.length;
+            state.attachments.push({ filename: file.name, content: '', size: file.size, processing: true });
+            _renderAttachments();
+
+            // Upload & extract text
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const resp = await fetch('/api/process-temp-file', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: fd,
+                });
+                const result = await resp.json();
+                if (result.success && result.data?.content) {
+                    state.attachments[idx].content = result.data.content;
+                    state.attachments[idx].processing = false;
+                } else {
+                    state.attachments[idx].processing = false;
+                    state.attachments[idx].error = true;
+                    addMessage('system', `文件處理失敗：${file.name} — ${result.detail || result.message || '未知錯誤'}`);
+                }
+            } catch (e) {
+                state.attachments[idx].processing = false;
+                state.attachments[idx].error = true;
+                addMessage('system', `文件上傳失敗：${file.name}`);
+            }
+            _renderAttachments();
+        }
+    }
+
+    function removeAttachment(idx) {
+        state.attachments.splice(idx, 1);
+        _renderAttachments();
+    }
+
+    function _renderAttachments() {
+        const container = document.getElementById('chatAttachments');
+        if (!container) return;
+        if (state.attachments.length === 0) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'flex';
+        container.innerHTML = state.attachments.map((a, i) => {
+            const ext = a.filename.split('.').pop().toLowerCase();
+            const typeIcon = ['pdf'].includes(ext) ? 'PDF'
+                : ['doc', 'docx'].includes(ext) ? 'DOC'
+                : ['txt', 'md'].includes(ext) ? 'TXT'
+                : 'IMG';
+            const cls = a.processing ? 'gs-attach-chip--loading'
+                : a.error ? 'gs-attach-chip--error' : '';
+            return `<div class="gs-attach-chip ${cls}">
+                <span class="gs-attach-chip__type">${typeIcon}</span>
+                <span class="gs-attach-chip__name">${_esc(a.filename)}</span>
+                ${a.processing ? '<span class="gs-attach-chip__spinner"></span>' : ''}
+                <button class="gs-attach-chip__remove" onclick="GameStudio.removeAttachment(${i})" title="移除">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>`;
+        }).join('');
+    }
+
+    function _esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function _buildAttachmentContext() {
+        const ready = state.attachments.filter(a => a.content && !a.processing && !a.error);
+        if (ready.length === 0) return '';
+        const MAX_CHARS = 8000;
+        let ctx = '[用戶上傳了以下文件作為參考資料]\n\n';
+        for (const a of ready) {
+            const truncated = a.content.length > MAX_CHARS
+                ? a.content.substring(0, MAX_CHARS) + '\n... (內容過長，已截取前 8000 字)'
+                : a.content;
+            ctx += `=== 文件: ${a.filename} ===\n${truncated}\n===\n\n`;
+        }
+        return ctx;
     }
 
     // ════════════════════════════════════════════════════
@@ -551,6 +783,39 @@ const GameStudio = (() => {
             }
         });
 
+        // 附件：按鈕點擊
+        const attachBtn = document.getElementById('chatAttachBtn');
+        const fileInput = document.getElementById('chatFileInput');
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(Array.from(e.target.files));
+                    fileInput.value = '';
+                }
+            });
+        }
+
+        // 附件：拖拽到輸入區域
+        const inputWrap = document.querySelector('.gs-chat__input-wrap');
+        if (inputWrap) {
+            inputWrap.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                inputWrap.classList.add('gs-chat__input-wrap--dragover');
+            });
+            inputWrap.addEventListener('dragleave', (e) => {
+                if (!inputWrap.contains(e.relatedTarget)) {
+                    inputWrap.classList.remove('gs-chat__input-wrap--dragover');
+                }
+            });
+            inputWrap.addEventListener('drop', (e) => {
+                e.preventDefault();
+                inputWrap.classList.remove('gs-chat__input-wrap--dragover');
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) handleFileSelect(files);
+            });
+        }
+
         // 代碼編輯器 → debounce 預覽
         const codeEditor = document.getElementById('codeEditor');
         let debounceTimer;
@@ -565,6 +830,9 @@ const GameStudio = (() => {
         document.getElementById('applyBtn')?.addEventListener('click', openUploadModal);
         document.getElementById('modalCancelBtn')?.addEventListener('click', closeUploadModal);
         document.getElementById('modalSubmitBtn')?.addEventListener('click', submitGame);
+
+        // 動態載入學科列表
+        _loadSubjects();
 
         // Icon 選擇器
         document.querySelectorAll('#uploadModal .icon-option').forEach(opt => {
@@ -589,14 +857,13 @@ const GameStudio = (() => {
                 if (!btn) return;
                 visControl.querySelectorAll('.gs-visibility__btn').forEach(b => b.classList.remove('gs-visibility__btn--active'));
                 btn.classList.add('gs-visibility__btn--active');
+                visControl.dataset.activeIndex = btn.dataset.index || '0';
                 if (visHint) visHint.textContent = VIS_HINTS[btn.dataset.value] || '';
-                // 公開時顯示班級選擇（僅數據庫有班級時）
                 if (classSection && classSection.dataset.noClasses !== 'true') {
                     classSection.style.display = btn.dataset.value === 'public' ? 'block' : 'none';
                 }
             });
         }
-        // 生成班級 checkbox（中一到中六 × A-D）
         _generateClassCheckboxes();
 
         // Dirty check — 離開提示
@@ -607,13 +874,25 @@ const GameStudio = (() => {
             }
         });
 
-        // 編輯模式
+        // 編輯模式（URL 參數 ?edit=UUID）
         const params = new URLSearchParams(window.location.search);
         const editUUID = params.get('edit');
         if (editUUID) {
             _loadEditMode(editUUID);
         } else {
-            addMessage('system', '歡迎使用遊戲工作室！描述你想做的教育遊戲，AI 會幫你生成。');
+            addMessage('system', `歡迎使用遊戲工作室！描述你想做的教育遊戲，AI 會幫你生成。
+
+你可以這樣描述：
+• 「做一個中二數學分數運算的答題遊戲，10 題限時 5 分鐘」
+• 「幫我做一個英文生字記憶配對遊戲，詞彙範圍是 apple, banana, orange...」
+• 「做一個化學元素週期表的互動探索遊戲，不需要計分」
+• 「做一個中文成語填空闖關遊戲，成語包括守株待兔、畫蛇添足...，3 關難度遞增」
+
+小提示：
+• 說明學科和年級，AI 會生成對應難度的內容
+• 如果涉及特定詞彙或知識點，請直接列出來或說明範圍
+• 說明遊戲類型（答題 / 配對 / 闖關 / 模擬），AI 會自動決定是否加入計分和排行榜
+• 想要計分？直接說「要記分」；不需要？說「不用計分」`);
         }
     }
 
@@ -622,15 +901,16 @@ const GameStudio = (() => {
         addMessage('system', '正在加載現有遊戲...');
 
         try {
-            const token = localStorage.getItem('auth_token');
-            const headers = { 'Authorization': `Bearer ${token}` };
-
-            // 加載遊戲元信息
-            const infoResp = await fetch(`/api/games/${uuid}`, { headers });
-            const info = await infoResp.json();
+            // 使用 APIClient 加載遊戲信息（復用認證 + 錯誤處理）
+            const info = await APIClient.get(`/api/games/${uuid}`);
 
             // 加載 HTML 代碼
-            const codeResp = await fetch(`/uploaded_games/${uuid}?raw=1`, { headers });
+            const token = typeof AuthModule !== 'undefined'
+                ? AuthModule.getToken()
+                : localStorage.getItem('auth_token');
+            const codeResp = await fetch(`/uploaded_games/${uuid}?raw=1`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
             const html = await codeResp.text();
 
             state.originalCode = html;
@@ -638,7 +918,7 @@ const GameStudio = (() => {
 
             // 預填 Modal
             const modal = document.getElementById('uploadModal');
-            const game = info.game || info;
+            const game = info.data || info.game || info;
             if (modal.querySelector('#modalGameName')) modal.querySelector('#modalGameName').value = game.name || '';
             if (modal.querySelector('#modalGameDesc')) modal.querySelector('#modalGameDesc').value = game.description || '';
             if (modal.querySelector('#modalGameSubject')) modal.querySelector('#modalGameSubject').value = game.subject || '';
@@ -664,6 +944,7 @@ const GameStudio = (() => {
         openUploadModal,
         closeUploadModal,
         submitGame,
+        removeAttachment,
         get state() { return state; },
     };
 })();

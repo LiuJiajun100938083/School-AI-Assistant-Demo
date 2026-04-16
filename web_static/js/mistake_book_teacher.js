@@ -4,18 +4,34 @@
  * 架構：
  *   TeacherApp  — 全局狀態管理與導航
  *   TeacherAPI  — 後端 API 封裝
- *   TeacherUI   — DOM 渲染工具
- *   ClassView   — 班級概況視圖
+ *   TeacherUI   — DOM 渲染工具（SVG 圖標，無 emoji）
+ *   ClassView   — 班級概況視圖（雙欄 Dashboard）
  *   StudentView — 學生詳情視圖
- *
- * 代碼規範：
- *   - 嚴格模組分離，避免全局污染
- *   - 所有 DOM 操作集中在渲染層
- *   - 所有 API 調用集中在 API 層
- *   - 使用 i18n 國際化
  */
 
 'use strict';
+
+/* ============================================================
+   SVG Icon 庫 — 取代所有 emoji
+   ============================================================ */
+const Icons = {
+    chart:     '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-2-2-4 4"/></svg>',
+    lock:      '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    user:      '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>',
+    users:     '<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="8" r="2"/><path d="M21 21v-1.5a3 3 0 0 0-2-2.83"/></svg>',
+    alert:     '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    target:    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+    inbox:     '<svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+    search:    '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    arrowLeft: '<svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+    chevRight: '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+    bulb:      '<svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>',
+    clipboard: '<svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+    crosshair: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+    file:      '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    trendDown: '<svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>',
+    trendUp:   '<svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+};
 
 
 /* ============================================================
@@ -32,7 +48,7 @@ const TeacherApp = {
         classReport: null,
         studentDetail: null,
         classes: [],
-        subjects: [],  // 動態從 API 加載
+        subjects: [],
     },
 
     async init() {
@@ -50,12 +66,9 @@ const TeacherApp = {
             return;
         }
 
-        // 權限檢查：僅教師和管理員可用
         const role = this.state.user?.role || '';
         if (role !== 'teacher' && role !== 'admin') {
-            document.getElementById('mainContent').innerHTML = TeacherUI.empty(
-                '🔒', i18n.t('mbt.accessDenied')
-            );
+            document.getElementById('mainContent').innerHTML = TeacherUI.empty('lock', i18n.t('mbt.accessDenied'));
             return;
         }
 
@@ -77,13 +90,13 @@ const TeacherApp = {
             if (this.state.classReport) {
                 ClassView.render(main, this.state.classReport);
             } else {
-                main.innerHTML = TeacherUI.empty('📊', i18n.t('mbt.selectPrompt'));
+                main.innerHTML = TeacherUI.empty('chart', i18n.t('mbt.selectPrompt'));
             }
         } else if (tab === 'student-detail') {
             if (this.state.studentDetail) {
                 StudentView.render(main, this.state.studentDetail);
             } else {
-                main.innerHTML = TeacherUI.empty('👤', i18n.t('mbt.studentPrompt'));
+                main.innerHTML = TeacherUI.empty('user', i18n.t('mbt.studentPrompt'));
             }
         }
     },
@@ -108,7 +121,7 @@ const TeacherApp = {
             this.state.classReport = res.data;
             this.switchTab('class-report');
         } else {
-            main.innerHTML = TeacherUI.empty('❌', i18n.t('mbt.loadFailed'));
+            main.innerHTML = TeacherUI.empty('alert', i18n.t('mbt.loadFailed'));
         }
     },
 
@@ -122,14 +135,14 @@ const TeacherApp = {
             this.state.studentDetail = { username, ...res.data };
             this.switchTab('student-detail');
         } else {
-            main.innerHTML = TeacherUI.empty('❌', i18n.t('mbt.loadStudentFailed'));
+            main.innerHTML = TeacherUI.empty('alert', i18n.t('mbt.loadStudentFailed'));
         }
     },
 
     async _loadClasses() {
         const res = await TeacherAPI.getClasses();
-        if (res && res.data) {
-            const classes = res.data;
+        if (res && res.classes) {
+            const classes = res.classes;
             this.state.classes = classes;
 
             const select = document.getElementById('classSelect');
@@ -157,7 +170,6 @@ const TeacherApp = {
             });
             this.state.selectedSubject = res.data[0].subject_code;
         } else {
-            // 降級
             [{ code: 'chinese', name: i18n.t('mbt.subjectChinese') }, { code: 'math', name: i18n.t('mbt.subjectMath') }, { code: 'english', name: i18n.t('mbt.subjectEnglish') }].forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.code;
@@ -169,7 +181,6 @@ const TeacherApp = {
     },
 
     _bindEvents() {
-        // 標籤切換
         document.getElementById('tabsBar').addEventListener('click', e => {
             const item = e.target.closest('.mbt-tabs__item');
             if (item) this.switchTab(item.dataset.tab);
@@ -220,7 +231,7 @@ const TeacherAPI = {
     },
 
     async getClasses() {
-        return this._fetch('/api/users/classes');
+        return this._fetch('/api/teacher/classes');
     },
 
     async getClassReport(className, subject) {
@@ -236,7 +247,7 @@ const TeacherAPI = {
 
 
 /* ============================================================
-   TeacherUI — DOM 工具函數
+   TeacherUI — DOM 工具函數（SVG 圖標，無 emoji）
    ============================================================ */
 
 const TeacherUI = {
@@ -244,8 +255,9 @@ const TeacherUI = {
         return `<div class="mb-loading"><div class="mb-loading__spinner"></div>${i18n.t('mbt.loading')}</div>`;
     },
 
-    empty(icon, text) {
-        return `<div class="mb-empty"><div class="mb-empty__icon">${icon}</div><div class="mb-empty__text">${text}</div></div>`;
+    empty(iconName, text) {
+        const svg = Icons[iconName] || Icons.inbox;
+        return `<div class="mbt-empty"><div class="mbt-empty__icon">${svg}</div><div class="mbt-empty__text">${text}</div></div>`;
     },
 
     toast(message, type = 'info') {
@@ -286,7 +298,7 @@ const TeacherUI = {
 
 
 /* ============================================================
-   ClassView — 班級概況視圖
+   ClassView — 班級概況視圖（全寬雙欄 Dashboard）
    ============================================================ */
 
 const ClassView = {
@@ -305,70 +317,84 @@ const ClassView = {
 
         let html = '';
 
-        // 概覽統計卡片
+        // 統計卡片行
         html += `
-            <div class="mbt-report-grid">
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.classSize')}</div>
-                    <div class="mbt-report-card__value">${totalStudents}</div>
-                    <div class="mbt-report-card__sub">${className}</div>
+            <div class="mbt-stats">
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.classSize')}</div>
+                    <div class="mbt-stat-card__value">${totalStudents}</div>
+                    <div class="mbt-stat-card__sub">${TeacherUI.escapeHtml(className)}</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.avgMastery')}</div>
-                    <div class="mbt-report-card__value" style="color:${TeacherUI.masteryColor(avgMastery)}">${Math.round(avgMastery)}%</div>
-                    <div class="mbt-report-card__sub">${TeacherUI.subjectLabel(subject)}</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.avgMastery')}</div>
+                    <div class="mbt-stat-card__value" style="color:${TeacherUI.masteryColor(avgMastery)}">${Math.round(avgMastery)}%</div>
+                    <div class="mbt-stat-card__sub">${TeacherUI.subjectLabel(subject)}</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.totalMistakes')}</div>
-                    <div class="mbt-report-card__value">${totalMistakes}</div>
-                    <div class="mbt-report-card__sub">${i18n.t('mbt.classTotal')}</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.totalMistakes')}</div>
+                    <div class="mbt-stat-card__value">${totalMistakes}</div>
+                    <div class="mbt-stat-card__sub">${i18n.t('mbt.classTotal')}</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.atRisk')}</div>
-                    <div class="mbt-report-card__value ${atRiskCount > 0 ? 'mbt-report-card__value--danger' : 'mbt-report-card__value--success'}">${atRiskCount}</div>
-                    <div class="mbt-report-card__sub">${i18n.t('mbt.atRiskThreshold')}</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.atRisk')}</div>
+                    <div class="mbt-stat-card__value ${atRiskCount > 0 ? 'mbt-stat-card__value--danger' : 'mbt-stat-card__value--success'}">${atRiskCount}</div>
+                    <div class="mbt-stat-card__sub">${i18n.t('mbt.atRiskThreshold')}</div>
                 </div>
             </div>
         `;
 
-        // 班級共同薄弱知識點
-        if (weakPoints.length) {
-            html += `<div class="mbt-section-title">${i18n.t('mbt.commonWeakPoints')}</div>`;
-            html += '<div class="mbt-weakness-list">';
+        // 雙欄：弱點 + 學生
+        html += '<div class="mbt-columns">';
 
+        // 左欄：薄弱知識點
+        html += '<div class="mbt-panel">';
+        html += `
+            <div class="mbt-panel__header">
+                <div class="mbt-panel__title">${Icons.target} ${i18n.t('mbt.commonWeakPoints')}</div>
+                ${weakPoints.length ? `<span class="mbt-panel__count">${weakPoints.length}</span>` : ''}
+            </div>
+        `;
+        html += '<div class="mbt-panel__body">';
+
+        if (weakPoints.length) {
             weakPoints.slice(0, 10).forEach((wp, i) => {
-                const rankClass = i < 3 ? 'mbt-weakness-item__rank--top3' : '';
+                const rankClass = i < 3 ? 'mbt-weak-row__rank--top' : '';
+                const mastery = Math.round(wp.avg_mastery || 0);
                 html += `
-                    <div class="mbt-weakness-item">
-                        <div class="mbt-weakness-item__rank ${rankClass}">${i + 1}</div>
-                        <div class="mbt-weakness-item__info">
-                            <div class="mbt-weakness-item__name">${TeacherUI.escapeHtml(wp.point_name)}</div>
-                            <div class="mbt-weakness-item__stats">
-                                ${i18n.t('mbt.studentsAffected', {count: wp.affected_students || 0, total: wp.total_mistakes || 0})}
+                    <div class="mbt-weak-row">
+                        <div class="mbt-weak-row__rank ${rankClass}">${i + 1}</div>
+                        <div class="mbt-weak-row__info">
+                            <div class="mbt-weak-row__name">${TeacherUI.escapeHtml(wp.point_name)}</div>
+                            <div class="mbt-weak-row__meta">
+                                ${i18n.t('mbt.studentsAffected', {count: wp.affected_students || wp.student_count || 0, total: wp.total_mistakes || 0})}
                             </div>
                         </div>
-                        <div class="mbt-weakness-item__bar">
-                            <div style="font-size:12px;text-align:right;margin-bottom:2px;color:${TeacherUI.masteryColor(wp.avg_mastery || 0)}">
-                                ${Math.round(wp.avg_mastery || 0)}%
-                            </div>
-                            <div class="mb-mastery-bar">
-                                <div class="mb-mastery-bar__fill mb-mastery-bar__fill--${TeacherUI.masteryClass(wp.avg_mastery || 0)}"
-                                     style="width:${wp.avg_mastery || 0}%"></div>
+                        <div class="mbt-weak-row__bar-wrap">
+                            <div class="mbt-weak-row__pct" style="color:${TeacherUI.masteryColor(mastery)}">${mastery}%</div>
+                            <div class="mbt-weak-row__bar">
+                                <div class="mbt-weak-row__bar-fill" style="width:${mastery}%;background:${TeacherUI.masteryColor(mastery)}"></div>
                             </div>
                         </div>
                     </div>
                 `;
             });
-
-            html += '</div>';
+        } else {
+            html += TeacherUI.empty('inbox', i18n.t('mbt.noWeakPoints'));
         }
 
-        // 學生列表
-        if (students.length) {
-            html += `<div class="mbt-section-title">${i18n.t('mbt.studentList')}</div>`;
-            html += '<div class="mbt-student-list">';
+        html += '</div></div>';
 
-            // 按掌握度升序排列（薄弱學生在前）
+        // 右欄：學生列表
+        html += '<div class="mbt-panel">';
+        html += `
+            <div class="mbt-panel__header">
+                <div class="mbt-panel__title">${Icons.users} ${i18n.t('mbt.studentList')}</div>
+                ${students.length ? `<span class="mbt-panel__count">${students.length}</span>` : ''}
+            </div>
+        `;
+        html += '<div class="mbt-panel__body">';
+
+        if (students.length) {
             const sorted = [...students].sort((a, b) =>
                 (a.avg_mastery || 0) - (b.avg_mastery || 0)
             );
@@ -376,28 +402,28 @@ const ClassView = {
             sorted.forEach(s => {
                 const mastery = Math.round(s.avg_mastery || 0);
                 html += `
-                    <div class="mbt-student-item" onclick="TeacherApp.viewStudent('${TeacherUI.escapeHtml(s.username)}')">
-                        <div class="mbt-student-item__avatar">${TeacherUI.avatarLetter(s.display_name || s.username)}</div>
-                        <div class="mbt-student-item__info">
-                            <div class="mbt-student-item__name">${TeacherUI.escapeHtml(s.display_name || s.username)}</div>
-                            <div class="mbt-student-item__meta">
+                    <div class="mbt-stu-row" onclick="TeacherApp.viewStudent('${TeacherUI.escapeHtml(s.username)}')">
+                        <div class="mbt-stu-row__avatar">${TeacherUI.avatarLetter(s.display_name || s.username)}</div>
+                        <div class="mbt-stu-row__info">
+                            <div class="mbt-stu-row__name">${TeacherUI.escapeHtml(s.display_name || s.username)}</div>
+                            <div class="mbt-stu-row__meta">
                                 ${i18n.t('mbt.mistakes', {count: s.mistake_count || 0, review: s.review_count || 0})}
                             </div>
                         </div>
-                        <div class="mbt-student-item__mastery">
-                            <div class="mbt-student-item__mastery-value" style="color:${TeacherUI.masteryColor(mastery)}">
-                                ${mastery}%
-                            </div>
-                            <div class="mbt-student-item__mastery-label">${i18n.t('mbt.masteryLabel')}</div>
+                        <div class="mbt-stu-row__mastery">
+                            <div class="mbt-stu-row__mastery-value" style="color:${TeacherUI.masteryColor(mastery)}">${mastery}%</div>
+                            <div class="mbt-stu-row__mastery-label">${i18n.t('mbt.masteryLabel')}</div>
                         </div>
+                        <div class="mbt-stu-row__arrow">${Icons.chevRight}</div>
                     </div>
                 `;
             });
-
-            html += '</div>';
-        } else if (!weakPoints.length) {
-            html += TeacherUI.empty('📭', i18n.t('mbt.noData'));
+        } else {
+            html += TeacherUI.empty('users', i18n.t('mbt.noStudents'));
         }
+
+        html += '</div></div>';
+        html += '</div>'; // close mbt-columns
 
         container.innerHTML = html;
     },
@@ -420,24 +446,24 @@ const StudentView = {
         // 返回按鈕
         html += `
             <div class="mbt-detail-back" onclick="TeacherApp.switchTab('class-report')">
-                ${i18n.t('mbt.backToClass')}
+                ${Icons.arrowLeft} ${i18n.t('mbt.backToClass')}
             </div>
         `;
 
         // 學生頭部
         html += `
-            <div class="mbt-student-header">
-                <div class="mbt-student-header__avatar">${TeacherUI.avatarLetter(displayName)}</div>
+            <div class="mbt-student-banner">
+                <div class="mbt-student-banner__avatar">${TeacherUI.avatarLetter(displayName)}</div>
                 <div>
-                    <div class="mbt-student-header__name">${TeacherUI.escapeHtml(displayName)}</div>
-                    <div class="mbt-student-header__class">
+                    <div class="mbt-student-banner__name">${TeacherUI.escapeHtml(displayName)}</div>
+                    <div class="mbt-student-banner__class">
                         ${TeacherUI.escapeHtml(overview.class_name || '')} · ${TeacherUI.subjectLabel(subject)}
                     </div>
                 </div>
             </div>
         `;
 
-        // 統計概覽
+        // 統計卡片
         const stats = overview.subject_stats || {};
         const subjectStat = stats[subject] || {};
         const totalMistakes = subjectStat.total_mistakes || overview.total_mistakes || 0;
@@ -446,22 +472,22 @@ const StudentView = {
         const masteredCount = subjectStat.mastered_count || overview.mastered_count || 0;
 
         html += `
-            <div class="mbt-report-grid">
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.mistakeCount')}</div>
-                    <div class="mbt-report-card__value">${totalMistakes}</div>
+            <div class="mbt-stats">
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.mistakeCount')}</div>
+                    <div class="mbt-stat-card__value">${totalMistakes}</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.masteryLabel')}</div>
-                    <div class="mbt-report-card__value" style="color:${TeacherUI.masteryColor(avgMastery)}">${avgMastery}%</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.masteryLabel')}</div>
+                    <div class="mbt-stat-card__value" style="color:${TeacherUI.masteryColor(avgMastery)}">${avgMastery}%</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.reviewCount')}</div>
-                    <div class="mbt-report-card__value">${reviewCount}</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.reviewCount')}</div>
+                    <div class="mbt-stat-card__value">${reviewCount}</div>
                 </div>
-                <div class="mbt-report-card">
-                    <div class="mbt-report-card__title">${i18n.t('mbt.masteredCount')}</div>
-                    <div class="mbt-report-card__value mbt-report-card__value--success">${masteredCount}</div>
+                <div class="mbt-stat-card">
+                    <div class="mbt-stat-card__label">${i18n.t('mbt.masteredCount')}</div>
+                    <div class="mbt-stat-card__value mbt-stat-card__value--success">${masteredCount}</div>
                 </div>
             </div>
         `;
@@ -471,27 +497,23 @@ const StudentView = {
         if (weakness) {
             if (weakness.ai_summary) {
                 html += `
-                    <div style="padding:0 16px">
-                        <div class="mb-detail-section">
-                            <div class="mb-detail-section__title">${i18n.t('mbt.aiSummary')}</div>
-                            <div class="mb-detail-section__body">${TeacherUI.escapeHtml(weakness.ai_summary)}</div>
-                            ${weakness.encouragement ? `<div style="margin-top:8px;font-style:italic;color:var(--mb-primary)">${TeacherUI.escapeHtml(weakness.encouragement)}</div>` : ''}
-                        </div>
+                    <div class="mbt-insight">
+                        <div class="mbt-insight__title">${Icons.bulb} ${i18n.t('mbt.aiSummary')}</div>
+                        <div class="mbt-insight__body">${TeacherUI.escapeHtml(weakness.ai_summary)}</div>
+                        ${weakness.encouragement ? `<div class="mbt-insight__encouragement">${TeacherUI.escapeHtml(weakness.encouragement)}</div>` : ''}
                     </div>
                 `;
             }
 
             if (weakness.recommendations && weakness.recommendations.length) {
                 html += `
-                    <div style="padding:0 16px">
-                        <div class="mb-detail-section">
-                            <div class="mb-detail-section__title">${i18n.t('mbt.teachingSuggestions')}</div>
-                            <div class="mb-detail-section__body">
-                                ${weakness.recommendations.map(r =>
-                                    `<div style="padding:4px 0">• ${TeacherUI.escapeHtml(r)}</div>`
-                                ).join('')}
-                            </div>
-                        </div>
+                    <div class="mbt-insight">
+                        <div class="mbt-insight__title">${Icons.clipboard} ${i18n.t('mbt.teachingSuggestions')}</div>
+                        <ul class="mbt-insight__list">
+                            ${weakness.recommendations.map(r =>
+                                `<li>${TeacherUI.escapeHtml(r)}</li>`
+                            ).join('')}
+                        </ul>
                     </div>
                 `;
             }
@@ -499,44 +521,44 @@ const StudentView = {
             // 薄弱知識點
             const weakPoints = weakness.weak_points || [];
             if (weakPoints.length) {
-                html += `<div class="mbt-section-title">${i18n.t('mbt.weakPoints')}</div>`;
-                html += '<div class="mbt-weakness-list">';
+                html += `<div class="mbt-section-heading">${Icons.crosshair} ${i18n.t('mbt.weakPoints')}</div>`;
+                html += '<div class="mbt-panel"><div class="mbt-panel__body">';
 
                 weakPoints.slice(0, 10).forEach((wp, i) => {
-                    const rankClass = i < 3 ? 'mbt-weakness-item__rank--top3' : '';
+                    const rankClass = i < 3 ? 'mbt-weak-row__rank--top' : '';
+                    const mastery = Math.round(wp.mastery_level || 0);
+                    let trendHtml = '';
+                    if (wp.trend === 'declining') trendHtml = ` · ${i18n.t('mbt.trendDecline')}`;
+                    if (wp.trend === 'improving') trendHtml = ` · ${i18n.t('mbt.trendImprove')}`;
+
                     html += `
-                        <div class="mbt-weakness-item">
-                            <div class="mbt-weakness-item__rank ${rankClass}">${i + 1}</div>
-                            <div class="mbt-weakness-item__info">
-                                <div class="mbt-weakness-item__name">${TeacherUI.escapeHtml(wp.point_name)}</div>
-                                <div class="mbt-weakness-item__stats">
-                                    ${i18n.t('mbt.mistakeN', {count: wp.mistake_count || 0})}
-                                    ${wp.trend === 'declining' ? i18n.t('mbt.trendDecline') : ''}
-                                    ${wp.trend === 'improving' ? i18n.t('mbt.trendImprove') : ''}
+                        <div class="mbt-weak-row">
+                            <div class="mbt-weak-row__rank ${rankClass}">${i + 1}</div>
+                            <div class="mbt-weak-row__info">
+                                <div class="mbt-weak-row__name">${TeacherUI.escapeHtml(wp.point_name)}</div>
+                                <div class="mbt-weak-row__meta">
+                                    ${i18n.t('mbt.mistakeN', {count: wp.mistake_count || 0})}${trendHtml}
                                 </div>
                             </div>
-                            <div class="mbt-weakness-item__bar">
-                                <div style="font-size:12px;text-align:right;margin-bottom:2px;color:${TeacherUI.masteryColor(wp.mastery_level || 0)}">
-                                    ${Math.round(wp.mastery_level || 0)}%
-                                </div>
-                                <div class="mb-mastery-bar">
-                                    <div class="mb-mastery-bar__fill mb-mastery-bar__fill--${TeacherUI.masteryClass(wp.mastery_level || 0)}"
-                                         style="width:${wp.mastery_level || 0}%"></div>
+                            <div class="mbt-weak-row__bar-wrap">
+                                <div class="mbt-weak-row__pct" style="color:${TeacherUI.masteryColor(mastery)}">${mastery}%</div>
+                                <div class="mbt-weak-row__bar">
+                                    <div class="mbt-weak-row__bar-fill" style="width:${mastery}%;background:${TeacherUI.masteryColor(mastery)}"></div>
                                 </div>
                             </div>
                         </div>
                     `;
                 });
 
-                html += '</div>';
+                html += '</div></div>';
             }
         }
 
         // 錯題列表
         const mistakes = overview.recent_mistakes || [];
         if (mistakes.length) {
-            html += `<div class="mbt-section-title">${i18n.t('mbt.recentMistakes')}</div>`;
-            html += '<div style="padding:0 16px 16px">';
+            html += `<div class="mbt-section-heading" style="margin-top:24px">${Icons.file} ${i18n.t('mbt.recentMistakes')}</div>`;
+            html += '<div class="mbt-mistakes-grid">';
 
             mistakes.forEach(m => {
                 const question = m.manual_question_text || m.ocr_question_text || i18n.t('mb.unrecognized');

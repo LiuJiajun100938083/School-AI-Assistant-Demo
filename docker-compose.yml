@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pkms-ai-buddy
+    restart: unless-stopped
+    init: true                          # proper signal forwarding & zombie reaping
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env.docker
+    volumes:
+      # ── Source code (git pull 后立刻生效，无需 rebuild) ──
+      - ./app:/app/app:ro
+      - ./llm:/app/llm:ro
+      - ./forum_system:/app/forum_system:ro
+      - ./web_static:/app/web_static:ro
+      - ./data:/app/data:ro
+      # uploaded_games 需要運行時寫入（教師上傳遊戲），覆蓋父層 ro
+      - ./web_static/uploaded_games:/app/web_static/uploaded_games
+      # ── Persistent data directories ──
+      - ./attendance_exports:/app/attendance_exports
+      - ./uploads:/app/uploads
+      - ./Knowledge_base:/app/Knowledge_base
+      - ./vector_db:/app/vector_db
+      - ./user_data:/app/user_data
+      - ./logs:/app/logs
+      - ./user_backups:/app/user_backups
+      - ./security_backups:/app/security_backups
+      # ── HuggingFace model cache (avoid re-download on rebuild) ──
+      - hf_cache:/app/.cache/huggingface
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - TZ=Asia/Hong_Kong
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+
+volumes:
+  hf_cache:
