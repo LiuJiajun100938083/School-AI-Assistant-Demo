@@ -22,9 +22,20 @@ i18n.addMessages({
         'lta.formPriority': '優先級',
         'lta.formDeadline': '截止日期',
         'lta.formSubItems': '子項',
-        'lta.addSubItem': '➕ 添加子項',
+        'lta.addSubItem': '添加子項',
         'lta.saveDraft': '保存草稿',
         'lta.update': '更新',
+
+        // --- Section headers (redesign) ---
+        'lta.sectionBasic': '基本資訊',
+        'lta.sectionBasicHint': '任務的標題與簡介，學生在任務列表中最先看到。',
+        'lta.sectionMeta': '任務設定',
+        'lta.sectionMetaHint': '分類、優先級與截止日期，影響學生任務列表的排序與顯示。',
+        'lta.sectionItems': '任務項目',
+        'lta.sectionItemsHint': '每個項目可附上檔案或連結，學生需逐項打卡完成。',
+        'lta.emptyItems': '尚未添加任何項目',
+        'lta.emptyItemsHint': '點擊「添加子項」加入連結、文檔或影片，組成完整任務。',
+        'lta.footerHint': '保存為草稿後可在「任務列表」中編輯與發布。',
 
         // --- 分類選項 ---
         'lta.catGeneral': '普通',
@@ -160,9 +171,20 @@ i18n.addMessages({
         'lta.formPriority': 'Priority',
         'lta.formDeadline': 'Deadline',
         'lta.formSubItems': 'Sub-items',
-        'lta.addSubItem': '➕ Add Sub-item',
+        'lta.addSubItem': 'Add Sub-item',
         'lta.saveDraft': 'Save Draft',
         'lta.update': 'Update',
+
+        // --- Section headers (redesign) ---
+        'lta.sectionBasic': 'Basic Info',
+        'lta.sectionBasicHint': 'Title and short description shown first in student task list.',
+        'lta.sectionMeta': 'Task Settings',
+        'lta.sectionMetaHint': 'Category, priority and deadline affect sorting and display.',
+        'lta.sectionItems': 'Task Items',
+        'lta.sectionItemsHint': 'Each item can include a link or file; students check off one by one.',
+        'lta.emptyItems': 'No items yet',
+        'lta.emptyItemsHint': 'Click "Add Sub-item" to add links, documents or videos.',
+        'lta.footerHint': 'Saving creates a draft — edit and publish later from the task list.',
 
         // --- Category Options ---
         'lta.catGeneral': 'General',

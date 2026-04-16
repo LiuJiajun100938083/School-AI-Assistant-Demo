@@ -417,6 +417,10 @@ const TaskAdminApp = {
         document.querySelector(`.tab-button[data-tab="${tabName}"]`)?.classList.add('active');
         this.state.currentTab = tabName;
 
+        // Sticky action footer：僅「創建任務」顯示
+        const footer = document.getElementById('actionFooter');
+        if (footer) footer.classList.toggle('hidden', tabName !== 'create');
+
         if (tabName === 'list') this._loadTaskList();
         else if (tabName === 'publish') { this._loadPublishTasks(); this._loadTargets(); }
         else if (tabName === 'stats') this._loadStatsTasks();
